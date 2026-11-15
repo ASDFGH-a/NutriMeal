@@ -810,12 +810,12 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   <aside class="sidebar">
     <div class="brand"><div class="brand-mark">п.</div><div><div class="brand-name">Питание</div><div class="brand-sub">личный трекер</div></div></div>
     <div><div class="nav-label">Рабочее пространство</div><nav class="nav" id="nav">
-      <button class="nav-btn active" data-page="diary"><span class="nav-ico">▦</span>Дневник</button>
-      <button class="nav-btn" data-page="recipes"><span class="nav-ico">▤</span>Рецепты</button>
-      <button class="nav-btn" data-page="planning"><span class="nav-ico">▦</span>Планирование</button>
-      <button class="nav-btn" data-page="stats"><span class="nav-ico">⌁</span>Статистика</button>
-      <button class="nav-btn" data-page="profile"><span class="nav-ico">○</span>Профиль</button>
-      <button class="nav-btn" data-page="settings"><span class="nav-ico">⚙</span>Настройки</button>
+      <button class="nav-btn active" data-page="diary" data-label="Дневник"><span class="nav-ico">▦</span>Дневник</button>
+      <button class="nav-btn" data-page="recipes" data-label="Рецепты"><span class="nav-ico">▤</span>Рецепты</button>
+      <button class="nav-btn" data-page="planning" data-label="Планирование"><span class="nav-ico">▦</span>Планирование</button>
+      <button class="nav-btn" data-page="stats" data-label="Статистика"><span class="nav-ico">⌁</span>Статистика</button>
+      <button class="nav-btn" data-page="profile" data-label="Профиль"><span class="nav-ico">○</span>Профиль</button>
+      <button class="nav-btn" data-page="settings" data-label="Настройки"><span class="nav-ico">⚙</span>Настройки</button>
     </nav></div>
     <div class="sidebar-bottom">
       <div class="muted-box">Локальный прототип интерфейса. Данные демонстрационные.</div>
@@ -1147,9 +1147,80 @@ let measurementHistory=readStoredArray(MEASUREMENT_HISTORY_STORAGE_KEY)
  .map(record=>({date:record.date,values:{...record.values}}))
  .sort((a,b)=>b.date.localeCompare(a.date));
 if(weightHistory.length){profile.currentWeight=weightHistory[0].weight;saveProfileData()}
+/* ================= i18n: многоязычный интерфейс (RU / EN / ES / FR) ================= */
+const I18N_LOCALES={ru:'Русский',en:'English',es:'Español',fr:'Français'};
+const I18N_MONTHS={
+ ru:['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'],
+ en:['January','February','March','April','May','June','July','August','September','October','November','December'],
+ es:['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'],
+ fr:['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']};
+const I18N_WEEKDAYS_SHORT={ru:['Пн','Вт','Ср','Чт','Пт','Сб','Вс'],en:['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],es:['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'],fr:['Lun','Mar','Mer','Jeu','Ven','Sam','Dim']};
+const I18N_MEALS={
+ 'Завтрак':{en:'Breakfast',es:'Desayuno',fr:'Petit-déjeuner'},
+ 'Второй завтрак':{en:'Second breakfast',es:'Segundo desayuno',fr:'Deuxième petit-déjeuner'},
+ 'Обед':{en:'Lunch',es:'Comida',fr:'Déjeuner'},
+ 'Полдник':{en:'Afternoon snack',es:'Merienda',fr:'Collation'},
+ 'Ужин':{en:'Dinner',es:'Cena',fr:'Dîner'},
+ 'Поздний ужин':{en:'Late dinner',es:'Cena tardía',fr:'Dîner tardif'},
+ 'Перекус':{en:'Snack',es:'Picoteo',fr:'En-cas'}};
+let appLocale='ru';
+try{const savedLocale=localStorage.getItem('nutrition-locale');if(I18N_LOCALES[savedLocale])appLocale=savedLocale}catch(error){}
+function localeTags(){return appLocale==='ru'?'ru-RU':appLocale}
+function trMeal(name){const entry=I18N_MEALS[name];return entry&&appLocale!=='ru'?entry[appLocale]:name}
+function translateText(text){
+ if(appLocale==='ru'||text==null)return String(text??'');
+ const raw=String(text);
+ // 1) точные фразы (регистронезависимый поиск по нижнему регистру)
+ const exact=UI_TRANSLATIONS[raw.toLowerCase()];
+ if(exact&&exact[appLocale]!=null){
+  const res=exact[appLocale];
+  return /^[А-ЯЁA-Z]/.test(raw)&&res?res[0].toUpperCase()+res.slice(1):res;
+ }
+ // 2) замена известных слов и устойчивых выражений (длинные варианты сначала)
+ let out=raw;
+ for(const phrase of UI_PHRASES){
+  const entry=UI_TRANSLATIONS[phrase];
+  if(!entry)continue;
+  const rx=new RegExp(phrase.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi');
+  out=out.replace(rx,match=>{
+   let res=entry[appLocale];
+   if(!res)return match;
+   if(match[0]===match[0].toUpperCase())res=res[0].toUpperCase()+res.slice(1);
+   return res;
+  });
+ }
+ return out;
+}
+function applyI18n(root){
+ const scope=root||document.body;
+ const walker=document.createTreeWalker(scope,NodeFilter.SHOW_TEXT,null);
+ const nodes=[];
+ while(walker.nextNode()){const n=walker.currentNode;if(n.nodeValue&&/[А-Яа-яЁё]/.test(n.nodeValue))nodes.push(n)}
+ for(const node of nodes){
+  const trimmed=node.nodeValue.trim();
+  if(trimmed){const translated=translateText(trimmed);if(translated!==trimmed)node.nodeValue=node.nodeValue.replace(trimmed,translated)}
+ }
+ scope.querySelectorAll('[title],[aria-label],[placeholder]').forEach(el=>{
+  ['title','aria-label','placeholder'].forEach(attr=>{
+   if(!el.hasAttribute(attr))return;
+   const value=el.getAttribute(attr);
+   if(value&&/[А-Яа-яЁё]/.test(value)){const translated=translateText(value);if(translated!==value)el.setAttribute(attr,translated)}
+  });
+ });
+}
+function setAppLocale(next){
+ if(!I18N_LOCALES[next])return;
+ appLocale=next;
+ try{localStorage.setItem('nutrition-locale',next)}catch(error){}
+ document.documentElement.lang=next;
+ document.querySelectorAll('.nav-btn').forEach(button=>{button.lastChild.textContent=translateText(button.dataset.label||button.textContent.trim())});
+ const quickAdd=document.getElementById('quick-add');
+ if(quickAdd)quickAdd.textContent=translateText('＋ Быстрая запись');
+ setPage(activePage);
+}
 const titles={diary:['Дневник','Ежедневный учёт питания и показателей'],recipes:['Рецепты','Твои рецепты, продукты и подборки'],planning:['Планирование','Составление плана питания'],stats:['Статистика','Динамика питания и показателей тела'],profile:['Профиль','Обзор персональных параметров и замеров'],settings:['Настройки','Настройки приложения']};
 const page=document.getElementById('page');
-function fmt(n){return Math.round(n).toLocaleString('ru-RU')}
+function fmt(n){return Math.round(n).toLocaleString(localeTags())}
 function escapeHtml(value){return String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]))}
 function recipeFilterDefaults(){return {timeMin:'',timeMax:'',mealTypes:[],cuisines:[],dishTypes:[],allergenInclude:[],allergenExclude:[],categories:[],kcalMin:'',kcalMax:'',pMin:'',pMax:'',cMin:'',cMax:'',productsInclude:[],productsExclude:[],customTags:[],customAttributes:{}}}
 function recipeFilterCount(filters=recipeFilters){return Object.entries(filters).reduce((total,[key,value])=>{if(Array.isArray(value))return total+value.length;if(key==='customAttributes'&&value&&typeof value==='object')return total+Object.values(value).reduce((sum,items)=>sum+(Array.isArray(items)?items.length:0),0);return total+(value!==''&&value!==null?1:0)},0)}
@@ -1397,8 +1468,8 @@ function recipeMatchesFilters(recipe,query=''){
 }
 function dateKey(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
 function todayLocalDate(){const d=new Date();d.setHours(0,0,0,0);return d}
-function dateLabel(d){return d.toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'})}
-function readableDate(key){const [y,m,d]=String(key).split('-').map(Number);if(!y||!m||!d)return key;return new Date(y,m-1,d).toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'})}
+function dateLabel(d){return d.toLocaleDateString(localeTags(),{day:'numeric',month:'long',year:'numeric'})}
+function readableDate(key){const [y,m,d]=String(key).split('-').map(Number);if(!y||!m||!d)return key;return new Date(y,m-1,d).toLocaleDateString(localeTags(),{day:'numeric',month:'long',year:'numeric'})}
 function upsertWeightRecord(weight,date){
  const existing=weightHistory.findIndex(x=>x.date===date);
  if(existing>=0)weightHistory[existing].weight=weight;else weightHistory.push({date,weight});
@@ -1431,7 +1502,7 @@ if(measurementHistory.length)syncCurrentBodyParameters();
 function measurementValue(name,values=null){const source=values||Object.fromEntries(measurements.map(m=>[m.name,m.value]));const n=Number(source[name]);return Number.isFinite(n)&&n>0?n:null}
 function ratioPercent(a,b){return a&&b?(a/b*100):null}
 function symmetryDifference(a,b){if(!a||!b)return null;return {cm:Math.abs(a-b),percent:Math.abs(a-b)/((a+b)/2)*100}}
-function monthLabel(d){const month=d.toLocaleDateString('ru-RU',{month:'long'});return `${month.charAt(0).toLocaleUpperCase('ru-RU')}${month.slice(1)}, ${d.getFullYear()}`}
+function monthLabel(d){const month=d.toLocaleDateString(localeTags(),{month:'long'});return `${month.charAt(0).toLocaleUpperCase(appLocale)}${month.slice(1)}, ${d.getFullYear()}`}
 function macrosFor(entries){return entries.reduce((a,e)=>({kcal:a.kcal+e.kcal,p:a.p+e.p,f:a.f+e.f,c:a.c+e.c}),{kcal:0,p:0,f:0,c:0})}
 function weightGoalStatus(){const current=Number(profile.currentWeight)||0,target=Number(plan.targetWeight)||0,diff=Math.abs(target-current),amount=diff.toFixed(1).replace('.',',');if(plan.goal==='Поддержание веса'){const delta=current-target;return {label:'Поддержание веса',note:diff<0.05?'Целевой вес соблюдается':`Отклонение от цели: ${delta>0?'+':''}${delta.toFixed(1).replace('.',',')} кг`}}if(diff<0.05)return {label:'Целевой вес достигнут',note:''};if(plan.goal==='Набор веса'||plan.goal==='Набор массы')return target>current?{label:`Осталось набрать ${amount} кг`,note:''}:{label:'Проверь целевой вес',note:'Для набора целевой вес должен быть выше текущего'};if(plan.goal==='Снижение веса'||plan.goal==='Снижение жировой массы'||plan.goal==='Сушка')return target<current?{label:`Осталось снизить ${amount} кг`,note:''}:{label:'Проверь целевой вес',note:'Для снижения целевой вес должен быть ниже текущего'};return target>current?{label:`Осталось набрать ${amount} кг`,note:''}:{label:`Осталось снизить ${amount} кг`,note:''}}
 function bmiSummary(){const height=Number(profile.height)/100,weight=Number(profile.currentWeight);if(!height||!weight)return {value:'—',label:'Укажи рост и вес'};const bmi=weight/(height*height);let label;if(bmi<18.5)label='Ниже нормы';else if(bmi<25)label='Нормальный диапазон';else if(bmi<30)label='Выше нормы';else if(bmi<35)label='Ожирение I степени';else if(bmi<40)label='Ожирение II степени';else label='Ожирение III степени';return {value:bmi.toFixed(1).replace('.',','),label}}
@@ -1444,11 +1515,11 @@ function toast(msg,actionLabel=null,action=null){
  }
  el.classList.add('show');clearTimeout(window.toastTimer);window.toastTimer=setTimeout(()=>el.classList.remove('show'),4200);
 }
-function setPage(name){activePage=name;document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.page===name));document.getElementById('page-title').textContent=titles[name][0];document.getElementById('page-subtitle').textContent=titles[name][1];render()}
+function setPage(name){activePage=name;document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.page===name));document.getElementById('page-title').textContent=translateText(titles[name][0]);document.getElementById('page-subtitle').textContent=translateText(titles[name][1]);render()}
 document.getElementById('nav').addEventListener('click',e=>{const b=e.target.closest('[data-page]');if(!b)return;if(recipeSelectionMode&&(mealAddContext||collectionAddContext||recipeIngredientPickContext||plannerDishAddContext||plannerCategoryAddContext)){if(mealAddContext){mealAddDrafts[mealAddDraftStorageKey(mealAddContext)]=mealAddDraft;mealAddContext=null;mealAddDraft=[]}if(collectionAddContext){collectionAddContext=null;collectionAddDraft=[]}if(recipeIngredientPickContext){recipeIngredientPickContext=null;recipeIngredientPickDraft=[]}if(plannerDishAddContext){const abandonCreate=nutritionSetCreateDraft?.id===activeNutritionSetId;plannerDishAddContext=null;plannerDishAddDraft=[];plannerWeekEditDraft=null;plannerWeekEditIndex=null;if(abandonCreate)cancelNutritionSetCreateFlow()}if(plannerCategoryAddContext){restorePlannerCategoryPickerState(plannerCategoryAddContext);plannerCategoryAddContext=null;plannerCategoryAddDraft=[]}recipeSelectionMode=false;toast('Режим выбора закрыт')}setPage(b.dataset.page)});
 let savedTheme=null;try{savedTheme=localStorage.getItem('nutrition-theme')}catch(e){}if(savedTheme)document.documentElement.dataset.theme=savedTheme;
 document.getElementById('quick-add').addEventListener('click',openQuickMealChooser);
-function render(){syncPlanCalculations(false);if(activePage==='diary')renderDiary();if(activePage==='recipes')renderRecipes();if(activePage==='planning')renderPlanning();if(activePage==='stats')renderStats();if(activePage==='profile')renderProfile();if(activePage==='settings')renderSettings()}
+function render(){syncPlanCalculations(false);if(activePage==='diary')renderDiary();if(activePage==='recipes')renderRecipes();if(activePage==='planning')renderPlanning();if(activePage==='stats')renderStats();if(activePage==='profile')renderProfile();if(activePage==='settings')renderSettings();if(appLocale!=='ru')applyI18n(page)}
 function metricCard(label,value,unit,foot,percent,cls=''){return `<div class="card"><div class="metric-label">${label}</div><div class="metric-value">${value} <span class="metric-unit">${unit}</span></div><div class="metric-foot">${foot}</div><div class="progress ${cls}"><span style="width:${Math.min(percent,100)}%"></span></div></div>`}
 function renderDiary(){
  const selectedDate=dateKey(currentDate),todayKey=dateKey(todayLocalDate()),futureDate=selectedDate>todayKey;
@@ -1456,7 +1527,7 @@ function renderDiary(){
  const standardMeals=getStandardMeals(),legacyMeals=[...new Set(dayEntries.map(entry=>entry.meal).filter(meal=>meal&&!standardMeals.includes(meal)&&meal!=='Перекус'))],displayMeals=[...standardMeals,...legacyMeals],snackEntries=dayEntries.filter(e=>e.meal==='Перекус');
  const dayWaterEntries=waterEntries.filter(e=>e.date===selectedDate),waterTotal=dayWaterEntries.reduce((sum,e)=>sum+(Number(e.ml)||0),0);
  const waterRows=dayWaterEntries.map(entry=>`<div class="meal-entry"><div class="meal-entry-name"><strong>${fmt(entry.ml)} мл</strong><div class="small muted">Отдельная запись воды</div></div><div class="entry-actions"><button type="button" class="entry-action" data-water-remove="${entry.id}" aria-label="Удалить запись воды ${fmt(entry.ml)} мл" title="Удалить запись">×</button></div></div>`).join('');
- const waterLitres=(waterTotal/1000).toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2});
+ const waterLitres=(waterTotal/1000).toLocaleString(localeTags(),{minimumFractionDigits:2,maximumFractionDigits:2});
  const norm={kcal:plan.kcal,p:plan.p,f:plan.f,c:plan.c},weightStatus=weightGoalStatus(),bmi=bmiSummary();
  const entryRows=items=>items.length?items.map(e=>`<div class="meal-entry"><div class="meal-entry-name"><strong>${e.name}</strong><div class="small muted">${diaryEntryQuantityLabel(e)}</div></div><div class="entry-right"><b>${fmt(e.kcal)} ккал</b><small>Б ${e.p.toFixed(1)} · Ж ${e.f.toFixed(1)} · У ${e.c.toFixed(1)}</small></div><div class="entry-actions"><button class="entry-action" data-edit-entry="${e.id}" aria-label="Изменить ${e.name}" title="Изменить количество и запись">✎</button><button class="entry-action" data-replace-entry="${e.id}" aria-label="Заменить ${e.name}" title="Заменить блюдо">↻</button><button class="entry-action" data-remove-entry="${e.id}" aria-label="Удалить ${e.name}" title="Удалить">×</button></div></div>`).join(''):'<div class="empty">Добавленных продуктов и блюд пока нет</div>';
  page.innerHTML=`
@@ -2104,7 +2175,7 @@ function renderPlanning(){
  const mainDishRows=mainDishes.map((dish,index)=>{
   const recipe=recipes.find(item=>String(item.id)===String(dish.recipeId));
   const label=['Первое','Второе','Третье','Четвёртое','Пятое','Шестое','Седьмое','Восьмое','Девятое','Десятое'][index]||`${index+1}-е`;
-  return `<article class="planner48-dish-card"><div class="planner48-dish-icon">${index+1}</div><div class="planner48-dish-body"><span>${label.toLocaleUpperCase('ru-RU')} БЛЮДО</span><strong>${escapeHtml(recipe?.name||'Рецепт не выбран')}</strong><small>${escapeHtml(recipeSummary(recipe))}</small></div></article>`;
+  return `<article class="planner48-dish-card"><div class="planner48-dish-icon">${index+1}</div><div class="planner48-dish-body"><span>${label.toLocaleUpperCase(appLocale)} БЛЮДО</span><strong>${escapeHtml(recipe?.name||'Рецепт не выбран')}</strong><small>${escapeHtml(recipeSummary(recipe))}</small></div></article>`;
  }).join('');
  const snackRows=weekSnacks.map((dish,index)=>{
   const recipe=recipes.find(item=>String(item.id)===String(dish.recipeId));
@@ -2161,7 +2232,7 @@ function renderPlanning(){
  page.innerHTML=`
  <section class="card planning-goal-card">
   <div class="card-head"><div><div class="card-title">Цель и стратегия</div><div class="card-desc">Цель и целевой вес задаются здесь, отдельно от Профиля.</div></div><button class="btn" id="edit-setup">Настроить план</button></div>
-  <div class="planning-goal-summary"><div><span class="metric-label">Текущая цель</span><strong>${escapeHtml(plan.goal)}</strong></div><div><span class="metric-label">Текущий вес</span><strong>${Number(profile.currentWeight).toLocaleString('ru-RU',{maximumFractionDigits:1})} кг</strong></div><div><span class="metric-label">Целевой вес</span><strong>${Number(plan.targetWeight).toLocaleString('ru-RU',{maximumFractionDigits:1})} кг</strong></div><div><span class="metric-label">Разница</span><strong>${(Number(plan.targetWeight)-Number(profile.currentWeight)).toLocaleString('ru-RU',{maximumFractionDigits:1,signDisplay:'always'})} кг</strong></div></div>
+  <div class="planning-goal-summary"><div><span class="metric-label">Текущая цель</span><strong>${escapeHtml(plan.goal)}</strong></div><div><span class="metric-label">Текущий вес</span><strong>${Number(profile.currentWeight).toLocaleString(localeTags(),{maximumFractionDigits:1})} кг</strong></div><div><span class="metric-label">Целевой вес</span><strong>${Number(plan.targetWeight).toLocaleString(localeTags(),{maximumFractionDigits:1})} кг</strong></div><div><span class="metric-label">Разница</span><strong>${(Number(plan.targetWeight)-Number(profile.currentWeight)).toLocaleString(localeTags(),{maximumFractionDigits:1,signDisplay:'always'})} кг</strong></div></div>
   <div class="plan-toolbar"><div class="field"><label for="plan-preset-select">Сохранённые настройки цели</label><select id="plan-preset-select"><option value="">Выбрать пресет…</option>${planPresets.map(item=>`<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)}</option>`).join('')}</select></div><button class="btn" id="plan-preset-save-open">Сохранить пресет</button><button class="btn-quiet" id="plan-presets-manage">Управление пресетами (${planPresets.length})</button></div>
  </section>
  ${ready?'':`<div class="notice-card"><strong>Для точного персонального расчёта проверь Профиль</strong><span>Персональные базовые и целевые значения рассчитываются по данным Профиля. Аналитика набора рассчитывается по составам добавленных рецептов.</span><button class="btn" id="planning-open-profile">Открыть Профиль</button></div>`}
@@ -2616,10 +2687,10 @@ function getDiaryStatsBuckets(model,key){
  return Array.from({length:count},(_,index)=>{
   const from=Math.floor(index*total/count),to=Math.floor((index+1)*total/count),slice=rows.slice(from,to),sum=slice.reduce((value,row)=>value+(key==='water'?row.waterMl:row.total[key]),0);
   let label;
-  if(statsPeriod==='Неделя')label=slice[0]?.date.toLocaleDateString('ru-RU',{weekday:'short'}).replace('.','')||'';
+  if(statsPeriod==='Неделя')label=slice[0]?.date.toLocaleDateString(localeTags(),{weekday:'short'}).replace('.','')||'';
   else if(statsPeriod==='Месяц')label=`${from+1}–${to}`;
   else if(statsPeriod==='3 месяца')label=`${index+1}-й мес.`;
-  else {const middle=slice[Math.floor(slice.length/2)]?.date;label=middle?middle.toLocaleDateString('ru-RU',{month:'short'}).replace('.',''):String(index+1)}
+  else {const middle=slice[Math.floor(slice.length/2)]?.date;label=middle?middle.toLocaleDateString(localeTags(),{month:'short'}).replace('.',''):String(index+1)}
   return {label,value:slice.length?sum/slice.length:0};
  });
 }
@@ -2673,7 +2744,7 @@ function bodyStatsForPeriod(startKey,endKey){
 }
 function signedStatsValue(value,unit=''){
  const rounded=Math.round(Number(value)*10)/10,sign=rounded>0?'+':rounded<0?'−':'';
- return `${sign}${Math.abs(rounded).toLocaleString('ru-RU',{maximumFractionDigits:1})}${unit}`;
+ return `${sign}${Math.abs(rounded).toLocaleString(localeTags(),{maximumFractionDigits:1})}${unit}`;
 }
 function measurementDeltaText(name,current,previous){
  if(!current?.values||!previous?.values)return 'Нет сравнения';
@@ -2696,7 +2767,7 @@ function openStatsDetail(key){
   return `<div><span>${escapeHtml(item.name)}</span><b>${nutritionNumber(current)} см</b><small>${escapeHtml(measurementDeltaText(item.name,bodyStats.latestMeasure,bodyStats.previousMeasure))}</small></div>`;
  }).filter(Boolean).join(''):'<div class="history-empty">Нет замеров за выбранный период.</div>';
  const data={
-  weight:{title:'Вес',eyebrow:'ДИНАМИКА МАССЫ ТЕЛА',value:bodyStats.latestWeight?nutritionNumber(bodyStats.latestWeight.weight):'—',unit:'кг',note:bodyStats.latestWeight?`Последнее измерение · ${readableDate(bodyStats.latestWeight.date)}`:'За выбранный период нет записей веса',chart:bodyStats.weights.length?statsLine(bodyStats.weights.map(item=>({label:new Date(`${item.date}T00:00:00`).toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'}),value:Number(item.weight)}))):'<div class="history-empty">Нет данных о весе за выбранный период.</div>',rows:weightRows},
+  weight:{title:'Вес',eyebrow:'ДИНАМИКА МАССЫ ТЕЛА',value:bodyStats.latestWeight?nutritionNumber(bodyStats.latestWeight.weight):'—',unit:'кг',note:bodyStats.latestWeight?`Последнее измерение · ${readableDate(bodyStats.latestWeight.date)}`:'За выбранный период нет записей веса',chart:bodyStats.weights.length?statsLine(bodyStats.weights.map(item=>({label:new Date(`${item.date}T00:00:00`).toLocaleDateString(localeTags(),{day:'2-digit',month:'2-digit'}),value:Number(item.weight)}))):'<div class="history-empty">Нет данных о весе за выбранный период.</div>',rows:weightRows},
   measures:{title:'Замеры тела',eyebrow:'ИЗМЕНЕНИЯ ПАРАМЕТРОВ',value:bodyStats.latestMeasure?String(filledMeasureCount):'—',unit:'показателей заполнено',note:bodyStats.latestMeasure?`Последний замер · ${readableDate(bodyStats.latestMeasure.date)}`:'За выбранный период нет записей замеров',chart:`<div class="stats-measure-list">${measureList}</div>`,rows:[['Последнее измерение',bodyStats.latestMeasure?readableDate(bodyStats.latestMeasure.date):'Нет данных'],['Заполнено параметров',bodyStats.latestMeasure?`${filledMeasureCount} из ${measurements.length}`:'0'],['История измерений',`${bodyStats.measureRecords.length} записей за период`]]}
  };
  const item=data[key];if(!item)return;
@@ -2749,7 +2820,7 @@ function renderStats(){
   </div>
   <div class="stats-group-heading"><span>02</span><div><b>Состояние тела</b><small>Изменения физических параметров профиля</small></div></div>
   <div class="stats-card-list">
-   <section class="card stats-overview-card" role="button" tabindex="0" data-stats-detail="weight" aria-label="Подробнее: вес"><div class="stats-card-head"><div class="stats-card-title"><span class="stats-card-icon stats-icon-weight">◎</span><div><b>Вес</b><small>Динамика массы тела · ${escapeHtml(foodRange)}</small></div></div><span class="tag">кг</span></div><div class="stats-card-main"><strong>${weightLatest?`${nutritionNumber(weightLatest.weight)} <small>кг</small>`:'— <small>кг</small>'}</strong><span>${weightLatest?`${weightTargetText} · ${readableDate(weightLatest.date)}`:'Добавь фактическое измерение веса'}</span></div>${bodyStats.weights.length?statsLine(bodyStats.weights.map(item=>({label:new Date(`${item.date}T00:00:00`).toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'}),value:Number(item.weight)}))):'<div class="history-empty">Нет данных о весе за выбранный период.</div>'}<div class="stats-card-foot"><span>${escapeHtml(weightChangeText)}</span><b>Подробнее ↗</b></div></section>
+   <section class="card stats-overview-card" role="button" tabindex="0" data-stats-detail="weight" aria-label="Подробнее: вес"><div class="stats-card-head"><div class="stats-card-title"><span class="stats-card-icon stats-icon-weight">◎</span><div><b>Вес</b><small>Динамика массы тела · ${escapeHtml(foodRange)}</small></div></div><span class="tag">кг</span></div><div class="stats-card-main"><strong>${weightLatest?`${nutritionNumber(weightLatest.weight)} <small>кг</small>`:'— <small>кг</small>'}</strong><span>${weightLatest?`${weightTargetText} · ${readableDate(weightLatest.date)}`:'Добавь фактическое измерение веса'}</span></div>${bodyStats.weights.length?statsLine(bodyStats.weights.map(item=>({label:new Date(`${item.date}T00:00:00`).toLocaleDateString(localeTags(),{day:'2-digit',month:'2-digit'}),value:Number(item.weight)}))):'<div class="history-empty">Нет данных о весе за выбранный период.</div>'}<div class="stats-card-foot"><span>${escapeHtml(weightChangeText)}</span><b>Подробнее ↗</b></div></section>
    <section class="card stats-overview-card" role="button" tabindex="0" data-stats-detail="measures" aria-label="Подробнее: замеры тела"><div class="stats-card-head"><div class="stats-card-title"><span class="stats-card-icon stats-icon-measures">↔</span><div><b>Замеры тела</b><small>Окружности и динамика параметров</small></div></div><span class="tag">см</span></div><div class="stats-measures-grid">${measureCards}</div><div class="stats-card-foot"><span>${latest?`Последнее измерение · ${readableDate(latest.date)}`:'Замеры пока не добавлены за период'}</span><b>Подробнее ↗</b></div></section>
   </div>
   <div class="stats-footer-note">Показатели питания рассчитываются из записей дневника за выбранный период. Средние значения делятся на все календарные дни, включая дни без записей. Вес и замеры берутся из отдельных историй измерений и также фильтруются по выбранному периоду.</div>
@@ -2764,7 +2835,7 @@ function renderStats(){
 function renderProfile(){
  const latest=measurementHistory.length?[...measurementHistory].sort((a,b)=>b.date.localeCompare(a.date))[0]:null;
  const latestValues=latest?.values||Object.fromEntries(measurements.map(m=>[m.name,m.value]));
- const valueText=v=>Number(v)>0?`${Number(v).toLocaleString('ru-RU',{maximumFractionDigits:1})} см`:'—';
+ const valueText=v=>Number(v)>0?`${Number(v).toLocaleString(localeTags(),{maximumFractionDigits:1})} см`:'—';
  const groups=['Верхняя часть тела','Талия и таз','Руки','Ноги'];
  const groupMarkup=groups.map(group=>{
   const items=measurements.filter(m=>m.group===group);
@@ -2783,8 +2854,8 @@ function renderProfile(){
    <div class="profile-basic-item"><span>Пол</span><strong>${escapeHtml(profile.sex||'—')}</strong></div>
    <div class="profile-basic-item"><span>Дата рождения</span><strong style="font-size:14px;letter-spacing:0">${escapeHtml(birthDateText)}</strong></div>
    <div class="profile-basic-item"><span>Возраст</span><strong>${profileAge===null?'—':profileAge}</strong><small>${profileAge===null?'':'лет'}</small></div>
-   <div class="profile-basic-item"><span>Рост</span><strong>${Number(profile.height).toLocaleString('ru-RU',{maximumFractionDigits:1})}</strong><small>см</small></div>
-   <div class="profile-basic-item"><span>Текущий вес</span><strong>${Number(profile.currentWeight).toLocaleString('ru-RU',{maximumFractionDigits:1})}</strong><small>кг</small></div>
+   <div class="profile-basic-item"><span>Рост</span><strong>${Number(profile.height).toLocaleString(localeTags(),{maximumFractionDigits:1})}</strong><small>см</small></div>
+   <div class="profile-basic-item"><span>Текущий вес</span><strong>${Number(profile.currentWeight).toLocaleString(localeTags(),{maximumFractionDigits:1})}</strong><small>кг</small></div>
   </div>
   <div class="profile-activity-grid">
    <div class="profile-activity-item"><span>Активность · коэффициент</span><strong>${escapeHtml(getActivityLevel(profile.activityFactor).label)} · ×${formatActivityFactor(profile.activityFactor)}</strong></div>
@@ -3063,7 +3134,7 @@ function openCalendarModal(){
    if(key===selectedKey)classes.push('selected');
    if(filledDates.has(key))classes.push('has-entries');
    const state=[key===todayKey?'сегодня':'',key===selectedKey?'выбрана':'',filledDates.has(key)?'есть записи':''].filter(Boolean).join(', ');
-   return `<button type="button" class="${classes.join(' ')}" data-calendar-day="${key}" aria-label="${day} ${date.toLocaleDateString('ru-RU',{month:'long',year:'numeric'})}${state?`, ${state}`:''}" aria-pressed="${key===selectedKey}"><span class="calendar-number">${day}</span><span class="calendar-dot" aria-hidden="true"></span></button>`;
+   return `<button type="button" class="${classes.join(' ')}" data-calendar-day="${key}" aria-label="${day} ${date.toLocaleDateString(localeTags(),{month:'long',year:'numeric'})}${state?`, ${state}`:''}" aria-pressed="${key===selectedKey}"><span class="calendar-number">${day}</span><span class="calendar-dot" aria-hidden="true"></span></button>`;
   }).join('');
   document.getElementById('calendar-content').innerHTML=`<div class="calendar-weekdays">${['ПН','ВТ','СР','ЧТ','ПТ','СБ','ВС'].map(d=>`<span class="calendar-weekday">${d}</span>`).join('')}</div><div class="calendar-days">${blanks}${days}</div><div class="calendar-legend"><div class="calendar-legend-info"><span class="calendar-legend-dot"></span><span>В этот день есть записи</span></div><button type="button" class="calendar-jump-toggle" id="calendar-jump-toggle" aria-expanded="false" aria-controls="calendar-jump-menu">Перейти к дате</button></div><div class="calendar-jump-menu" id="calendar-jump-menu" hidden><div class="calendar-jump-fields"><div class="calendar-jump-field"><label for="calendar-jump-year">Год</label><input id="calendar-jump-year" type="number" min="1900" max="9999" step="1" inputmode="numeric"></div><div class="calendar-jump-field"><label for="calendar-jump-month">Месяц</label><select id="calendar-jump-month">${['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'].map((name,index)=>`<option value="${index}">${name}</option>`).join('')}</select></div><div class="calendar-jump-field"><label for="calendar-jump-day">Число</label><select id="calendar-jump-day"></select></div></div><div class="calendar-jump-actions"><button type="button" class="calendar-jump-go" id="calendar-jump-go">Перейти</button></div></div>`;
   document.querySelectorAll('[data-calendar-day]').forEach(button=>button.addEventListener('click',()=>{
@@ -3525,14 +3596,14 @@ function createDiaryFoodEntrySnapshot(item){
 }
 diaryEntries.forEach(entry=>{if(!entry.foodMetadataSnapshot){const metadata=getDiaryFoodMetadata(entry);entry.foodMetadataSnapshot={categories:[...metadata.categories],items:[...metadata.items]}};if(!entry.nutritionSnapshot){const grams=Math.max(1,Number(entry.grams)||100);entry.nutritionSnapshot={kcal:(Number(entry.kcal)||0)/grams*100,p:(Number(entry.p)||0)/grams*100,f:(Number(entry.f)||0)/grams*100,c:(Number(entry.c)||0)/grams*100,components:recipeArray(entry.components).map(component=>({...component,amount:Number(component.amount)*100/grams}))}}});
 if(diaryEntries.length)saveDiaryData();
-function nutritionNumber(value){return (Math.round((Number(value)||0)*10)/10).toLocaleString('ru-RU',{maximumFractionDigits:1})}
+function nutritionNumber(value){return (Math.round((Number(value)||0)*10)/10).toLocaleString(localeTags(),{maximumFractionDigits:1})}
 function recipeNutritionPanel(recipe,mode){
  const data=recipeNutrition(recipe),values=data[mode]||data.per100;
  const caption=mode==='total'?'Во всём блюде':mode==='portion'?`Порция · ${data.portionGrams} г`:'На 100 г';
  const components=data.components[mode]||data.components.per100;
  const componentsMarkup=components.length?`<details class="recipe-micro-details" open><summary><span>›</span> Витамины, минералы и другие нутриенты</summary><div class="recipe-micro-grid">${components.map(item=>`<div><span>${escapeHtml(item.name)}</span><b>${nutritionNumber(item.amount)} ${escapeHtml(item.unit)}</b></div>`).join('')}</div></details>`:'';
  const warningParts=[];if(data.conversionIssues.length)warningParts.push(`Для расчёта ${data.conversionIssues.map(item=>escapeHtml(item.product.name)).join(', ')} укажи плотность продукта: без неё нельзя перевести г и мл.`);if(data.missingProducts.length)warningParts.push(`Исключены отсутствующие продукты: ${data.missingProducts.map(row=>escapeHtml(row.productName||row.name||row.productId||'Неизвестный продукт')).join(', ')}.`);const warningMarkup=warningParts.length?`<div class="field-help">${warningParts.join(' ')}</div>`:'';
- return `<div class="recipe-nutrition-main"><div class="recipe-nutrition-kcal"><strong>${Math.round(values.kcal).toLocaleString('ru-RU')} ккал</strong><span>${caption}</span></div><div class="recipe-macro-grid"><div><span>Белки</span><b>${nutritionNumber(values.p)} г</b></div><div><span>Жиры</span><b>${nutritionNumber(values.f)} г</b></div><div><span>Углеводы</span><b>${nutritionNumber(values.c)} г</b></div></div><details class="recipe-micro-details"><summary><span>›</span> Питательные вещества</summary><div class="recipe-micro-grid">${recipeMicroKeys.map(key=>`<div><span>${recipeMicroLabels[key]}</span><b>${nutritionNumber(values[key])} ${key==='sodium'?'мг':key==='cholesterol'?'мг':'г'}</b></div>`).join('')}</div></details>${componentsMarkup}${warningMarkup}</div>`;
+ return `<div class="recipe-nutrition-main"><div class="recipe-nutrition-kcal"><strong>${Math.round(values.kcal).toLocaleString(localeTags())} ккал</strong><span>${caption}</span></div><div class="recipe-macro-grid"><div><span>Белки</span><b>${nutritionNumber(values.p)} г</b></div><div><span>Жиры</span><b>${nutritionNumber(values.f)} г</b></div><div><span>Углеводы</span><b>${nutritionNumber(values.c)} г</b></div></div><details class="recipe-micro-details"><summary><span>›</span> Питательные вещества</summary><div class="recipe-micro-grid">${recipeMicroKeys.map(key=>`<div><span>${recipeMicroLabels[key]}</span><b>${nutritionNumber(values[key])} ${key==='sodium'?'мг':key==='cholesterol'?'мг':'г'}</b></div>`).join('')}</div></details>${componentsMarkup}${warningMarkup}</div>`;
 }
 function openRecipeDetail(id){
  const recipe=recipes.find(item=>String(item.id)===String(id));if(!recipe)return;
@@ -3979,7 +4050,7 @@ function openSetupModal(){
   <div class="field full"><label for="setup-goal">Цель</label><select id="setup-goal"><option value="Поддержание веса">Поддержание веса</option><option value="Снижение веса">Снижение веса</option><option value="Набор веса">Набор веса</option></select></div>
   <div class="field full"><label for="setup-target">Целевой вес, кг</label><input id="setup-target" type="number" min="1" max="500" step="0.1" value="${plan.targetWeight}"></div>
   <div class="field"><label for="setup-adjustment">Коррекция относительно TDEE, ккал</label><input id="setup-adjustment" type="number" min="-1500" max="1500" step="50" value="${currentAdjustment}"></div>
-  <div class="field"><label for="setup-protein-rate">Белок, г на кг веса</label><select id="setup-protein-rate"><option value="auto" ${plan.proteinPerKg===null?'selected':''}>Автоматически по активности тренировок</option>${[0.8,1,1.2,1.4,1.6,1.8,2].map(value=>`<option value="${value}" ${Number(plan.proteinPerKg)===value?'selected':''}>${value.toLocaleString('ru-RU')} г/кг</option>`).join('')}</select></div>
+  <div class="field"><label for="setup-protein-rate">Белок, г на кг веса</label><select id="setup-protein-rate"><option value="auto" ${plan.proteinPerKg===null?'selected':''}>Автоматически по активности тренировок</option>${[0.8,1,1.2,1.4,1.6,1.8,2].map(value=>`<option value="${value}" ${Number(plan.proteinPerKg)===value?'selected':''}>${value.toLocaleString(localeTags())} г/кг</option>`).join('')}</select></div>
   <div class="field"><label for="setup-fat-share">Доля энергии из жиров</label><select id="setup-fat-share">${[20,25,30,35].map(value=>`<option value="${value}" ${Number(plan.fatPercent)===value?'selected':''}>${value}%</option>`).join('')}</select></div>
  </div>
  <div class="planning-settings-preview" id="setup-calc-preview">${existingCalc?`<strong>Текущая оценка: ${fmt(existingCalc.kcal)} ккал/день</strong><span>BMR ${fmt(existingCalc.bmr)} × ${formatActivityFactor(existingCalc.factor)} + ${existingCalc.adjustment} ккал</span>`:'<strong>Расчёт пока недоступен</strong><span>Заполни пол, дату рождения, рост, вес и активность в Профиле.</span>'}</div>
@@ -4061,7 +4132,7 @@ function buildMeasurementCardRatios(values={...Object.fromEntries(measurements.m
 }
 function measurementCardSummary(){
  const rows=buildMeasurementCardRatios();
- const height=Number(profile.height)>0?`${Number(profile.height).toLocaleString('ru-RU',{maximumFractionDigits:1})} см`:'—';
+ const height=Number(profile.height)>0?`${Number(profile.height).toLocaleString(localeTags(),{maximumFractionDigits:1})} см`:'—';
  const shortLabels={'Бицепс / предплечье':'Бицепс / предпл.'};
  return `<div class="measure-ratio-summary"><div class="measure-ratio-item"><span>Рост</span><b>${height}</b></div>${rows.map(r=>`<div class="measure-ratio-item"><span>${shortLabels[r.label]||r.label}</span><b>${r.value}</b></div>`).join('')}</div>`;
 }
@@ -4216,6 +4287,14 @@ function openProfileModal(){
   saveProfileData();syncPlanCalculations(true);closeModal();renderProfile();toast('Персональные параметры обновлены');
  };
 }
+/* i18n: подключаем переводчики к уже определённым функциям */
+const _escapeHtmlOriginal=escapeHtml;
+function escapeHtml(value){return _escapeHtmlOriginal(translateText(value))}
+const _toastOriginal=toast;
+function toast(msg,actionLabel=null,action=null){_toastOriginal(translateText(msg),actionLabel?translateText(actionLabel):actionLabel,action)}
+const _openModalOriginal=openModal;
+function openModal(title,body,actions){_openModalOriginal(translateText(title),translateText(body),translateText(actions))}
+applyI18n(document.body);
 render();
 </script>
 </body>
