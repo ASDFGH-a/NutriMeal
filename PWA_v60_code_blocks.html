@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Питание — прототип</title>
 <style>
+/* #region CSS — Стили приложения */
+/* #region CSS / Базовые стили, тема и каркас */
 :root{
   color-scheme:light;
   --bg:#f4f5f6; --surface:#ffffff; --surface-2:#f8f9fa; --surface-3:#eef0f2;
@@ -149,6 +151,8 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}
 @media(max-width:620px){.catalog-tabs-row{gap:7px}.catalog-tabs-row .tabs{gap:0}.catalog-tabs-row .tab{padding:10px 8px;white-space:nowrap}.catalog-card-settings-btn{width:35px;height:35px}}
 @media(max-width:480px){.measurement-pair-row,.measurement-single-row{grid-template-columns:1fr;gap:7px}.measurement-pair-fields,.measurement-single-field{gap:8px}.grid-4{grid-template-columns:1fr 1fr;gap:9px}.card{padding:14px}.recipe-grid{grid-template-columns:1fr 1fr;gap:9px}.recipe-photo{height:95px}.recipe-body{padding:10px}.recipe-name{font-size:11px}.top-actions .btn-quiet{display:none}.form-grid{grid-template-columns:1fr}.measurement-grid,.ratio-grid,.measure-ratio-summary{grid-template-columns:1fr}.field.full{grid-column:auto}.card-actions{gap:3px}.card-actions .btn-quiet{padding:6px 7px;font-size:10px}.plan-meal{grid-template-columns:1fr}.plan-kpi{text-align:left!important}.date-switch .date-open{min-width:100px}.calendar-weekdays,.calendar-days{gap:3px}.calendar-day,.calendar-empty{height:40px}}
 
+/* #endregion CSS / Базовые стили, тема и каркас */
+/* #region CSS / Формы, каталог и общие компоненты */
 /* UX refinements: comfortable reading, visible keyboard focus, and compact item actions. */
 .card-desc,.metric-label,.metric-foot,.field label,.field-help,.small,.entry-right small,.measure span,.measure small,.detail-section-note,.ratio-card small,.calendar-legend{font-size:12px}
 .nav-label,.brand-sub,.recipe-sub,.recipe-time,.macro,.calendar-weekday,.calendar-jump-field label{font-size:11px}
@@ -405,6 +409,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 @media(max-width:620px){.profile-basic-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.profile-basic-item{padding:10px}.profile-basic-item strong{font-size:19px}.profile-measures-head{align-items:flex-start;flex-direction:column}.profile-measures-head .btn{width:100%}}
 
 
+/* #endregion CSS / Формы, каталог и общие компоненты */
+/* #region CSS / Планирование и наборы питания */
 /* Planning module v42 */
 .plan-macro-target{display:block;color:var(--text);font-size:10px;font-weight:650;margin-top:3px}.plan-kpi small[data-plan-macros]{display:block;color:var(--muted);font-size:9px;margin-top:2px}
 
@@ -699,6 +705,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 @media(max-width:480px){.nutrition-set-week-option{align-items:flex-start;flex-direction:column}.nutrition-set-week-actions{width:100%}.nutrition-set-week-actions button{flex:1}}
 
 
+/* #endregion CSS / Планирование и наборы питания */
+/* #region CSS / Статистика и графики */
 /* Statistics overview v56 */
 .stats-page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin-bottom:14px}
 .stats-page-head .section-title{font-size:16px;font-weight:750;letter-spacing:-.25px}
@@ -721,6 +729,16 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .stats-variety-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px 22px;margin-top:15px}.stats-variety-item{display:grid;gap:6px;min-width:0}.stats-variety-item>div:first-child{display:flex;justify-content:space-between;gap:8px;font-size:10px}.stats-variety-item span{color:var(--muted)}.stats-variety-item b{font-size:10px;white-space:nowrap}
 .stats-micro-summary{display:flex;align-items:baseline;gap:9px;margin-top:13px}.stats-micro-summary strong{font-size:26px;letter-spacing:-.6px}.stats-micro-summary span{font-size:10px;color:var(--muted)}.stats-micro-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px}.stats-micro-item{display:flex;justify-content:space-between;gap:5px;align-items:center;padding:8px 9px;border-radius:8px;background:var(--surface-2);font-size:9px;min-width:0}.stats-micro-item span{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.stats-micro-item b{font-size:10px;white-space:nowrap}
 .stats-measures-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:14px}.stats-measure-mini{padding:10px;border-radius:9px;background:var(--surface-2);display:grid;gap:4px;min-width:0}.stats-measure-mini span{font-size:9px;color:var(--muted)}.stats-measure-mini b{font-size:16px;white-space:nowrap}.stats-measure-mini small{font-size:9px;color:var(--muted)}
+.stats-coverage-card{display:grid;gap:13px;margin:0 0 14px;padding:15px}
+.stats-coverage-head{display:grid;gap:3px}.stats-coverage-head b{font-size:12px}.stats-coverage-head small{font-size:10px;color:var(--muted);line-height:1.45}
+.stats-coverage-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px 18px}
+.stats-coverage-metric{display:grid;gap:5px;min-width:0}
+.stats-coverage-metric-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:10px}
+.stats-coverage-metric-head b{font-size:11px}.stats-coverage-metric-head strong{font-size:11px;white-space:nowrap}
+.stats-coverage-track{height:5px;border-radius:99px;background:var(--surface-2);overflow:hidden}.stats-coverage-track i{display:block;height:100%;border-radius:99px;background:var(--text);opacity:.65}
+.stats-coverage-metric small{font-size:9px;line-height:1.4;color:var(--muted)}
+.stats-coverage-status{padding-top:10px;border-top:1px solid var(--border);font-size:10px;line-height:1.5;color:var(--muted)}.stats-coverage-status b{color:var(--text);font-weight:650}
+@media(max-width:520px){.stats-coverage-grid{grid-template-columns:1fr;gap:11px}.stats-coverage-card{padding:13px}}
 .stats-footer-note{padding:12px 2px;color:var(--muted);font-size:10px;line-height:1.5}
 .modal.stats-detail-modal{width:min(700px,100%)}.stats-detail{display:grid;gap:15px}.stats-detail-period{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em}.stats-detail-hero{display:grid;gap:5px;padding:15px;border-radius:12px;background:var(--surface-2)}.stats-detail-hero>span{font-size:9px;color:var(--muted);letter-spacing:.08em;font-weight:800}.stats-detail-hero>strong{font-size:31px;letter-spacing:-.8px}.stats-detail-hero>b{font-size:11px}.stats-detail-hero>small{font-size:10px;color:var(--muted);line-height:1.5}.stats-detail-section{display:grid;gap:10px}.stats-detail-section-head{display:flex;justify-content:space-between;align-items:center;gap:8px}.stats-detail-section-head b{font-size:12px}.stats-detail-section-head span{font-size:9px;color:var(--muted)}.stats-detail-table{display:grid}.stats-detail-row{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);font-size:11px}.stats-detail-row span{color:var(--muted)}.stats-detail-row b{text-align:right}.stats-detail-list{display:grid;gap:11px}.stats-detail-macro-bars{display:grid;gap:14px}.stats-measure-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.stats-measure-list>div{display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:8px;padding:10px;border-radius:9px;background:var(--surface-2);font-size:10px}.stats-measure-list span,.stats-measure-list small{color:var(--muted)}.stats-measure-list b{font-size:11px}
 @media(max-width:760px){.stats-page-head{align-items:flex-start;flex-direction:column}.stats-period-control{width:100%;justify-content:space-between}.stats-period-control select{flex:1}.stats-summary-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.stats-macro-overview{grid-template-columns:1fr}.stats-measures-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -803,9 +821,94 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .stats-line-chart{display:block;width:100%;max-width:none;margin:12px 0 0;padding:0;min-width:0}
 .stats-line-chart svg{display:block;width:100%;max-width:none;height:auto !important;aspect-ratio:960 / 250;overflow:visible}
 @media(max-width:560px){.stats-line-chart{width:100%;margin-top:10px}.stats-line-chart svg{aspect-ratio:960 / 280}}
+
+/* #endregion CSS / Статистика и графики */
+/* #region CSS / Массовая запись */
+/* Mass entry wizard */
+.modal.mass-entry-modal{width:min(620px,100%)}
+.mass-entry-stack{display:grid;gap:13px}
+.mass-entry-intro{font-size:12px;line-height:1.55;color:var(--muted)}
+.mass-entry-choice-list{display:grid;gap:8px}
+.mass-entry-choice{display:flex;align-items:center;gap:12px;width:100%;padding:13px;border:1px solid var(--border);border-radius:12px;background:var(--surface-2);color:var(--text);text-align:left;cursor:pointer}
+.mass-entry-choice:hover{border-color:var(--muted-2);background:var(--surface)}.mass-entry-choice.is-selected{border-color:var(--accent);background:var(--accent-soft)}
+.mass-entry-choice:disabled{opacity:.48;cursor:not-allowed}
+.mass-entry-choice-icon{width:36px;height:36px;flex:none;display:grid;place-items:center;border:1px solid var(--border);border-radius:10px;background:var(--surface);font-size:17px}
+.mass-entry-choice-copy{display:grid;gap:3px;flex:1;min-width:0}
+.mass-entry-choice-copy strong{font-size:13px}
+.mass-entry-choice-copy small{font-size:10px;line-height:1.45;color:var(--muted)}
+.mass-entry-toggle{display:flex;gap:5px;padding:4px;border:1px solid var(--border);border-radius:10px;background:var(--surface-2)}
+.mass-entry-toggle button{flex:1;min-width:0;padding:8px 9px;border:0;border-radius:7px;background:transparent;color:var(--muted);font-size:11px;cursor:pointer}
+.mass-entry-toggle button.active{background:var(--surface);color:var(--text);font-weight:650;box-shadow:var(--shadow)}
+.mass-entry-calendar{border:1px solid var(--border);border-radius:12px;padding:12px;background:var(--surface)}
+.mass-entry-calendar-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.mass-entry-calendar-head strong{font-size:13px}
+.mass-entry-calendar-head button{width:30px;height:30px;border:1px solid var(--border);border-radius:8px;background:var(--surface-2);color:var(--text);font-size:18px;cursor:pointer}
+.mass-entry-calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.mass-entry-calendar-weekday{text-align:center;padding:5px 0;color:var(--muted);font-size:9px;font-weight:650}
+.mass-entry-calendar-day{position:relative;min-width:0;min-height:39px;border:1px solid transparent;border-radius:9px;background:transparent;color:var(--text);font-size:11px;cursor:pointer}
+.mass-entry-calendar-day:hover:not(:disabled){background:var(--surface-2)}
+.mass-entry-calendar-day.is-selected{border-color:var(--accent);background:var(--accent-soft);font-weight:700}
+.mass-entry-calendar-day.in-range{background:var(--surface-2);border-radius:0}
+.mass-entry-calendar-day.range-start{border-radius:9px 0 0 9px}
+.mass-entry-calendar-day.range-end{border-radius:0 9px 9px 0}
+.mass-entry-calendar-day.is-filled:after{content:"";position:absolute;bottom:4px;left:50%;width:4px;height:4px;border-radius:50%;background:var(--good);transform:translateX(-50%)}
+.mass-entry-calendar-day:disabled{opacity:.25;cursor:not-allowed}
+.mass-entry-calendar-day.is-today{box-shadow:inset 0 0 0 1px var(--muted-2)}
+.mass-entry-summary{padding:11px 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface-2);display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:11px}
+.mass-entry-summary strong{font-size:13px}
+.mass-entry-field{display:grid;gap:6px}
+.mass-entry-field label{font-size:11px;font-weight:650;color:var(--text)}
+.mass-entry-field input,.mass-entry-field select{width:100%;padding:10px 11px;border:1px solid var(--border);border-radius:9px;background:var(--surface);color:var(--text);font-size:14px}
+.mass-entry-preview{display:grid;gap:8px;padding:13px;border:1px solid var(--border);border-radius:11px;background:var(--surface-2)}
+.mass-entry-preview-row{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:11px}
+.mass-entry-preview-row span{color:var(--muted)}
+.mass-entry-preview-row strong{font-size:12px;text-align:right}
+.mass-entry-warning{padding:10px 12px;border:1px solid var(--border);border-radius:10px;color:var(--muted);font-size:10px;line-height:1.5}
+.mass-entry-item-meal{width:120px;max-width:30vw;padding:7px 8px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:10px}
+.mass-entry-set-meta{display:flex;gap:8px;flex-wrap:wrap;color:var(--muted);font-size:10px}
+.mass-entry-empty{padding:18px;border:1px dashed var(--border);border-radius:10px;text-align:center;color:var(--muted);font-size:11px;line-height:1.5}
+@media(max-width:480px){.mass-entry-calendar{padding:8px}.mass-entry-calendar-grid{gap:2px}.mass-entry-calendar-day{min-height:36px}.mass-entry-summary{align-items:flex-start;flex-direction:column}.mass-entry-item-meal{width:105px}}
+
+
+/* #endregion CSS / Массовая запись */
+/* #region CSS / Выбор периода статистики */
+/* Statistics period picker: compact trigger, range navigation and custom date selection. */
+.stats-period-toolbar{display:flex;align-items:center;gap:8px;width:100%;max-width:560px}
+.stats-period-trigger{display:flex;align-items:center;justify-content:space-between;gap:12px;flex:1;min-width:0;padding:10px 13px;border:1px solid var(--border);border-radius:12px;background:var(--surface);color:var(--text);text-align:left;box-shadow:var(--shadow)}
+.stats-period-trigger:hover{background:var(--surface-2)}
+.stats-period-trigger-copy{display:grid;gap:3px;min-width:0}
+.stats-period-trigger-copy strong{font-size:12px;font-weight:700;line-height:1.25}
+.stats-period-trigger-copy small{font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stats-period-trigger-chevron{flex:none;font-size:17px;color:var(--muted);line-height:1}
+.stats-period-nav{display:flex;gap:5px;flex:none}
+.stats-period-nav button{width:39px;height:39px;border:1px solid var(--border);border-radius:11px;background:var(--surface);color:var(--text);font-size:22px;line-height:1}
+.stats-period-nav button:hover:not(:disabled){background:var(--surface-2)}
+.stats-period-nav button:disabled{opacity:.35;cursor:not-allowed}
+.modal.stats-period-modal{width:min(500px,100%)}
+.stats-period-picker{display:grid;gap:13px}
+.stats-period-picker-label{font-size:11px;font-weight:700;color:var(--muted)}
+.stats-period-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.stats-period-option{display:grid;gap:4px;padding:11px 12px;text-align:left;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text)}
+.stats-period-option:hover{background:var(--surface-2)}
+.stats-period-option.active{border-color:var(--text);background:var(--surface-2);box-shadow:inset 0 0 0 1px var(--text)}
+.stats-period-option strong{font-size:12px;font-weight:700}
+.stats-period-option small{font-size:10px;color:var(--muted)}
+.stats-period-picker-divider{display:flex;align-items:center;gap:9px;color:var(--muted);font-size:10px}
+.stats-period-picker-divider:before,.stats-period-picker-divider:after{content:"";height:1px;background:var(--border);flex:1}
+.stats-period-range-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.stats-period-range-fields .field{gap:5px}
+.stats-period-range-fields .field label{font-size:10px}
+.stats-period-range-fields input{min-width:0}
+.stats-period-picker-hint{font-size:10px;line-height:1.45;color:var(--muted)}
+@media(max-width:560px){.stats-period-toolbar{max-width:none}.stats-period-trigger{padding:9px 11px}.stats-period-nav button{width:37px;height:37px}.stats-period-range-fields{grid-template-columns:1fr}}
+
+/* #endregion CSS / Выбор периода статистики */
+/* #endregion CSS — Стили приложения */
 </style>
 </head>
+<!-- #region HTML — Статический каркас приложения -->
 <body>
+  <!-- Основная оболочка: боковая навигация и рабочая область -->
 <div class="app">
   <aside class="sidebar">
     <div class="brand"><div class="brand-mark">п.</div><div><div class="brand-name">Питание</div><div class="brand-sub">личный трекер</div></div></div>
@@ -830,9 +933,15 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
     <div id="page" class="content"></div>
   </main>
 </div>
+  <!-- Общие элементы: модальное окно и уведомления -->
 <div class="modal-backdrop" id="modal-backdrop"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" tabindex="-1"><div class="modal-head"><h2 id="modal-title">Добавить</h2><button class="modal-close" id="modal-close" aria-label="Закрыть">×</button></div><div id="modal-body"></div><div class="modal-actions" id="modal-actions"></div></section></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <!-- Динамические экраны, карточки, формы и окна создаются шаблонами в JavaScript ниже. -->
+  <!-- #endregion HTML — Статический каркас приложения -->
 <script>
+// #region JAVASCRIPT — Логика приложения
+// Примечание: большая часть динамической HTML-разметки создаётся внутри render/open-функций ниже.
+// #region JS / Стартовые данные каталога
 const recipes = [
  {id:1,name:'Овсяная каша на молоке',emoji:'🥣',time:15,kcal:146,p:5.8,f:5.1,c:20.2,tags:['завтрак','быстро'],type:'Завтраки',ingredients:'Овсянка, молоко',favorite:true},
  {id:2,name:'Курица с гречкой',emoji:'🍗',time:35,kcal:158,p:15.2,f:4.1,c:14.7,tags:['обед','много белка','заготовка'],type:'Вторые блюда',ingredients:'Курица, гречка',favorite:false},
@@ -873,6 +982,8 @@ productDB.forEach(product=>{
  if(!product.customAttributes||typeof product.customAttributes!=='object')product.customAttributes={};
  if(!product.basisUnit)product.basisUnit='г';
 });
+// #endregion JS / Стартовые данные каталога
+// #region JS / Дневник: базовые настройки и локальное хранение
 const standardMealSets={
  1:['Завтрак'],
  2:['Завтрак','Ужин'],
@@ -885,7 +996,7 @@ const mealShareWeights={'Завтрак':.25,'Второй завтрак':.10,'
 let expandedMeals=new Set();
 function getStandardMeals(){const count=Math.max(1,Math.min(6,Math.round(Number(profile.mealCount)||5)));return [...standardMealSets[count]]}
 function getMealShares(){const weights=getStandardMeals().map(meal=>mealShareWeights[meal]||0),total=weights.reduce((sum,value)=>sum+value,0);return total?weights.map(value=>value/total):weights.map(()=>1/weights.length)}
-function getDiaryMealOptions(){return [...new Set([...getStandardMeals(),...diaryEntries.map(entry=>entry.meal).filter(Boolean),'Перекус'])]}
+function getDiaryMealOptions(){return [...new Set([...getStandardMeals(),...diaryEntries.map(entry=>entry.meal).filter(meal=>meal&&!['Калории за день','Набор питания'].includes(meal)),'Перекус'])]}
 function diaryMealShare(meal){const index=getStandardMeals().indexOf(meal);return index<0?null:getMealShares()[index]}
 const DIARY_STORAGE_KEY='nutrition-diary-v1';
 const WATER_STORAGE_KEY='nutrition-water-v1';
@@ -905,7 +1016,7 @@ let activePage='diary', recipeTab='recipes', recipeSearch='', recipeFiltersOpen=
  {id:'categories',label:'Категории продуктов',kind:'multi',filterKey:'categories',recipeField:'categories',values:['Молочные продукты','Овощи','Фрукты','Зерновые','Бобовые','Рыба','Орехи']},
  {id:'composition',label:'Состав на 100 г',kind:'composition'},
  {id:'products',label:'Продукты',kind:'products'}
-], statsPeriod='Неделя', lastModalTrigger=null, currentDate=todayLocalDate(), mealAddContext=null, mealAddDraft=[], mealAddDrafts={}, collectionAddContext=null, collectionAddDraft=[], recipeIngredientPickContext=null, recipeIngredientPickDraft=[], plannerDishAddContext=null, plannerDishAddDraft=[], plannerCategoryAddContext=null, plannerCategoryAddDraft=[], plannerWeekEditDraft=null, plannerWeekEditIndex=null, plannerDishCounter=0, nutritionSetCreateDraft=null, nutritionSetCreatePreviousActiveId='', nutritionSetCreateSkippedWeeks=[false,false,false,false], nutritionSetEditDraft=null,nutritionSetEditOriginal=null,nutritionSetEditPreviousActiveId='',nutritionSetReviewWeek=1, recipeSelectionMode=false, mealPickerCatalogTab='recipes', mealProductSearch='', myProductSearch='', activeCollectionId=null, collectionSearch='', collectionAddTab='recipes', quickAddOriginPage='diary', diaryEntries=readStoredArray(DIARY_STORAGE_KEY), waterEntries=readStoredArray(WATER_STORAGE_KEY), measurements=[
+], statsPeriod='Неделя', statsPeriodEnd=dateKey(todayLocalDate()), statsCustomStart='', statsCustomEnd='', lastModalTrigger=null, currentDate=todayLocalDate(), mealAddContext=null, mealAddDraft=[], mealAddDrafts={}, collectionAddContext=null, collectionAddDraft=[], recipeIngredientPickContext=null, recipeIngredientPickDraft=[], plannerDishAddContext=null, plannerDishAddDraft=[], plannerCategoryAddContext=null, plannerCategoryAddDraft=[], plannerWeekEditDraft=null, plannerWeekEditIndex=null, plannerDishCounter=0, nutritionSetCreateDraft=null, nutritionSetCreatePreviousActiveId='', nutritionSetCreateSkippedWeeks=[false,false,false,false], nutritionSetEditDraft=null,nutritionSetEditOriginal=null,nutritionSetEditPreviousActiveId='',nutritionSetReviewWeek=1, recipeSelectionMode=false, mealPickerCatalogTab='recipes', mealProductSearch='', myProductSearch='', activeCollectionId=null, collectionSearch='', collectionAddTab='recipes', quickAddOriginPage='diary', diaryEntries=readStoredArray(DIARY_STORAGE_KEY), waterEntries=readStoredArray(WATER_STORAGE_KEY), measurements=[
  {name:'Плечи',value:null,group:'Верхняя часть тела'},
  {name:'Грудь',value:null,group:'Верхняя часть тела'},
  {name:'Талия',value:null,group:'Талия и таз'},
@@ -920,6 +1031,8 @@ let activePage='diary', recipeTab='recipes', recipeSearch='', recipeFiltersOpen=
  {name:'Икра — левая нога',value:null,group:'Ноги'},
  {name:'Икра — правая нога',value:null,group:'Ноги'}
 ], profile={sex:'',birthDate:'',height:166,currentWeight:65.5,activityFactor:1.375,trainingFrequency:'1–2 раза в неделю',trainingDays:[],allergies:[],foodRestrictions:[],mealCount:5}, plan={goal:'Поддержание веса',targetWeight:65,kcal:2200,p:110,f:70,c:275,energyAdjustment:0,proteinPerKg:null,fatPercent:30,personalWeeklyGoals:{completeness:{},frequency:{},diversity:{}}};
+// #endregion JS / Дневник: базовые настройки и локальное хранение
+// #region JS / Профиль, планирование и наборы питания
 const PROFILE_ACTIVITY_LEVELS=[
  {label:'Минимальная',factor:1.20},
  {label:'Низкая',factor:1.375},
@@ -1096,6 +1209,8 @@ function calculateProfileAge(birthDate,referenceDate=todayLocalDate()){
  let age=referenceDate.getFullYear()-year;if(referenceDate.getMonth()+1<month||(referenceDate.getMonth()+1===month&&referenceDate.getDate()<day))age--;
  return age>=0?age:null;
 }
+// #endregion JS / Профиль, планирование и наборы питания
+// #region JS / Профильные поля и настройки карточек
 const PROFILE_WEEKDAYS=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
 function profileAllergenSuggestions(){
  const recipeAllergens=recipeStandardFilters.find(category=>category.id==='allergens')?.values||[];
@@ -1148,6 +1263,8 @@ let measurementHistory=readStoredArray(MEASUREMENT_HISTORY_STORAGE_KEY)
  .sort((a,b)=>b.date.localeCompare(a.date));
 if(weightHistory.length){profile.currentWeight=weightHistory[0].weight;saveProfileData()}
 /* ================= i18n: многоязычный интерфейс (RU / EN / ES / FR) ================= */
+// #endregion JS / Профильные поля и настройки карточек
+// #region JS / Локализация и языковые настройки
 const I18N_LOCALES={ru:'Русский',en:'English',es:'Español',fr:'Français'};
 const I18N_MONTHS={
  ru:['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'],
@@ -1163,8 +1280,7 @@ const I18N_MEALS={
  'Ужин':{en:'Dinner',es:'Cena',fr:'Dîner'},
  'Поздний ужин':{en:'Late dinner',es:'Cena tardía',fr:'Dîner tardif'},
  'Перекус':{en:'Snack',es:'Picoteo',fr:'En-cas'}};
-let appLocale='ru';
-try{const savedLocale=localStorage.getItem('nutrition-locale');if(I18N_LOCALES[savedLocale])appLocale=savedLocale}catch(error){}
+let appLocale='ru'; // Локализация из предыдущего незавершённого патча отключена: словари отсутствуют.
 function localeTags(){return appLocale==='ru'?'ru-RU':appLocale}
 function trMeal(name){const entry=I18N_MEALS[name];return entry&&appLocale!=='ru'?entry[appLocale]:name}
 function translateText(text){
@@ -1220,6 +1336,8 @@ function setAppLocale(next){
 }
 const titles={diary:['Дневник','Ежедневный учёт питания и показателей'],recipes:['Рецепты','Твои рецепты, продукты и подборки'],planning:['Планирование','Составление плана питания'],stats:['Статистика','Динамика питания и показателей тела'],profile:['Профиль','Обзор персональных параметров и замеров'],settings:['Настройки','Настройки приложения']};
 const page=document.getElementById('page');
+// #endregion JS / Локализация и языковые настройки
+// #region JS / Общие функции и фильтры каталога
 function fmt(n){return Math.round(n).toLocaleString(localeTags())}
 function escapeHtml(value){return String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]))}
 function recipeFilterDefaults(){return {timeMin:'',timeMax:'',mealTypes:[],cuisines:[],dishTypes:[],allergenInclude:[],allergenExclude:[],categories:[],kcalMin:'',kcalMax:'',pMin:'',pMax:'',cMin:'',cMax:'',productsInclude:[],productsExclude:[],customTags:[],customAttributes:{}}}
@@ -1466,6 +1584,8 @@ function recipeMatchesFilters(recipe,query=''){
  for(const category of recipeCustomFilterCategories){const selected=f.customAttributes?.[category.id]||[];if(selected.length){const values=recipeArray(recipe.customAttributes?.[category.id]).map(normalizeRecipeFilterValue);if(!selected.some(value=>values.includes(normalizeRecipeFilterValue(value))))return false}}
  return true;
 }
+// #endregion JS / Общие функции и фильтры каталога
+// #region JS / Даты, история тела и расчётные утилиты
 function dateKey(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
 function todayLocalDate(){const d=new Date();d.setHours(0,0,0,0);return d}
 function dateLabel(d){return d.toLocaleDateString(localeTags(),{day:'numeric',month:'long',year:'numeric'})}
@@ -1503,9 +1623,14 @@ function measurementValue(name,values=null){const source=values||Object.fromEntr
 function ratioPercent(a,b){return a&&b?(a/b*100):null}
 function symmetryDifference(a,b){if(!a||!b)return null;return {cm:Math.abs(a-b),percent:Math.abs(a-b)/((a+b)/2)*100}}
 function monthLabel(d){const month=d.toLocaleDateString(localeTags(),{month:'long'});return `${month.charAt(0).toLocaleUpperCase(appLocale)}${month.slice(1)}, ${d.getFullYear()}`}
-function macrosFor(entries){return entries.reduce((a,e)=>({kcal:a.kcal+e.kcal,p:a.p+e.p,f:a.f+e.f,c:a.c+e.c}),{kcal:0,p:0,f:0,c:0})}
+function macrosFor(entries){return entries.reduce((a,e)=>({kcal:a.kcal+(Number(e.kcal)||0),p:a.p+(Number(e.p)||0),f:a.f+(Number(e.f)||0),c:a.c+(Number(e.c)||0)}),{kcal:0,p:0,f:0,c:0})}
+function isCalorieOnlyEntry(entry){return Boolean(entry?.calorieOnly===true||entry?.quantityMode==='calorie-only')}
+function isNutritionSetAverageEntry(entry){return Boolean(entry?.isNutritionSetAverage===true||entry?.quantityMode==='set-average')}
+function isMassSystemEntry(entry){return isCalorieOnlyEntry(entry)||isNutritionSetAverageEntry(entry)}
 function weightGoalStatus(){const current=Number(profile.currentWeight)||0,target=Number(plan.targetWeight)||0,diff=Math.abs(target-current),amount=diff.toFixed(1).replace('.',',');if(plan.goal==='Поддержание веса'){const delta=current-target;return {label:'Поддержание веса',note:diff<0.05?'Целевой вес соблюдается':`Отклонение от цели: ${delta>0?'+':''}${delta.toFixed(1).replace('.',',')} кг`}}if(diff<0.05)return {label:'Целевой вес достигнут',note:''};if(plan.goal==='Набор веса'||plan.goal==='Набор массы')return target>current?{label:`Осталось набрать ${amount} кг`,note:''}:{label:'Проверь целевой вес',note:'Для набора целевой вес должен быть выше текущего'};if(plan.goal==='Снижение веса'||plan.goal==='Снижение жировой массы'||plan.goal==='Сушка')return target<current?{label:`Осталось снизить ${amount} кг`,note:''}:{label:'Проверь целевой вес',note:'Для снижения целевой вес должен быть ниже текущего'};return target>current?{label:`Осталось набрать ${amount} кг`,note:''}:{label:`Осталось снизить ${amount} кг`,note:''}}
 function bmiSummary(){const height=Number(profile.height)/100,weight=Number(profile.currentWeight);if(!height||!weight)return {value:'—',label:'Укажи рост и вес'};const bmi=weight/(height*height);let label;if(bmi<18.5)label='Ниже нормы';else if(bmi<25)label='Нормальный диапазон';else if(bmi<30)label='Выше нормы';else if(bmi<35)label='Ожирение I степени';else if(bmi<40)label='Ожирение II степени';else label='Ожирение III степени';return {value:bmi.toFixed(1).replace('.',','),label}}
+// #endregion JS / Даты, история тела и расчётные утилиты
+// #region JS / Навигация, интерфейс и основные страницы
 function toast(msg,actionLabel=null,action=null){
  const el=document.getElementById('toast');el.textContent='';
  const text=document.createElement('span');text.textContent=msg;el.appendChild(text);
@@ -1516,9 +1641,9 @@ function toast(msg,actionLabel=null,action=null){
  el.classList.add('show');clearTimeout(window.toastTimer);window.toastTimer=setTimeout(()=>el.classList.remove('show'),4200);
 }
 function setPage(name){activePage=name;document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.page===name));document.getElementById('page-title').textContent=translateText(titles[name][0]);document.getElementById('page-subtitle').textContent=translateText(titles[name][1]);render()}
-document.getElementById('nav').addEventListener('click',e=>{const b=e.target.closest('[data-page]');if(!b)return;if(recipeSelectionMode&&(mealAddContext||collectionAddContext||recipeIngredientPickContext||plannerDishAddContext||plannerCategoryAddContext)){if(mealAddContext){mealAddDrafts[mealAddDraftStorageKey(mealAddContext)]=mealAddDraft;mealAddContext=null;mealAddDraft=[]}if(collectionAddContext){collectionAddContext=null;collectionAddDraft=[]}if(recipeIngredientPickContext){recipeIngredientPickContext=null;recipeIngredientPickDraft=[]}if(plannerDishAddContext){const abandonCreate=nutritionSetCreateDraft?.id===activeNutritionSetId;plannerDishAddContext=null;plannerDishAddDraft=[];plannerWeekEditDraft=null;plannerWeekEditIndex=null;if(abandonCreate)cancelNutritionSetCreateFlow()}if(plannerCategoryAddContext){restorePlannerCategoryPickerState(plannerCategoryAddContext);plannerCategoryAddContext=null;plannerCategoryAddDraft=[]}recipeSelectionMode=false;toast('Режим выбора закрыт')}setPage(b.dataset.page)});
+document.getElementById('nav').addEventListener('click',e=>{const b=e.target.closest('[data-page]');if(!b)return;if(recipeSelectionMode&&(mealAddContext||collectionAddContext||recipeIngredientPickContext||plannerDishAddContext||plannerCategoryAddContext)){if(mealAddContext){mealAddDrafts[mealAddDraftStorageKey(mealAddContext)]=mealAddDraft;mealAddContext=null;mealAddDraft=[];massEntryState=null}if(collectionAddContext){collectionAddContext=null;collectionAddDraft=[]}if(recipeIngredientPickContext){recipeIngredientPickContext=null;recipeIngredientPickDraft=[]}if(plannerDishAddContext){const abandonCreate=nutritionSetCreateDraft?.id===activeNutritionSetId;plannerDishAddContext=null;plannerDishAddDraft=[];plannerWeekEditDraft=null;plannerWeekEditIndex=null;if(abandonCreate)cancelNutritionSetCreateFlow()}if(plannerCategoryAddContext){restorePlannerCategoryPickerState(plannerCategoryAddContext);plannerCategoryAddContext=null;plannerCategoryAddDraft=[]}recipeSelectionMode=false;toast('Режим выбора закрыт')}setPage(b.dataset.page)});
 let savedTheme=null;try{savedTheme=localStorage.getItem('nutrition-theme')}catch(e){}if(savedTheme)document.documentElement.dataset.theme=savedTheme;
-document.getElementById('quick-add').addEventListener('click',openQuickMealChooser);
+document.getElementById('quick-add').addEventListener('click',openQuickAddMenu);
 function render(){syncPlanCalculations(false);if(activePage==='diary')renderDiary();if(activePage==='recipes')renderRecipes();if(activePage==='planning')renderPlanning();if(activePage==='stats')renderStats();if(activePage==='profile')renderProfile();if(activePage==='settings')renderSettings();if(appLocale!=='ru')applyI18n(page)}
 function metricCard(label,value,unit,foot,percent,cls=''){return `<div class="card"><div class="metric-label">${label}</div><div class="metric-value">${value} <span class="metric-unit">${unit}</span></div><div class="metric-foot">${foot}</div><div class="progress ${cls}"><span style="width:${Math.min(percent,100)}%"></span></div></div>`}
 function renderDiary(){
@@ -1529,14 +1654,14 @@ function renderDiary(){
  const waterRows=dayWaterEntries.map(entry=>`<div class="meal-entry"><div class="meal-entry-name"><strong>${fmt(entry.ml)} мл</strong><div class="small muted">Отдельная запись воды</div></div><div class="entry-actions"><button type="button" class="entry-action" data-water-remove="${entry.id}" aria-label="Удалить запись воды ${fmt(entry.ml)} мл" title="Удалить запись">×</button></div></div>`).join('');
  const waterLitres=(waterTotal/1000).toLocaleString(localeTags(),{minimumFractionDigits:2,maximumFractionDigits:2});
  const norm={kcal:plan.kcal,p:plan.p,f:plan.f,c:plan.c},weightStatus=weightGoalStatus(),bmi=bmiSummary();
- const entryRows=items=>items.length?items.map(e=>`<div class="meal-entry"><div class="meal-entry-name"><strong>${e.name}</strong><div class="small muted">${diaryEntryQuantityLabel(e)}</div></div><div class="entry-right"><b>${fmt(e.kcal)} ккал</b><small>Б ${e.p.toFixed(1)} · Ж ${e.f.toFixed(1)} · У ${e.c.toFixed(1)}</small></div><div class="entry-actions"><button class="entry-action" data-edit-entry="${e.id}" aria-label="Изменить ${e.name}" title="Изменить количество и запись">✎</button><button class="entry-action" data-replace-entry="${e.id}" aria-label="Заменить ${e.name}" title="Заменить блюдо">↻</button><button class="entry-action" data-remove-entry="${e.id}" aria-label="Удалить ${e.name}" title="Удалить">×</button></div></div>`).join(''):'<div class="empty">Добавленных продуктов и блюд пока нет</div>';
+ const entryRows=items=>items.length?items.map(e=>{const system=isMassSystemEntry(e),macroLine=isCalorieOnlyEntry(e)?'БЖУ не указано':`Б ${nutritionNumber(e.p)} · Ж ${nutritionNumber(e.f)} · У ${nutritionNumber(e.c)}`;return `<div class="meal-entry"><div class="meal-entry-name"><strong>${escapeHtml(e.name)}</strong><div class="small muted">${diaryEntryQuantityLabel(e)}</div></div><div class="entry-right"><b>${fmt(e.kcal)} ккал</b><small>${macroLine}</small></div><div class="entry-actions">${system?'':`<button class="entry-action" data-edit-entry="${e.id}" aria-label="Изменить ${escapeHtml(e.name)}" title="Изменить количество и запись">✎</button><button class="entry-action" data-replace-entry="${e.id}" aria-label="Заменить ${escapeHtml(e.name)}" title="Заменить блюдо">↻</button>`}<button class="entry-action" data-remove-entry="${e.id}" aria-label="Удалить ${escapeHtml(e.name)}" title="Удалить">×</button></div></div>`}).join(''):'<div class="empty">Добавленных продуктов и блюд пока нет</div>';
  page.innerHTML=`
  <div class="between"><div class="date-switch"><button data-date="prev" aria-label="Предыдущий день">‹</button><button class="date-open" id="open-calendar" aria-label="Открыть календарь">${dateLabel(currentDate)}</button><button data-date="next" aria-label="Следующий день">›</button></div><button class="btn-quiet" id="today-btn">Сегодня</button></div>
  <div class="grid grid-4">
  ${metricCard('Калории',fmt(total.kcal),'ккал',`из ${fmt(norm.kcal)} ккал`,total.kcal/norm.kcal*100)}
- ${metricCard('Белки',total.p.toFixed(1),'г',`из ${norm.p} г`,total.p/norm.p*100)}
- ${metricCard('Жиры',total.f.toFixed(1),'г',`из ${norm.f} г`,total.f/norm.f*100)}
- ${metricCard('Углеводы',total.c.toFixed(1),'г',`из ${norm.c} г`,total.c/norm.c*100)}
+ ${dayEntries.some(isCalorieOnlyEntry)?metricCard('Белки','—','г','Часть калорий без распределения БЖУ',0):metricCard('Белки',total.p.toFixed(1),'г',`из ${norm.p} г`,total.p/norm.p*100)}
+ ${dayEntries.some(isCalorieOnlyEntry)?metricCard('Жиры','—','г','Часть калорий без распределения БЖУ',0):metricCard('Жиры',total.f.toFixed(1),'г',`из ${norm.f} г`,total.f/norm.f*100)}
+ ${dayEntries.some(isCalorieOnlyEntry)?metricCard('Углеводы','—','г','Часть калорий без распределения БЖУ',0):metricCard('Углеводы',total.c.toFixed(1),'г',`из ${norm.c} г`,total.c/norm.c*100)}
  </div>
  <div class="between"><div><div class="section-title">Приёмы пищи</div><div class="card-desc">${standardMeals.length} стандартных приёмов пищи · количество задаётся в Профиле</div></div></div>
  ${futureDate?'<div class="muted-box">Это будущая дата. Её можно просматривать, но добавление записей в дневник доступно только за сегодняшний или прошедший день.</div>':''}
@@ -1545,7 +1670,7 @@ function renderDiary(){
    const target=Number.isFinite(share)?Math.round(plan.kcal*share):null;
    const progress=target?Math.min(sum.kcal/target*100,100):0,expanded=expandedMeals.has(m);
    const itemRows=entryRows(items);
-   return `<section class="card meal"><div class="meal-summary"><div class="meal-main"><div class="meal-title">${m}</div><div class="meal-controls"><div class="meal-kcal"><strong>${fmt(sum.kcal)}</strong><span>${target===null?'без ориентира':`из ~${fmt(target)} ккал`}</span></div><button class="btn-quiet meal-add" data-add-meal="${escapeHtml(m)}" ${futureDate?'disabled':''}>＋ Добавить</button><button type="button" class="meal-toggle" data-toggle-meal="${escapeHtml(m)}" aria-label="${expanded?'Свернуть':'Раскрыть'} список: ${m}" aria-expanded="${expanded}" aria-controls="meal-details-${index}" title="${expanded?'Свернуть список':'Показать список'}"><span aria-hidden="true">›</span></button></div></div>${target!==null?`<div class="meal-progress" role="progressbar" aria-label="Заполнение ориентира: ${m}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(progress)}"><span style="width:${progress}%"></span></div>`:''}</div><div class="meal-details" id="meal-details-${index}" ${expanded?'':'hidden'}>${itemRows}</div></section>`;
+   return `<section class="card meal"><div class="meal-summary"><div class="meal-main"><div class="meal-title">${m}</div><div class="meal-controls"><div class="meal-kcal"><strong>${fmt(sum.kcal)}</strong><span>${target===null?'без ориентира':`из ~${fmt(target)} ккал`}</span></div>${['Калории за день','Набор питания'].includes(m)?'':`<button class="btn-quiet meal-add" data-add-meal="${escapeHtml(m)}" ${futureDate?'disabled':''}>＋ Добавить</button>`}<button type="button" class="meal-toggle" data-toggle-meal="${escapeHtml(m)}" aria-label="${expanded?'Свернуть':'Раскрыть'} список: ${m}" aria-expanded="${expanded}" aria-controls="meal-details-${index}" title="${expanded?'Свернуть список':'Показать список'}"><span aria-hidden="true">›</span></button></div></div>${target!==null?`<div class="meal-progress" role="progressbar" aria-label="Заполнение ориентира: ${m}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(progress)}"><span style="width:${progress}%"></span></div>`:''}</div><div class="meal-details" id="meal-details-${index}" ${expanded?'':'hidden'}>${itemRows}</div></section>`;
  }).join('')}</div>
  <section class="card meal snack-meal"><div class="meal-summary"><div class="meal-main"><div><div class="meal-title">Перекус</div><div class="card-desc">Дополнительный приём пищи вне стандартного расписания</div></div><div class="meal-controls"><div class="meal-kcal"><strong>${fmt(macrosFor(snackEntries).kcal)}</strong><span>дополнительно</span></div><button class="btn-quiet meal-add" id="add-snack" ${futureDate?'disabled':''}>＋ Добавить перекус</button><button type="button" class="meal-toggle" id="toggle-snack" aria-label="${expandedMeals.has('Перекус')?'Свернуть':'Раскрыть'} перекусы" aria-expanded="${expandedMeals.has('Перекус')}" aria-controls="snack-details"><span aria-hidden="true">›</span></button></div></div></div><div class="meal-details" id="snack-details" ${expandedMeals.has('Перекус')?'':'hidden'}>${entryRows(snackEntries)}</div></section>
  <section class="card water-card"><div class="card-head"><div><div class="card-title">Вода</div><div class="card-desc">Учёт обычной питьевой воды отдельно от еды и других напитков</div></div><span class="tag">${waterLitres} л</span></div><div class="water-summary"><strong>${fmt(waterTotal)}</strong><span>мл за день</span></div><div class="water-actions"><button class="btn" data-water-quick="250" ${futureDate?'disabled':''}>＋ 250 мл</button></div><div class="water-entry-list" style="margin-top:12px">${waterRows||'<div class="empty">Записей воды пока нет</div>'}</div></section>
@@ -1615,7 +1740,7 @@ function renderRecipes(){
  const plannerGroupLabel=plannerDishAddContext?.group==='snacks'?'Закуски':'Основные блюда';
  const plannerPositionIndex=plannerDishAddContext&&plannerWeekEditDraft?plannerWeekEditDraft[plannerDishAddContext.group]?.findIndex(dish=>dish.id===plannerDishAddContext.dishId):-1;
  const plannerPositionLabel=plannerDishAddContext?.group==='snacks'?`Закуска ${plannerPositionIndex+1}`:`${(['Первое','Второе','Третье','Четвёртое','Пятое','Шестое','Седьмое','Восьмое','Девятое','Десятое'][plannerPositionIndex]||`${plannerPositionIndex+1}-е`)} блюдо`;
- const selectionBanner=pickMode?`<div class="recipe-pick-banner"><div class="recipe-pick-copy"><strong>${recipeIngredientPickContext?`Выбор продуктов для рецепта «${recipeIngredientPickContext.draft.name||'Новый рецепт'}»`:plannerCategoryAddContext?`Подбор рецептов · ${plannerCategoryAddContext.categoryLabel}`:plannerDishAddContext?`Выбор рецепта · ${plannerGroupLabel} · ${plannerPositionLabel}`:collectionAddContext?`Добавление в подборку «${targetCollection?.name||'Подборка'}»`:`${mealAddContext.replaceEntryId?'Замена записи в':'Добавление в'} ${mealAddContext.meal}`}</strong><span>${recipeIngredientPickContext||collectionAddContext||plannerDishAddContext||plannerCategoryAddContext?`<b id="recipe-pick-count">Выбрано: ${pickDraft.length}</b>`:`${readableDate(mealAddContext.date)} · <b id="recipe-pick-count">Выбрано: ${mealAddDraft.length}</b>`}</span></div><button type="button" class="btn-primary" id="recipe-pick-back">${plannerCategoryAddContext?'Назад':recipeIngredientPickContext?'Добавить в рецепт':plannerDishAddContext?'Выбрать рецепт':collectionAddContext?'Добавить':mealAddContext.replaceEntryId?'К списку замены':'К списку добавления'} <span id="recipe-pick-back-count">${pickDraft.length?`· ${pickDraft.length}`:''}</span></button></div>`:'';
+ const selectionBanner=pickMode?`<div class="recipe-pick-banner"><div class="recipe-pick-copy"><strong>${recipeIngredientPickContext?`Выбор продуктов для рецепта «${recipeIngredientPickContext.draft.name||'Новый рецепт'}»`:plannerCategoryAddContext?`Подбор рецептов · ${plannerCategoryAddContext.categoryLabel}`:plannerDishAddContext?`Выбор рецепта · ${plannerGroupLabel} · ${plannerPositionLabel}`:collectionAddContext?`Добавление в подборку «${targetCollection?.name||'Подборка'}»`:`${mealAddContext.massEntry?'Состав дневного рациона':mealAddContext.replaceEntryId?'Замена записи в':'Добавление в'} ${mealAddContext.massEntry?'для массовой записи':mealAddContext.meal}`}</strong><span>${recipeIngredientPickContext||collectionAddContext||plannerDishAddContext||plannerCategoryAddContext?`<b id="recipe-pick-count">Выбрано: ${pickDraft.length}</b>`:`${mealAddContext.massEntry?`${mealAddContext.massEntry?'Рацион на один день · повтор для '+(massEntryState?.dates.length||0)+' дат':' '}`:readableDate(mealAddContext.date)} · <b id="recipe-pick-count">Выбрано: ${mealAddDraft.length}</b>`}</span></div><button type="button" class="btn-primary" id="recipe-pick-back">${plannerCategoryAddContext?'Назад':recipeIngredientPickContext?'Добавить в рецепт':plannerDishAddContext?'Выбрать рецепт':collectionAddContext?'Добавить':mealAddContext.replaceEntryId?'К списку замены':'К списку добавления'} <span id="recipe-pick-back-count">${pickDraft.length?`· ${pickDraft.length}`:''}</span></button></div>`:'';
  const tabs=pickMode
   ?recipeIngredientPickContext?`<div class="tabs meal-pick-tabs"><button class="tab active" data-pick-catalog="myProducts">Мои продукты</button></div>`
   :(plannerDishAddContext||plannerCategoryAddContext)?`<div class="tabs meal-pick-tabs"><button class="tab active" data-pick-catalog="recipes">Рецепты</button></div>`
@@ -1880,6 +2005,8 @@ const planMealDefaults={
 };
 function getRecipe(id){return recipes.find(r=>r.id===Number(id))||recipes[0]}
 function getPlanItem(value){const v=String(value);if(v.startsWith('p-')){const p=productDB.find(x=>x.id===v.slice(2));return p||productDB[0]}return getRecipe(v.startsWith('r-')?v.slice(2):v)}
+// #endregion JS / Навигация, интерфейс и основные страницы
+// #region JS / Расчёты питания и справочники нутриентов
 const PLAN_RDA_DATA=[
  {name:'Витамин A',unit:'мкг RAE',kind:'RDA',v:{'9-13':[600,600],'14-18':[900,700],'19-30':[900,700],'31-50':[900,700],'51-70':[900,700],'71+':[900,700]}},
  {name:'Витамин C',unit:'мг',kind:'RDA',v:{'9-13':[45,45],'14-18':[75,65],'19-30':[90,75],'31-50':[90,75],'51-70':[90,75],'71+':[90,75]}},
@@ -1958,6 +2085,7 @@ const RECIPE_FOOD_METADATA={
  6:{categories:['Молочные продукты','Фрукты'],items:['Творог','Ягоды']}
 };
 function getDiaryFoodMetadata(entry){
+ if(isMassSystemEntry(entry))return {categories:[],items:[]};
  if(entry?.foodMetadataSnapshot&&Array.isArray(entry.foodMetadataSnapshot.categories)&&Array.isArray(entry.foodMetadataSnapshot.items))return {categories:[...entry.foodMetadataSnapshot.categories],items:[...entry.foodMetadataSnapshot.items]};
  const product=entry.productId!==undefined&&entry.productId!==null?productDB.find(item=>String(item.id)===String(entry.productId)):productDB.find(item=>normalizeRecipeFilterValue(item.name)===normalizeRecipeFilterValue(entry.name));
  if(product)return {categories:recipeArray(product.categories),items:[product.name]};
@@ -1989,7 +2117,7 @@ function plannerRecipeMatchesFoodGroup(recipe,groupId){
 }
 function getCurrentWeekBounds(){const end=todayLocalDate(),start=new Date(end);start.setDate(start.getDate()-((start.getDay()+6)%7));const finish=new Date(start);finish.setDate(finish.getDate()+6);return {start:dateKey(start),end:dateKey(finish)}}
 function getWeeklyFoodStats(){
- const bounds=getCurrentWeekBounds(),rows=diaryEntries.filter(entry=>entry.date>=bounds.start&&entry.date<=bounds.end);
+ const bounds=getCurrentWeekBounds(),incompleteDates=new Set(diaryEntries.filter(isCalorieOnlyEntry).map(entry=>entry.date)),rows=diaryEntries.filter(entry=>entry.date>=bounds.start&&entry.date<=bounds.end&&!isMassSystemEntry(entry)&&!incompleteDates.has(entry.date));
  const stats={};WEEKLY_FOOD_GROUPS.forEach(group=>stats[group.id]={days:new Set(),items:new Set(),entries:0});
  rows.forEach(entry=>{
   const meta=getDiaryFoodMetadata(entry);
@@ -2135,6 +2263,8 @@ function getPlannerSetFoodGroupCount(set){
  return found.size;
 }
 function getPlannerDisplayNutrient(value){return nutritionNumber(value)}
+// #endregion JS / Расчёты питания и справочники нутриентов
+// #region JS / Экран планирования и редактор наборов
 function renderPlanning(){
  const calc=syncPlanCalculations(false),ready=!!calc,activeSet=getActiveNutritionSet();
  const selectedWeek=Math.max(1,Math.min(4,Number(plannerAnalysisWeek)||1));
@@ -2539,22 +2669,48 @@ function commitPlannerCategoryAddDraft(){
  openPlannerCategoryPlacementModal(context,chosenItems);
 }
 function updatePlanRow(row,r,grams){row.querySelector('[data-plan-kcal]').textContent=`${fmt(r.kcal*grams/100)} ккал`;row.querySelector('[data-plan-macros]').textContent=`Б ${(r.p*grams/100).toFixed(1)} · Ж ${(r.f*grams/100).toFixed(1)} · У ${(r.c*grams/100).toFixed(1)}`}
+// #endregion JS / Экран планирования и редактор наборов
+// #region JS / Статистика, аналитика и выбор периода
+const STATS_PERIOD_PRESETS=[
+ {key:'Неделя',label:'Последние 7 дней',shortLabel:'7 дней',days:7},
+ {key:'Месяц',label:'Последние 30 дней',shortLabel:'30 дней',days:30},
+ {key:'3 месяца',label:'Последние 90 дней',shortLabel:'90 дней',days:90},
+ {key:'Год',label:'Последние 12 месяцев',shortLabel:'12 месяцев',days:365}
+];
 function statsPeriodConfig(){
- const configs={
-  'Неделя':{labels:['Пн','Вт','Ср','Чт','Пт','Сб','Вс'],caption:'Последние 7 дней'},
-  'Месяц':{labels:['1–6','7–12','13–18','19–24','25–30'],caption:'Последние 30 дней'},
-  '3 месяца':{labels:['1-й мес.','2-й мес.','3-й мес.'],caption:'Последние 90 дней'},
-  'Год':{labels:['1','2','3','4','5','6','7','8','9','10','11','12'],caption:'Последние 365 дней'}
- };
- return configs[statsPeriod]||configs['Неделя'];
+ const preset=STATS_PERIOD_PRESETS.find(item=>item.key===statsPeriod);
+ return {caption:preset?.label||'Произвольный период',labels:[]};
 }
-function statsSeries(values){
- const labels=statsPeriodConfig().labels;
- return labels.map((label,index)=>({label,value:values[index%values.length]}));
+function statsDateFromKey(key){
+ const match=String(key||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+ if(!match)return null;
+ const date=new Date(Number(match[1]),Number(match[2])-1,Number(match[3]));
+ return date.getFullYear()===Number(match[1])&&date.getMonth()===Number(match[2])-1&&date.getDate()===Number(match[3])?date:null;
 }
+function statsDaysBetween(start,end){return Math.round((new Date(end.getFullYear(),end.getMonth(),end.getDate())-new Date(start.getFullYear(),start.getMonth(),start.getDate()))/86400000)+1}
+function getDiaryStatsRange(){
+ const today=todayLocalDate();
+ let start,end;
+ if(statsPeriod==='Произвольный период'){
+  start=statsDateFromKey(statsCustomStart);
+  end=statsDateFromKey(statsCustomEnd);
+  if(!start||!end||start>end||end>today){end=today;start=new Date(end);start.setDate(start.getDate()-6)}
+ }else{
+  const preset=STATS_PERIOD_PRESETS.find(item=>item.key===statsPeriod)||STATS_PERIOD_PRESETS[0];
+  end=statsDateFromKey(statsPeriodEnd)||today;
+  if(end>today)end=today;
+  start=new Date(end);start.setDate(start.getDate()-preset.days+1);
+ }
+ return {start,end,days:statsDaysBetween(start,end),startKey:dateKey(start),endKey:dateKey(end)};
+}
+function statsPeriodDisplayLabel(){
+ const preset=STATS_PERIOD_PRESETS.find(item=>item.key===statsPeriod);
+ return preset?.label||'Произвольный период';
+}
+function statsSeries(values){return values.map((item,index)=>({label:item.label??String(index+1),value:item.value}));}
 function statsBars(values,unit=''){
- const max=Math.max(...values.map(item=>item.value),1);
- return `<div class="stats-bars" style="grid-template-columns:repeat(${values.length},minmax(0,1fr))" role="img" aria-label="Динамика показателя за ${escapeHtml(statsPeriodConfig().caption)}">${values.map(item=>`<div class="stats-bar-column"><div class="stats-bar-value">${nutritionNumber(item.value)}${unit}</div><div class="stats-bar-track"><i style="height:${Math.max(3,Math.round(item.value/max*100))}%"></i></div><span>${escapeHtml(item.label)}</span></div>`).join('')}</div>`;
+ const max=Math.max(...values.map(item=>Number.isFinite(item.value)?item.value:0),1);
+ return `<div class="stats-bars" style="grid-template-columns:repeat(${values.length},minmax(0,1fr))" role="img" aria-label="Динамика показателя за ${escapeHtml(statsPeriodConfig().caption)}">${values.map(item=>`<div class="stats-bar-column"><div class="stats-bar-value">${item.value===null?'—':nutritionNumber(item.value)+unit}</div><div class="stats-bar-track"><i style="height:${item.value===null?0:Math.max(3,Math.round(item.value/max*100))}%"></i></div><span>${escapeHtml(item.label)}</span></div>`).join('')}</div>`;
 }
 function statsLine(values){
  const pointsData=values.map(item=>({label:String(item.label),value:Number(item.value)})).filter(item=>Number.isFinite(item.value));
@@ -2595,10 +2751,15 @@ function statsLine(values){
 function statsProgressRow(label,value,percent,meta=''){
  return `<div class="stats-progress-row"><div class="stats-progress-head"><span>${escapeHtml(label)}</span><b>${escapeHtml(value)}</b></div><div class="stats-progress-track"><i style="width:${Math.min(100,Math.max(0,percent))}%"></i></div>${meta?`<small>${escapeHtml(meta)}</small>`:''}</div>`;
 }
-function getDiaryStatsPeriodDays(){return ({'Неделя':7,'Месяц':30,'3 месяца':90,'Год':365})[statsPeriod]||7}
+function statsCoverageMetric(label,used,total,note){
+ const percent=total?Math.min(100,Math.max(0,used/total*100)):0;
+ return `<div class="stats-coverage-metric"><div class="stats-coverage-metric-head"><b>${escapeHtml(label)}</b><strong>${used} из ${total} дн.</strong></div><div class="stats-coverage-track"><i style="width:${percent}%"></i></div><small>${escapeHtml(note)}</small></div>`;
+}
+function statsDaysText(value){const n=Math.abs(Math.trunc(Number(value)||0)),lastTwo=n%100,last=n%10,word=lastTwo>=11&&lastTwo<=14?'дней':last===1?'день':last>=2&&last<=4?'дня':'дней';return `${n} ${word}`}
+function getDiaryStatsPeriodDays(){return getDiaryStatsRange().days}
 function getDiaryStatsModel(){
- const days=getDiaryStatsPeriodDays(),end=todayLocalDate(),start=new Date(end);start.setDate(start.getDate()-days+1);
- const startKey=dateKey(start),endKey=dateKey(end),foodEntries=diaryEntries.filter(entry=>{
+ const range=getDiaryStatsRange(),days=range.days,start=range.start,end=range.end;
+ const startKey=range.startKey,endKey=range.endKey,foodEntries=diaryEntries.filter(entry=>{
   const kcal=Number(entry?.kcal);
   return typeof entry?.date==='string'&&entry.date>=startKey&&entry.date<=endKey&&Number.isFinite(kcal)&&kcal>0;
  });
@@ -2606,6 +2767,7 @@ function getDiaryStatsModel(){
   const amount=Number(entry?.ml);
   return typeof entry?.date==='string'&&entry.date>=startKey&&entry.date<=endKey&&Number.isFinite(amount)&&amount>0;
  });
+ const incompleteDates=new Set(foodEntries.filter(isCalorieOnlyEntry).map(entry=>entry.date));
  const foodByDate=new Map(),waterByDate=new Map();
  foodEntries.forEach(entry=>{if(!foodByDate.has(entry.date))foodByDate.set(entry.date,[]);foodByDate.get(entry.date).push(entry)});
  waterRows.forEach(entry=>waterByDate.set(entry.date,(waterByDate.get(entry.date)||0)+Number(entry.ml)));
@@ -2613,14 +2775,28 @@ function getDiaryStatsModel(){
  for(let index=0;index<days;index++){
   const date=new Date(start);date.setDate(start.getDate()+index);const key=dateKey(date),entries=foodByDate.get(key)||[];
   const total=entries.reduce((sum,entry)=>({kcal:sum.kcal+(Number(entry.kcal)||0),p:sum.p+(Number(entry.p)||0),f:sum.f+(Number(entry.f)||0),c:sum.c+(Number(entry.c)||0)}),{kcal:0,p:0,f:0,c:0});
-  dailyRows.push({date,key,entries,total,waterMl:waterByDate.get(key)||0});
+  dailyRows.push({date,key,entries,total,waterMl:waterByDate.get(key)||0,macroIncomplete:incompleteDates.has(key)});
  }
  const totals=foodEntries.reduce((sum,entry)=>({kcal:sum.kcal+(Number(entry.kcal)||0),p:sum.p+(Number(entry.p)||0),f:sum.f+(Number(entry.f)||0),c:sum.c+(Number(entry.c)||0)}),{kcal:0,p:0,f:0,c:0});
- const averages=Object.fromEntries(Object.entries(totals).map(([key,value])=>[key,value/days]));
+ const loggedFoodDays=dailyRows.filter(row=>row.entries.length>0).length;
+ const noRecordDays=days-loggedFoodDays;
+ const onlyCalorieDays=dailyRows.filter(row=>row.entries.length>0&&row.entries.every(isCalorieOnlyEntry)).length;
+ const mixedCalorieDays=dailyRows.filter(row=>row.macroIncomplete&&row.entries.some(entry=>!isCalorieOnlyEntry(entry))).length;
+ const knownMacroRows=dailyRows.filter(row=>row.entries.length>0&&!row.macroIncomplete);
+ const macroKnownDays=knownMacroRows.length;
+ const macroTotals=knownMacroRows.reduce((sum,row)=>({p:sum.p+row.total.p,f:sum.f+row.total.f,c:sum.c+row.total.c}),{p:0,f:0,c:0});
+ totals.p=macroKnownDays?macroTotals.p:null;totals.f=macroKnownDays?macroTotals.f:null;totals.c=macroKnownDays?macroTotals.c:null;
+ // Calories retain the established calendar-day denominator. BJU uses only dates
+ // with recorded nutrition data; empty dates and dates with calorie-only entries
+ // are explicitly excluded rather than treated as zero.
+ const macroAverage=value=>macroKnownDays?value/macroKnownDays:null;
+ const averages={kcal:totals.kcal/days,p:macroAverage(totals.p),f:macroAverage(totals.f),c:macroAverage(totals.c)};
  const waterTotalMl=waterRows.reduce((sum,entry)=>sum+Number(entry.ml),0),waterAverageMl=waterTotalMl/days;
- const loggedFoodDays=dailyRows.filter(row=>row.entries.length>0).length,loggedWaterDays=dailyRows.filter(row=>row.waterMl>0).length;
+ const loggedWaterDays=dailyRows.filter(row=>row.waterMl>0).length;
+ const completenessEntries=foodEntries.filter(entry=>!isMassSystemEntry(entry)&&!incompleteDates.has(entry.date));
+ const varietyKnownDays=new Set(completenessEntries.map(entry=>entry.date)).size;
  const allFoodItems=new Set(),groupStats=WEEKLY_FOOD_GROUPS.map(group=>({group,entries:0,days:new Set(),items:new Set()}));
- foodEntries.forEach(entry=>{
+ completenessEntries.forEach(entry=>{
   const metadata=getDiaryFoodMetadata(entry),items=recipeArray(metadata.items).filter(Boolean);
   items.forEach(item=>allFoodItems.add(normalizeRecipeFilterValue(item)));
   const itemCategories=items.map(name=>{
@@ -2646,30 +2822,33 @@ function getDiaryStatsModel(){
   stat.frequencyPercent=stat.targetEntries?Math.round(stat.entries/stat.targetEntries*100):0;
   stat.diversityPercent=stat.targetItems?Math.round(stat.itemCount/stat.targetItems*100):null;
  });
- const components=new Map();
- foodEntries.forEach(entry=>{
+ const components=new Map(),microDataDates=new Set(),microEntries=foodEntries.filter(entry=>!isCalorieOnlyEntry(entry)&&!incompleteDates.has(entry.date));
+ microEntries.forEach(entry=>{
   const grams=Number(entry.grams)||0;if(!(grams>0))return;
   const snapshot=entry.nutritionSnapshot;
   const per100=Array.isArray(snapshot?.components)?snapshot.components:[];
+  let entryHasMicroData=false;
   per100.forEach(component=>{
    if(!component?.name)return;
    const amount=Number(component.amount)*grams/100,unit=String(component.unit||'мг').trim();
    if(!Number.isFinite(amount)||amount<=0)return;
    const name=String(component.name).trim(),key=`${normalizeRecipeFilterValue(name)}|${unit.toLocaleLowerCase('ru-RU')}`;
-   const current=components.get(key)||{name,unit,total:0};current.total+=amount;components.set(key,current);
+   const current=components.get(key)||{name,unit,total:0,days:new Set()};current.total+=amount;current.days.add(entry.date);components.set(key,current);entryHasMicroData=true;
   });
+  if(entryHasMicroData)microDataDates.add(entry.date);
  });
+ const microKnownDays=microDataDates.size,microMissingOnKnownMacroDays=Math.max(0,macroKnownDays-microKnownDays);
  const micronutrients=[...components.values()].map(item=>{
-  const dailyAmount=item.total/days,target=getDiaryStatsRdaTarget(item.name),comparable=target?convertPlannerNutrientUnit(dailyAmount,item.unit,target.unit):null;
+  const daysWithComponent=item.days.size,dailyAmount=daysWithComponent?item.total/daysWithComponent:0,target=getDiaryStatsRdaTarget(item.name),comparable=target?convertPlannerNutrientUnit(dailyAmount,item.unit,target.unit):null;
   const percent=comparable!==null&&target?.value>0?Math.round(comparable/target.value*100):null;
-  return {...item,dailyAmount,target,percent};
+  return {...item,daysCount:daysWithComponent,dailyAmount,target,percent};
  }).sort((a,b)=>{
   if(a.percent===null&&b.percent!==null)return 1;if(a.percent!==null&&b.percent===null)return -1;
   if(a.percent!==null&&b.percent!==null)return a.percent-b.percent;
   return a.name.localeCompare(b.name,'ru');
  });
  const comparableMicros=micronutrients.filter(item=>item.percent!==null),averageCoverage=comparableMicros.length?Math.round(comparableMicros.reduce((sum,item)=>sum+item.percent,0)/comparableMicros.length):null;
- return {days,startKey,endKey,foodEntries,waterRows,dailyRows,totals,averages,waterTotalMl,waterAverageMl,loggedFoodDays,loggedWaterDays,allFoodItemCount:allFoodItems.size,groupStats,micronutrients,averageCoverage};
+ return {days,startKey,endKey,foodEntries,waterRows,dailyRows,totals,averages,waterTotalMl,waterAverageMl,loggedFoodDays,loggedWaterDays,noRecordDays,onlyCalorieDays,mixedCalorieDays,allFoodItemCount:allFoodItems.size,groupStats,varietyKnownDays,micronutrients,averageCoverage,macroKnownDays,macroIncompleteDays:incompleteDates.size,microKnownDays,microMissingOnKnownMacroDays};
 }
 function getDiaryStatsRdaTarget(name){
  const normalized=normalizeRecipeFilterValue(name),alias=normalized==='витамин b9'?'фолат (b9)':normalized;
@@ -2683,32 +2862,52 @@ function getDiaryStatsRdaTarget(name){
  return {value:Number(values[profile.sex==='Мужской'?0:1]),unit:match.unit,kind:match.kind};
 }
 function getDiaryStatsBuckets(model,key){
- const rows=model.dailyRows,total=rows.length,count=statsPeriod==='Неделя'?7:statsPeriod==='Месяц'?5:statsPeriod==='3 месяца'?3:12;
+ const rows=model.dailyRows,total=rows.length;
+ let count;
+ if(statsPeriod==='Неделя')count=Math.min(7,total);
+ else if(statsPeriod==='Месяц')count=Math.min(5,total);
+ else if(statsPeriod==='3 месяца')count=Math.min(3,total);
+ else if(statsPeriod==='Год')count=Math.min(12,total);
+ else if(total<=8)count=total;
+ else if(total<=45)count=Math.ceil(total/7);
+ else if(total<=120)count=Math.ceil(total/15);
+ else count=Math.min(12,Math.ceil(total/30.5));
+ count=Math.max(1,count);
+ const shortDate=date=>date.toLocaleDateString(localeTags(),{day:'numeric',month:'short'}).replace(' г.','');
  return Array.from({length:count},(_,index)=>{
-  const from=Math.floor(index*total/count),to=Math.floor((index+1)*total/count),slice=rows.slice(from,to),sum=slice.reduce((value,row)=>value+(key==='water'?row.waterMl:row.total[key]),0);
-  let label;
-  if(statsPeriod==='Неделя')label=slice[0]?.date.toLocaleDateString(localeTags(),{weekday:'short'}).replace('.','')||'';
-  else if(statsPeriod==='Месяц')label=`${from+1}–${to}`;
-  else if(statsPeriod==='3 месяца')label=`${index+1}-й мес.`;
-  else {const middle=slice[Math.floor(slice.length/2)]?.date;label=middle?middle.toLocaleDateString(localeTags(),{month:'short'}).replace('.',''):String(index+1)}
-  return {label,value:slice.length?sum/slice.length:0};
+  const from=Math.floor(index*total/count),to=Math.floor((index+1)*total/count),slice=rows.slice(from,to);
+  let value=0;
+  if(['p','f','c'].includes(key)){
+   const known=slice.filter(row=>row.entries.length>0&&!row.macroIncomplete);
+   value=known.length?known.reduce((sum,row)=>sum+row.total[key],0)/known.length:null;
+  }else{const sum=slice.reduce((sum,row)=>sum+(key==='water'?row.waterMl:row.total[key]),0);value=slice.length?sum/slice.length:0}
+  let label='';
+  if(slice.length===1){
+   const date=slice[0].date;
+   label=statsPeriod==='Неделя'?date.toLocaleDateString(localeTags(),{weekday:'short'}).replace('.',''):shortDate(date);
+  }else if(slice.length){
+   const first=slice[0].date,last=slice[slice.length-1].date;
+   const sameMonth=first.getMonth()===last.getMonth()&&first.getFullYear()===last.getFullYear();
+   label=sameMonth?`${first.getDate()}–${last.getDate()} ${last.toLocaleDateString(localeTags(),{month:'short'}).replace('.','')}`:`${shortDate(first)} – ${shortDate(last)}`;
+  }
+  return {label,value,startKey:slice[0]?.key||'',endKey:slice[slice.length-1]?.key||''};
  });
 }
 function statsPercentText(value){return `${Math.round(value)}%`}
-function statsAverageText(value,unit=''){return `${nutritionNumber(value)}${unit?` ${unit}`:''}`}
-function statsEmptyNote(model){return model.foodEntries.length?'':'В выбранном периоде нет записей питания. Средние значения рассчитаны по всем календарным дням периода.'}
+function statsAverageText(value,unit=''){return value===null||value===undefined||!Number.isFinite(Number(value))?'—':`${nutritionNumber(value)}${unit?` ${unit}`:''}`}
+function statsEmptyNote(model){return model.foodEntries.length?'':'В выбранном периоде нет записей питания.'}
 function openDiaryStatsDetail(key,model=getDiaryStatsModel()){
  const cfg=statsPeriodConfig(),dateRange=`${readableDate(model.startKey)} — ${readableDate(model.endKey)}`,hasFood=model.foodEntries.length>0;
  let title='',eyebrow='',value='',unit='',note='',chart='',rows=[];
  if(key==='calories'){
-  title='Калории';eyebrow='ФАКТИЧЕСКОЕ ПОТРЕБЛЕНИЕ';value=statsAverageText(model.averages.kcal);unit='ккал / календарный день';note=statsEmptyNote(model)||`Всего ${statsAverageText(model.totals.kcal,'ккал')} за ${model.days} календарных дней`;
+  title='Калории';eyebrow='ФАКТИЧЕСКОЕ ПОТРЕБЛЕНИЕ';value=statsAverageText(model.averages.kcal);unit='ккал / календарный день';note=statsEmptyNote(model)||`Всего ${statsAverageText(model.totals.kcal,'ккал')} за ${model.days} календарных дней. Среднее делится на весь календарный период, включая дни без записей.`;
   chart=statsBars(getDiaryStatsBuckets(model,'kcal'));
   const goal=Number(plan.kcal)||0;
   rows=[['Всего за период',statsAverageText(model.totals.kcal,'ккал')],['Среднее за календарный день',statsAverageText(model.averages.kcal,'ккал')],['Ориентир в день',goal?statsAverageText(goal,'ккал'):'Не задан'],['Среднее от ориентира',goal?statsPercentText(model.averages.kcal/goal*100):'Нет ориентира'],['Дней с записями',`${model.loggedFoodDays} из ${model.days}`]];
  }else if(key==='macros'){
-  title='БЖУ';eyebrow='ФАКТИЧЕСКИЕ МАКРОНУТРИЕНТЫ';value=`${nutritionNumber(model.averages.p)} / ${nutritionNumber(model.averages.f)} / ${nutritionNumber(model.averages.c)}`;unit='белки · жиры · углеводы, г / день';note=statsEmptyNote(model)||`Суммы за период разделены на ${model.days} календарных дней`;
-  chart=`<div class="stats-detail-macro-bars">${statsProgressRow('Белки',`${nutritionNumber(model.averages.p)} г`,plan.p?model.averages.p/plan.p*100:0,`Цель: ${nutritionNumber(plan.p)} г / день`)}${statsProgressRow('Жиры',`${nutritionNumber(model.averages.f)} г`,plan.f?model.averages.f/plan.f*100:0,`Цель: ${nutritionNumber(plan.f)} г / день`)}${statsProgressRow('Углеводы',`${nutritionNumber(model.averages.c)} г`,plan.c?model.averages.c/plan.c*100:0,`Цель: ${nutritionNumber(plan.c)} г / день`)}</div>`;
-  rows=[['Белки · всего',statsAverageText(model.totals.p,'г')],['Белки · среднее / день',statsAverageText(model.averages.p,'г')],['Жиры · всего',statsAverageText(model.totals.f,'г')],['Жиры · среднее / день',statsAverageText(model.averages.f,'г')],['Углеводы · всего',statsAverageText(model.totals.c,'г')],['Углеводы · среднее / день',statsAverageText(model.averages.c,'г')]];
+  title='БЖУ';eyebrow='ФАКТИЧЕСКИЕ МАКРОНУТРИЕНТЫ';value=`${statsAverageText(model.averages.p)} / ${statsAverageText(model.averages.f)} / ${statsAverageText(model.averages.c)}`;unit='белки · жиры · углеводы, г / день с данными';note=model.macroKnownDays?`Среднее рассчитано по ${model.macroKnownDays} из ${model.days} дн. с известными БЖУ. Исключено: ${statsDaysText(model.macroIncompleteDays)} с калорийными записями и ${statsDaysText(model.noRecordDays)} без записей.`:'Нет дней с пригодными данными о БЖУ. Калорийные записи и дни без записей не считаются нулевыми значениями.';
+  chart=`<div class="stats-detail-macro-bars">${statsProgressRow('Белки',statsAverageText(model.averages.p,'г'),model.averages.p!==null&&plan.p?model.averages.p/plan.p*100:0,`Цель: ${nutritionNumber(plan.p)} г / день`)}${statsProgressRow('Жиры',statsAverageText(model.averages.f,'г'),model.averages.f!==null&&plan.f?model.averages.f/plan.f*100:0,`Цель: ${nutritionNumber(plan.f)} г / день`)}${statsProgressRow('Углеводы',statsAverageText(model.averages.c,'г'),model.averages.c!==null&&plan.c?model.averages.c/plan.c*100:0,`Цель: ${nutritionNumber(plan.c)} г / день`)}</div>`;
+  rows=[['Дней с известными БЖУ',`${model.macroKnownDays} из ${model.days}`],['Дней с калорийными записями без полного состава',String(model.macroIncompleteDays)],['Дней без записей питания',String(model.noRecordDays)],['Белки · всего',statsAverageText(model.totals.p,'г')],['Белки · среднее за день с данными',statsAverageText(model.averages.p,'г')],['Жиры · всего',statsAverageText(model.totals.f,'г')],['Жиры · среднее за день с данными',statsAverageText(model.averages.f,'г')],['Углеводы · всего',statsAverageText(model.totals.c,'г')],['Углеводы · среднее за день с данными',statsAverageText(model.averages.c,'г')]];
  }else if(key==='water'){
   title='Вода';eyebrow='ФАКТИЧЕСКОЕ ПОТРЕБЛЕНИЕ ВОДЫ';value=statsAverageText(model.waterAverageMl/1000, 'л');unit='на календарный день';note=`Всего ${statsAverageText(model.waterTotalMl/1000,'л')} · учтены только записи обычной воды`;
   chart=statsBars(getDiaryStatsBuckets(model,'water').map(item=>({...item,value:item.value/1000})),' л');
@@ -2723,12 +2922,12 @@ function openDiaryStatsDetail(key,model=getDiaryStatsModel()){
   rows=[['Уникальных продуктов всего',String(model.allFoodItemCount)],['Записей питания > 0 ккал',String(model.foodEntries.length)],...model.groupStats.map(stat=>[stat.group.label,`${stat.entries} блюд · ${stat.itemCount} продуктов`])];
  }else if(key==='micros'){
   title='Витамины и минералы';eyebrow='МИКРОНУТРИЕНТЫ ИЗ СОСТАВА ПРОДУКТОВ';value=model.averageCoverage===null?'—':statsPercentText(model.averageCoverage);unit=model.averageCoverage===null?'нет сопоставимых норм':'среднее покрытие RDA / AI';
-  note=model.micronutrients.length?`Фактический средний приём за ${model.days} календарных дней. Сравнение доступно при заполненных поле и дате рождения в профиле.`:'В записях периода нет данных о микронутриентах. Для расчёта нужны значения в составе продуктов или рецептов.';
+  note=model.micronutrients.length?`Есть данные о микронутриентах за ${model.microKnownDays} из ${model.days} дн. Среднее по каждому компоненту считается только по дням, где этот компонент указан. Сравнение доступно при заполненных поле и дате рождения в профиле.`:'В записях периода нет данных о микронутриентах. Для расчёта нужны значения в составе продуктов или рецептов.';
   chart=model.micronutrients.length?`<div class="stats-detail-list">${model.micronutrients.map(item=>{
    const actual=`${nutritionNumber(item.dailyAmount)} ${escapeHtml(item.unit)}`,meta=item.percent===null?'Нет сопоставимой нормы':`${item.percent}% от ${item.target.kind} · ${nutritionNumber(item.target.value)} ${escapeHtml(item.target.unit)}`;
-   return `<div class="stats-progress-row"><div class="stats-progress-head"><span>${escapeHtml(item.name)}</span><b>${actual}</b></div>${item.percent===null?`<small>${meta}</small>`:`<div class="stats-progress-track"><i style="width:${Math.min(100,Math.max(0,item.percent))}%"></i></div><small>${meta}</small>`}</div>`;
+   return `<div class="stats-progress-row"><div class="stats-progress-head"><span>${escapeHtml(item.name)}</span><b>${actual}</b></div>${item.percent===null?`<small>${meta} · ${statsDaysText(item.daysCount)} с данными</small>`:`<div class="stats-progress-track"><i style="width:${Math.min(100,Math.max(0,item.percent))}%"></i></div><small>${meta} · ${statsDaysText(item.daysCount)} с данными</small>`}</div>`;
   }).join('')}</div>`:'<div class="history-empty">Нет фактических данных о микронутриентах за этот период.</div>';
-  rows=[['Компонентов с данными',String(model.micronutrients.length)],['Сопоставлены с нормами',String(model.micronutrients.filter(item=>item.percent!==null).length)],['Среднее покрытие',model.averageCoverage===null?'Не рассчитано':statsPercentText(model.averageCoverage)],['Дневник за период',`${model.foodEntries.length} записей питания`]];
+  rows=[['Дней с данными о микронутриентах',`${model.microKnownDays} из ${model.days}`],['Дней с известными БЖУ, но без данных микронутриентов',String(model.microMissingOnKnownMacroDays)],['Дней с калорийными записями без полного состава',String(model.macroIncompleteDays)],['Дней без записей питания',String(model.noRecordDays)],['Компонентов с данными',String(model.micronutrients.length)],['Сопоставлены с нормами',String(model.micronutrients.filter(item=>item.percent!==null).length)],['Среднее покрытие',model.averageCoverage===null?'Не рассчитано':statsPercentText(model.averageCoverage)]];
  }else return false;
  const table=rows.map(([label,content])=>`<div class="stats-detail-row"><span>${escapeHtml(label)}</span><b>${escapeHtml(content)}</b></div>`).join('');
  const body=`<div class="stats-detail"><div class="stats-demo-note">Источник: дневник · ${escapeHtml(cfg.caption)} · ${escapeHtml(dateRange)}</div><div class="stats-detail-hero"><span>${escapeHtml(eyebrow)}</span><strong>${escapeHtml(value)}</strong><b>${escapeHtml(unit)}</b><small>${escapeHtml(note)}</small></div><section class="stats-detail-section"><div class="stats-detail-section-head"><b>Динамика</b><span>${escapeHtml(cfg.caption)}</span></div>${chart}</section><section class="stats-detail-section"><div class="stats-detail-section-head"><b>Показатели периода</b></div><div class="stats-detail-table">${table}</div></section></div>`;
@@ -2777,14 +2976,64 @@ function openStatsDetail(key){
  document.querySelector('.modal').classList.add('stats-detail-modal');document.getElementById('stats-detail-close').onclick=closeModal;
  const measureButton=document.getElementById('stats-open-measures');if(measureButton)measureButton.onclick=()=>{closeModal();openMeasureModal()};
 }
+function shiftStatsPeriod(direction){
+ const range=getDiaryStatsRange(),days=range.days,today=todayLocalDate();
+ let nextEnd=new Date(range.end);nextEnd.setDate(nextEnd.getDate()+direction*days);
+ let nextStart=new Date(range.start);nextStart.setDate(nextStart.getDate()+direction*days);
+ if(direction>0&&nextEnd>today){
+  nextEnd=new Date(today);
+  nextStart=new Date(nextEnd);nextStart.setDate(nextStart.getDate()-days+1);
+ }
+ if(direction>0&&range.endKey>=dateKey(today))return;
+ if(statsPeriod==='Произвольный период'){
+  statsCustomStart=dateKey(nextStart);statsCustomEnd=dateKey(nextEnd);statsPeriodEnd=statsCustomEnd;
+ }else statsPeriodEnd=dateKey(nextEnd);
+ renderStats();
+}
+function openStatsPeriodPicker(){
+ const currentRange=getDiaryStatsRange(),todayKey=dateKey(todayLocalDate());
+ let draft={preset:statsPeriod==='Произвольный период'?'custom':statsPeriod,start:currentRange.startKey,end:currentRange.endKey};
+ const presetMarkup=STATS_PERIOD_PRESETS.map(item=>`<button type="button" class="stats-period-option ${draft.preset===item.key?'active':''}" data-stats-preset="${item.key}" aria-pressed="${draft.preset===item.key}"><strong>${item.shortLabel}</strong><small>${item.label}</small></button>`).join('');
+ const body=`<div class="stats-period-picker"><div class="stats-period-picker-label">Быстрый выбор</div><div class="stats-period-options">${presetMarkup}</div><div class="stats-period-picker-divider"><span>Или задай даты вручную</span></div><div class="stats-period-range-fields"><div class="field"><label for="stats-range-start">Начало периода</label><input id="stats-range-start" type="date" max="${todayKey}" value="${draft.start}"></div><div class="field"><label for="stats-range-end">Конец периода</label><input id="stats-range-end" type="date" max="${todayKey}" value="${draft.end}"></div></div><div class="stats-period-picker-hint" id="stats-period-picker-hint">Выбери один из готовых интервалов или укажи любые даты. Будущие даты недоступны.</div></div>`;
+ openModal('Период статистики',body,'<button type="button" class="btn" id="stats-period-cancel">Отмена</button><button type="button" class="btn-primary" id="stats-period-apply">Применить</button>');
+ document.querySelector('.modal').classList.add('stats-period-modal');
+ const startInput=document.getElementById('stats-range-start'),endInput=document.getElementById('stats-range-end');
+ const updatePresetButtons=()=>document.querySelectorAll('[data-stats-preset]').forEach(button=>{
+  const active=button.dataset.statsPreset===draft.preset;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active));
+ });
+ const setDraftPreset=key=>{
+  const preset=STATS_PERIOD_PRESETS.find(item=>item.key===key);if(!preset)return;
+  const end=todayLocalDate(),start=new Date(end);start.setDate(start.getDate()-preset.days+1);
+  draft={preset:key,start:dateKey(start),end:dateKey(end)};
+  startInput.value=draft.start;endInput.value=draft.end;updatePresetButtons();
+ };
+ document.querySelectorAll('[data-stats-preset]').forEach(button=>button.onclick=()=>setDraftPreset(button.dataset.statsPreset));
+ [startInput,endInput].forEach(input=>input.addEventListener('change',()=>{draft.preset='custom';draft.start=startInput.value;draft.end=endInput.value;updatePresetButtons()}));
+ document.getElementById('stats-period-cancel').onclick=closeModal;
+ document.getElementById('stats-period-apply').onclick=()=>{
+  const start=statsDateFromKey(startInput.value),end=statsDateFromKey(endInput.value),today=todayLocalDate();
+  if(!start||!end){toast('Укажи обе даты периода');return}
+  if(start>end){toast('Начало периода не может быть позже окончания');return}
+  if(end>today){toast('Нельзя выбрать будущие даты');return}
+  if(draft.preset==='custom'){
+   statsPeriod='Произвольный период';statsCustomStart=dateKey(start);statsCustomEnd=dateKey(end);statsPeriodEnd=statsCustomEnd;
+  }else{
+   const preset=STATS_PERIOD_PRESETS.find(item=>item.key===draft.preset);
+   if(!preset){toast('Выбери период');return}
+   statsPeriod=preset.key;statsPeriodEnd=dateKey(end);statsCustomStart='';statsCustomEnd='';
+  }
+  closeModal();renderStats();
+ };
+}
+
 function renderStats(){
  const periodName=statsPeriod,stats=getDiaryStatsModel();
  const calorieSeries=getDiaryStatsBuckets(stats,'kcal');
  const waterSeries=getDiaryStatsBuckets(stats,'water').map(item=>({...item,value:item.value/1000}));
  const macroMarkup=[
-  statsProgressRow('Белки',`${nutritionNumber(stats.averages.p)} г`,plan.p?stats.averages.p/plan.p*100:0,`Цель ${nutritionNumber(plan.p)} г / день`),
-  statsProgressRow('Жиры',`${nutritionNumber(stats.averages.f)} г`,plan.f?stats.averages.f/plan.f*100:0,`Цель ${nutritionNumber(plan.f)} г / день`),
-  statsProgressRow('Углеводы',`${nutritionNumber(stats.averages.c)} г`,plan.c?stats.averages.c/plan.c*100:0,`Цель ${nutritionNumber(plan.c)} г / день`)
+  statsProgressRow('Белки',`${statsAverageText(stats.averages.p)}${stats.averages.p===null?'':' г'}`,stats.averages.p!==null&&plan.p?stats.averages.p/plan.p*100:0,stats.averages.p===null?'Нет полных данных':`Цель ${nutritionNumber(plan.p)} г / день`),
+  statsProgressRow('Жиры',`${statsAverageText(stats.averages.f)}${stats.averages.f===null?'':' г'}`,stats.averages.f!==null&&plan.f?stats.averages.f/plan.f*100:0,stats.averages.f===null?'Нет полных данных':`Цель ${nutritionNumber(plan.f)} г / день`),
+  statsProgressRow('Углеводы',`${statsAverageText(stats.averages.c)}${stats.averages.c===null?'':' г'}`,stats.averages.c!==null&&plan.c?stats.averages.c/plan.c*100:0,stats.averages.c===null?'Нет полных данных':`Цель ${nutritionNumber(plan.c)} г / день`)
  ].join('');
  const calorieGoal=Number(plan.kcal)||0,calorieGoalText=calorieGoal?`${statsPercentText(stats.averages.kcal/calorieGoal*100)} от цели ${nutritionNumber(calorieGoal)} ккал`:'Цель не задана';
  const waterTotalLitres=stats.waterTotalMl/1000,waterAverageLitres=stats.waterAverageMl/1000;
@@ -2805,33 +3054,43 @@ function renderStats(){
   const current=measurementValue(name,latest.values),delta=measurementDeltaText(name,latest,previous);
   return `<div class="stats-measure-mini"><span>${escapeHtml(name)}</span><b>${current===null?'—':`${nutritionNumber(current)} см`}</b><small>${escapeHtml(delta)}</small></div>`;
  }).join(''):'<div class="muted-box">Нет замеров за выбранный период.</div>';
- const periodOptions=['Неделя','Месяц','3 месяца','Год'];
- const periodButtons=periodOptions.map(p=>`<button type="button" class="stats-period-button ${periodName===p?'active':''}" data-stats-period="${p}" aria-pressed="${periodName===p}">${p}</button>`).join('');
+ const periodLabel=statsPeriodDisplayLabel();
+ const periodRangeLabel=`${new Date(`${stats.startKey}T00:00:00`).toLocaleDateString(localeTags(),{day:'numeric',month:'short'})} — ${new Date(`${stats.endKey}T00:00:00`).toLocaleDateString(localeTags(),{day:'numeric',month:'short',year:'numeric'})}`;
+ const canMoveForward=stats.endKey<dateKey(todayLocalDate());
  const foodRange=`${readableDate(stats.startKey)} — ${readableDate(stats.endKey)}`;
+ const coverageMarkup=`<section class="card stats-coverage-card"><div class="stats-coverage-head"><b>Покрытие аналитики</b><small>Сколько дней выбранного периода содержит данные для каждого показателя</small></div><div class="stats-coverage-grid">${statsCoverageMetric('Калории',stats.loggedFoodDays,stats.days,`${stats.noRecordDays} дн. без записей. Среднее калорий по-прежнему делится на все ${stats.days} календарных дней.`)}${statsCoverageMetric('БЖУ',stats.macroKnownDays,stats.days,`Исключено ${stats.macroIncompleteDays} дн. с калорийными записями без полного состава и ${stats.noRecordDays} дн. без записей.`)}${statsCoverageMetric('Витамины и минералы',stats.microKnownDays,stats.days,`Нет данных ещё за ${stats.microMissingOnKnownMacroDays} дн. с известными БЖУ, ${stats.macroIncompleteDays} неполных дн. и ${stats.noRecordDays} дн. без записей.`)}${statsCoverageMetric('Полнота и разнообразие',stats.varietyKnownDays,stats.days,`Дни с данными о продуктах и категориях. Калорийные записи и дни без записей не учитываются.`)}</div><div class="stats-coverage-status"><b>Состояние дней:</b> данные о БЖУ — ${stats.macroKnownDays}; только калории — ${stats.onlyCalorieDays}; смешанные записи с неполными данными — ${stats.mixedCalorieDays}; без записей — ${stats.noRecordDays}.</div></section>`;
  page.innerHTML=`
-  <header class="stats-page-head"><div class="stats-period-control" role="group" aria-label="Период статистики">${periodButtons}</div></header>
+  <header class="stats-page-head"><div class="stats-period-toolbar" aria-label="Период статистики">
+   <button type="button" class="stats-period-trigger" id="stats-period-trigger" aria-haspopup="dialog" aria-label="Выбрать период статистики"><span class="stats-period-trigger-copy"><strong>${escapeHtml(periodLabel)}</strong><small>${escapeHtml(periodRangeLabel)}</small></span><span class="stats-period-trigger-chevron" aria-hidden="true">⌄</span></button>
+   <div class="stats-period-nav" role="group" aria-label="Перемещение по периодам"><button type="button" id="stats-period-prev" aria-label="Предыдущий период" title="Предыдущий период">‹</button><button type="button" id="stats-period-next" aria-label="Следующий период" title="Следующий период" ${canMoveForward?'':'disabled'}>›</button></div>
+  </div></header>
   <div class="stats-group-heading"><span>01</span><div><b>Питание</b><small>Фактическое потребление · ${escapeHtml(foodRange)}</small></div></div>
+  ${coverageMarkup}
   <div class="stats-card-list">
    <section class="card stats-overview-card" role="button" tabindex="0" data-stats-detail="calories" aria-label="Подробнее: калории"><div class="stats-card-head"><div class="stats-card-title"><span class="stats-card-icon stats-icon-calories">♨</span><div><b>Калории</b><small>Среднее потребление на календарный день</small></div></div><span class="tag">ккал</span></div><div class="stats-card-main"><strong>${nutritionNumber(stats.averages.kcal)} <small>ккал / день</small></strong><span>${escapeHtml(calorieGoalText)}</span></div>${statsBars(calorieSeries,'')}<div class="stats-card-foot"><span>${stats.foodEntries.length?`Всего ${nutritionNumber(stats.totals.kcal)} ккал · ${stats.loggedFoodDays} дн. с записями`:'Нет записей за период'}</span><b>Подробнее ↗</b></div></section>
-   <section class="card stats-overview-card" role="button" tabindex="0" data-stats-detail="macros" aria-label="Подробнее: БЖУ"><div class="stats-card-head"><div class="stats-card-title"><span class="stats-card-icon stats-icon-macros">∑</span><div><b>БЖУ</b><small>Среднее потребление на календарный день</small></div></div><span class="tag">г / день</span></div><div class="stats-macro-overview">${macroMarkup}</div><div class="stats-card-foot"><span>${stats.foodEntries.length?`${stats.foodEntries.length} записей питания учтено`:'Нет записей за период'}</span><b>Подробнее ↗</b></div></section>
+   <section class="card stats-overview-card" role="button" tabindex="0" data-stats-detail="macros" aria-label="Подробнее: БЖУ"><div class="stats-card-head"><div class="stats-card-title"><span class="stats-card-icon stats-icon-macros">∑</span><div><b>БЖУ</b><small>Среднее по дням с известным составом</small></div></div><span class="tag">г / день с данными</span></div><div class="stats-macro-overview">${macroMarkup}</div><div class="stats-card-foot"><span>${stats.macroKnownDays} из ${stats.days} дн. участвуют в среднем БЖУ${stats.macroIncompleteDays?` · ${stats.macroIncompleteDays} с неполными данными исключено`:''}</span><b>Подробнее ↗</b></div></section>
    <section class="card stats-overview-card" role="button" tabindex="0" data-stats-detail="water" aria-label="Подробнее: вода"><div class="stats-card-head"><div class="stats-card-title"><span class="stats-card-icon stats-icon-water">◉</span><div><b>Вода</b><small>Среднее потребление на календарный день</small></div></div><span class="tag">л</span></div><div class="stats-card-main"><strong>${nutritionNumber(waterAverageLitres)} <small>л / день</small></strong><span>${nutritionNumber(waterTotalLitres)} л всего · ${stats.loggedWaterDays} дн. с записями</span></div>${statsBars(waterSeries,' л')}<div class="stats-card-foot"><span>Учитывается обычная вода из дневника</span><b>Подробнее ↗</b></div></section>
    <section class="card stats-overview-card" role="button" tabindex="0" data-stats-detail="variety" aria-label="Подробнее: полнота и разнообразие"><div class="stats-card-head"><div class="stats-card-title"><span class="stats-card-icon stats-icon-variety">✿</span><div><b>Полнота и разнообразие</b><small>Фактически съеденные продукты по группам</small></div></div><span class="tag">Категории</span></div><div class="stats-variety-grid">${varietyMarkup}</div><div class="stats-card-foot"><span>${stats.allFoodItemCount} уникальных продуктов · ${stats.groupStats.filter(item=>item.entries>=item.targetEntries).length} групп достигли ориентира</span><b>Подробнее ↗</b></div></section>
-   <section class="card stats-overview-card" role="button" tabindex="0" data-stats-detail="micros" aria-label="Подробнее: витамины и минералы"><div class="stats-card-head"><div class="stats-card-title"><span class="stats-card-icon stats-icon-micros">✣</span><div><b>Витамины и минералы</b><small>По составу съеденных продуктов и рецептов</small></div></div><span class="tag">RDA / AI</span></div><div class="stats-micro-summary"><strong>${microSummary}</strong><span>${escapeHtml(microSummaryLabel)}</span></div><div class="stats-micro-grid">${microPreview||'<div class="muted-box">В записях за период пока нет данных о микронутриентах.</div>'}</div><div class="stats-card-foot"><span>${stats.micronutrients.length?`${stats.micronutrients.length} компонентов рассчитано`:'Нет данных состава'}</span><b>Подробнее ↗</b></div></section>
+   <section class="card stats-overview-card" role="button" tabindex="0" data-stats-detail="micros" aria-label="Подробнее: витамины и минералы"><div class="stats-card-head"><div class="stats-card-title"><span class="stats-card-icon stats-icon-micros">✣</span><div><b>Витамины и минералы</b><small>По составу съеденных продуктов и рецептов</small></div></div><span class="tag">RDA / AI</span></div><div class="stats-micro-summary"><strong>${microSummary}</strong><span>${escapeHtml(microSummaryLabel)}</span></div><div class="stats-micro-grid">${microPreview||'<div class="muted-box">В записях за период пока нет данных о микронутриентах.</div>'}</div><div class="stats-card-foot"><span>${stats.micronutrients.length?`${stats.micronutrients.length} компонентов · ${stats.microKnownDays} дн. с данными`:'Нет данных состава'}</span><b>Подробнее ↗</b></div></section>
   </div>
   <div class="stats-group-heading"><span>02</span><div><b>Состояние тела</b><small>Изменения физических параметров профиля</small></div></div>
   <div class="stats-card-list">
    <section class="card stats-overview-card" role="button" tabindex="0" data-stats-detail="weight" aria-label="Подробнее: вес"><div class="stats-card-head"><div class="stats-card-title"><span class="stats-card-icon stats-icon-weight">◎</span><div><b>Вес</b><small>Динамика массы тела · ${escapeHtml(foodRange)}</small></div></div><span class="tag">кг</span></div><div class="stats-card-main"><strong>${weightLatest?`${nutritionNumber(weightLatest.weight)} <small>кг</small>`:'— <small>кг</small>'}</strong><span>${weightLatest?`${weightTargetText} · ${readableDate(weightLatest.date)}`:'Добавь фактическое измерение веса'}</span></div>${bodyStats.weights.length?statsLine(bodyStats.weights.map(item=>({label:new Date(`${item.date}T00:00:00`).toLocaleDateString(localeTags(),{day:'2-digit',month:'2-digit'}),value:Number(item.weight)}))):'<div class="history-empty">Нет данных о весе за выбранный период.</div>'}<div class="stats-card-foot"><span>${escapeHtml(weightChangeText)}</span><b>Подробнее ↗</b></div></section>
    <section class="card stats-overview-card" role="button" tabindex="0" data-stats-detail="measures" aria-label="Подробнее: замеры тела"><div class="stats-card-head"><div class="stats-card-title"><span class="stats-card-icon stats-icon-measures">↔</span><div><b>Замеры тела</b><small>Окружности и динамика параметров</small></div></div><span class="tag">см</span></div><div class="stats-measures-grid">${measureCards}</div><div class="stats-card-foot"><span>${latest?`Последнее измерение · ${readableDate(latest.date)}`:'Замеры пока не добавлены за период'}</span><b>Подробнее ↗</b></div></section>
   </div>
-  <div class="stats-footer-note">Показатели питания рассчитываются из записей дневника за выбранный период. Средние значения делятся на все календарные дни, включая дни без записей. Вес и замеры берутся из отдельных историй измерений и также фильтруются по выбранному периоду.</div>
+  <div class="stats-footer-note">Калории и вода усредняются по всем календарным дням периода. БЖУ усредняются только по дням с известным составом питания; дни с калорийными записями без полного состава и дни без записей исключаются. Каждый микронутриент усредняется только по дням, в которых он действительно указан. Блок «Покрытие аналитики» показывает, сколько дней участвует в каждом расчёте. Вес и замеры берутся из отдельных историй измерений.</div>
  `;
- document.querySelectorAll('[data-stats-period]').forEach(button=>button.onclick=()=>{statsPeriod=button.dataset.statsPeriod;renderStats()});
+ document.getElementById('stats-period-trigger').onclick=openStatsPeriodPicker;
+ document.getElementById('stats-period-prev').onclick=()=>shiftStatsPeriod(-1);
+ const nextPeriodButton=document.getElementById('stats-period-next');if(nextPeriodButton)nextPeriodButton.onclick=()=>shiftStatsPeriod(1);
  document.querySelectorAll('[data-stats-detail]').forEach(card=>{
   card.addEventListener('click',()=>openStatsDetail(card.dataset.statsDetail));
   card.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();openStatsDetail(card.dataset.statsDetail)}});
  });
 }
 
+// #endregion JS / Статистика, аналитика и выбор периода
+// #region JS / Профиль и настройки приложения
 function renderProfile(){
  const latest=measurementHistory.length?[...measurementHistory].sort((a,b)=>b.date.localeCompare(a.date))[0]:null;
  const latestValues=latest?.values||Object.fromEntries(measurements.map(m=>[m.name,m.value]));
@@ -3040,10 +3299,12 @@ function openCatalogCardSettings(group='recipes'){
  };
 }
 
+// #endregion JS / Профиль и настройки приложения
+// #region JS / Общие модальные окна и календарь
 function openModal(title,body,actions){
  const modal=document.querySelector('.modal'),head=document.querySelector('.modal-head');
  delete modal.dataset.nutritionSetCreateStage;
- modal.classList.remove('calendar-modal','measurements-modal','profile-edit-modal','meal-picker-modal','recipe-detail-modal','recipe-edit-modal','stats-detail-modal','product-detail-modal','diary-entry-edit-modal','filter-admin-modal','nutrition-set-create-modal','nutrition-review-modal');head.classList.remove('calendar-modal-head');
+ modal.classList.remove('calendar-modal','measurements-modal','profile-edit-modal','meal-picker-modal','recipe-detail-modal','recipe-edit-modal','stats-detail-modal','product-detail-modal','diary-entry-edit-modal','filter-admin-modal','nutrition-set-create-modal','nutrition-review-modal','mass-entry-modal','stats-period-modal');head.classList.remove('calendar-modal-head');
  head.innerHTML='<h2 id="modal-title"></h2><button class="modal-close" id="modal-close" aria-label="Закрыть">×</button>';
  document.getElementById('modal-title').textContent=title;modal.setAttribute('aria-labelledby','modal-title');
  document.getElementById('modal-close').onclick=closeModal;
@@ -3060,9 +3321,9 @@ function closeModal(){
  if(lastModalTrigger&&typeof lastModalTrigger.focus==='function'&&document.contains(lastModalTrigger))lastModalTrigger.focus();
  lastModalTrigger=null;
 }
-document.getElementById('modal-close').onclick=closeModal;document.getElementById('modal-backdrop').addEventListener('click',e=>{if(e.target.id==='modal-backdrop'){if(document.querySelector('.modal').classList.contains('meal-picker-modal')&&mealAddContext)cancelMealAddFlow();else if(document.querySelector('.modal')?.dataset.nutritionSetCreateStage)dismissNutritionSetCreateStage();else closeModal()}});document.addEventListener('keydown',e=>{
+document.getElementById('modal-close').onclick=closeModal;document.getElementById('modal-backdrop').addEventListener('click',e=>{if(e.target.id==='modal-backdrop'){if(document.querySelector('.modal').classList.contains('meal-picker-modal')&&mealAddContext)cancelMealAddFlow();else if(document.querySelector('.modal').classList.contains('mass-entry-modal')&&massEntryState)cancelMassEntryFlow();else if(document.querySelector('.modal')?.dataset.nutritionSetCreateStage)dismissNutritionSetCreateStage();else closeModal()}});document.addEventListener('keydown',e=>{
  const backdrop=document.getElementById('modal-backdrop');if(!backdrop.classList.contains('open'))return;
- if(e.key==='Escape'){e.preventDefault();if(document.querySelector('.modal').classList.contains('meal-picker-modal')&&mealAddContext)cancelMealAddFlow();else if(document.querySelector('.modal')?.dataset.nutritionSetCreateStage)dismissNutritionSetCreateStage();else closeModal();return}
+ if(e.key==='Escape'){e.preventDefault();if(document.querySelector('.modal').classList.contains('meal-picker-modal')&&mealAddContext)cancelMealAddFlow();else if(document.querySelector('.modal').classList.contains('mass-entry-modal')&&massEntryState)cancelMassEntryFlow();else if(document.querySelector('.modal')?.dataset.nutritionSetCreateStage)dismissNutritionSetCreateStage();else closeModal();return}
  if(e.key==='Tab'){
   const modal=document.querySelector('.modal');
   const focusable=[...modal.querySelectorAll('button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')].filter(x=>x.offsetParent!==null);
@@ -3150,6 +3411,8 @@ function openCalendarModal(){
  renderMonth();
  document.getElementById('calendar-prev').focus();
 }
+// #endregion JS / Общие модальные окна и календарь
+// #region JS / Дневник: вода и добавление записей
 function addWaterRecord(ml,date=dateKey(currentDate)){
  const amount=Number(ml);if(!Number.isFinite(amount)||amount<=0||amount>5000){toast('Укажи объём воды от 1 до 5000 мл');return}
  waterEntries.push({id:Date.now()+Math.floor(Math.random()*10000),date,ml:amount});saveWaterData();
@@ -3170,6 +3433,197 @@ function addFoodToMeal(item,meal,entryDate,grams=100){
  if(activePage==='diary')renderDiary();
  return id;
 }
+let massEntryState=null;
+// #endregion JS / Дневник: вода и добавление записей
+// #region JS / Массовая запись
+function cancelMassEntryFlow(){
+ massEntryState=null;
+ if(mealAddContext){mealAddContext=null;mealAddDraft=[];recipeSelectionMode=false}
+ closeModal();
+ if(activePage==='recipes')setPage('diary');
+}
+function openQuickAddMenu(){
+ openModal('Быстрая запись',`<div class="mass-entry-stack"><div class="mass-entry-intro">Выбери обычное добавление еды или заполни дневник сразу за несколько дней.</div><div class="mass-entry-choice-list"><button type="button" class="mass-entry-choice" id="quick-add-single"><span class="mass-entry-choice-icon">＋</span><span class="mass-entry-choice-copy"><strong>Обычная запись</strong><small>Добавить продукт или рецепт в один приём пищи</small></span><b aria-hidden="true">›</b></button><button type="button" class="mass-entry-choice" id="quick-add-mass"><span class="mass-entry-choice-icon">▦</span><span class="mass-entry-choice-copy"><strong>Массовая запись</strong><small>Заполнить один или несколько дней за один раз</small></span><b aria-hidden="true">›</b></button></div></div>`,`<button class="btn" id="quick-add-menu-close">Отмена</button>`);
+ document.getElementById('quick-add-menu-close').onclick=closeModal;
+ document.getElementById('quick-add-single').onclick=()=>{closeModal();openQuickMealChooser()};
+ document.getElementById('quick-add-mass').onclick=()=>{
+  const monthDate=activePage==='diary'?currentDate:todayLocalDate();
+  massEntryState={mode:'range',rangeStart:'',rangeEnd:'',selectedDays:[],dates:[],calendarMonth:new Date(monthDate.getFullYear(),monthDate.getMonth(),1),source:null,collisionMode:'skip',calorieMode:'daily',calorieInput:'',selectedSetId:''};
+  openMassDatePicker();
+ };
+}
+function massSelectedDates(){
+ if(!massEntryState)return [];
+ if(massEntryState.mode==='days')return [...new Set(massEntryState.selectedDays||[])].sort();
+ if(!massEntryState.rangeStart)return [];
+ if(!massEntryState.rangeEnd)return [massEntryState.rangeStart];
+ const start=new Date(`${massEntryState.rangeStart}T00:00:00`),end=new Date(`${massEntryState.rangeEnd}T00:00:00`),dates=[];
+ for(const date=new Date(start);date<=end;date.setDate(date.getDate()+1))dates.push(dateKey(date));
+ return dates;
+}
+function massDateIsFilled(key){return diaryEntries.some(entry=>entry.date===key)}
+function renderMassDateCalendar(){
+ const state=massEntryState;if(!state)return;
+ const month=state.calendarMonth,year=month.getFullYear(),monthIndex=month.getMonth(),first=(new Date(year,monthIndex,1).getDay()+6)%7,daysInMonth=new Date(year,monthIndex+1,0).getDate(),todayKey=dateKey(todayLocalDate()),selected=new Set(massSelectedDates());
+ const names=['ПН','ВТ','СР','ЧТ','ПТ','СБ','ВС'];
+ const blanks=Array.from({length:first},()=>'<span></span>').join('');
+ const cells=Array.from({length:daysInMonth},(_,i)=>{
+  const key=dateKey(new Date(year,monthIndex,i+1)),isSelected=selected.has(key),isStart=state.mode==='range'&&key===state.rangeStart,isEnd=state.mode==='range'&&key===state.rangeEnd,isInRange=state.mode==='range'&&state.rangeStart&&state.rangeEnd&&key>state.rangeStart&&key<state.rangeEnd;
+  const classes=['mass-entry-calendar-day',isSelected?'is-selected':'',isInRange?'in-range':'',isStart?'range-start':'',isEnd?'range-end':'',key===todayKey?'is-today':'',massDateIsFilled(key)?'is-filled':''].filter(Boolean).join(' ');
+  return `<button type="button" class="${classes}" data-mass-date="${key}" ${key>todayKey?'disabled':''} aria-pressed="${isSelected}" title="${massDateIsFilled(key)?'В этот день уже есть записи':''}">${i+1}</button>`;
+ }).join('');
+ const selectedDates=massSelectedDates(),summary=selectedDates.length?(state.mode==='range'&&selectedDates.length>1?`${readableDate(selectedDates[0])} — ${readableDate(selectedDates[selectedDates.length-1])}`:`Выбрано дней: ${selectedDates.length}`):'Даты не выбраны';
+ document.getElementById('mass-calendar-title').textContent=monthLabel(month);
+ document.getElementById('mass-calendar-grid').innerHTML=names.map(name=>`<span class="mass-entry-calendar-weekday">${name}</span>`).join('')+blanks+cells;
+ document.getElementById('mass-date-summary').innerHTML=`<span>${summary}</span><strong>${selectedDates.length} дн.</strong>`;
+ document.querySelectorAll('[data-mass-date]').forEach(button=>button.onclick=()=>{
+  const key=button.dataset.massDate;if(key>todayKey)return;
+  if(state.mode==='days'){
+   const selected=new Set(state.selectedDays||[]);selected.has(key)?selected.delete(key):selected.add(key);state.selectedDays=[...selected].sort();
+  }else if(!state.rangeStart||state.rangeEnd){state.rangeStart=key;state.rangeEnd=''}else if(key<state.rangeStart){state.rangeEnd=state.rangeStart;state.rangeStart=key}else{state.rangeEnd=key}
+  state.dates=massSelectedDates();renderMassDateCalendar();
+  document.getElementById('mass-date-continue').disabled=!state.dates.length;
+ });
+ document.getElementById('mass-calendar-prev').onclick=()=>{state.calendarMonth=new Date(year,monthIndex-1,1);renderMassDateCalendar()};
+ document.getElementById('mass-calendar-next').onclick=()=>{const next=new Date(year,monthIndex+1,1);const max=new Date(todayLocalDate().getFullYear(),todayLocalDate().getMonth(),1);if(next<=max){state.calendarMonth=next;renderMassDateCalendar()}};
+}
+function openMassDatePicker(){
+ if(!massEntryState)return;
+ const body=`<div class="mass-entry-stack"><div class="mass-entry-intro">Выбери период целиком или отметь отдельные дни. Будущие даты недоступны.</div><div class="mass-entry-toggle"><button type="button" data-mass-mode="range" class="${massEntryState.mode==='range'?'active':''}">Период</button><button type="button" data-mass-mode="days" class="${massEntryState.mode==='days'?'active':''}">Отдельные дни</button></div><div class="mass-entry-calendar"><div class="mass-entry-calendar-head"><button type="button" id="mass-calendar-prev" aria-label="Предыдущий месяц">‹</button><strong id="mass-calendar-title"></strong><button type="button" id="mass-calendar-next" aria-label="Следующий месяц">›</button></div><div class="mass-entry-calendar-grid" id="mass-calendar-grid"></div></div><div class="mass-entry-summary" id="mass-date-summary"></div></div>`;
+ openModal('Выбор дат',body,'<button type="button" class="btn" id="mass-date-cancel">Отмена</button><button type="button" class="btn-primary" id="mass-date-continue" disabled>Далее</button>');
+ document.querySelector('.modal').classList.add('mass-entry-modal');document.getElementById('modal-close').onclick=cancelMassEntryFlow;
+ document.getElementById('mass-date-cancel').onclick=cancelMassEntryFlow;
+ document.querySelectorAll('[data-mass-mode]').forEach(button=>button.onclick=()=>{
+  const next=button.dataset.massMode;if(next===massEntryState.mode)return;
+  const existing=massSelectedDates();massEntryState.mode=next;
+  if(next==='days'){massEntryState.selectedDays=existing;massEntryState.rangeStart='';massEntryState.rangeEnd=''}
+  else{massEntryState.rangeStart=existing[0]||'';massEntryState.rangeEnd=existing.length>1?existing[existing.length-1]:'';massEntryState.selectedDays=[]}
+  openMassDatePicker();
+ });
+ renderMassDateCalendar();
+ const continueButton=document.getElementById('mass-date-continue');continueButton.disabled=!massSelectedDates().length;
+ continueButton.onclick=()=>{massEntryState.dates=massSelectedDates();if(!massEntryState.dates.length)return;openMassSourceStep()};
+}
+function openMassSourceStep(){
+ if(!massEntryState)return;
+ const dates=massSelectedDates();massEntryState.dates=dates;
+ const count=dates.length;
+ const body=`<div class="mass-entry-stack"><div class="mass-entry-summary"><span>Выбранный период</span><strong>${count} ${count===1?'день':count<5?'дня':'дней'}</strong></div><div class="mass-entry-intro">Как заполнить питание на каждый выбранный день?</div><div class="mass-entry-choice-list"><button type="button" class="mass-entry-choice" data-mass-source="calories"><span class="mass-entry-choice-icon">♨</span><span class="mass-entry-choice-copy"><strong>Только калории</strong><small>Ввести общую калорийность периода или значение за один день</small></span><b aria-hidden="true">›</b></button><button type="button" class="mass-entry-choice" data-mass-source="library"><span class="mass-entry-choice-icon">▤</span><span class="mass-entry-choice-copy"><strong>Из библиотеки питания</strong><small>Рецепты, продукты, избранное, подборки и другие доступные позиции</small></span><b aria-hidden="true">›</b></button><button type="button" class="mass-entry-choice" data-mass-source="set"><span class="mass-entry-choice-icon">▦</span><span class="mass-entry-choice-copy"><strong>Питание по набору</strong><small>Выбрать набор из раздела «Планирование»</small></span><b aria-hidden="true">›</b></button></div></div>`;
+ openModal('Способ заполнения',body,'<button type="button" class="btn" id="mass-source-back">Назад</button><button type="button" class="btn" id="mass-source-cancel">Отмена</button>');
+ document.querySelector('.modal').classList.add('mass-entry-modal');document.getElementById('modal-close').onclick=cancelMassEntryFlow;
+ document.getElementById('mass-source-back').onclick=openMassDatePicker;document.getElementById('mass-source-cancel').onclick=cancelMassEntryFlow;
+ document.querySelectorAll('[data-mass-source]').forEach(button=>button.onclick=()=>{
+  massEntryState.source=button.dataset.massSource;
+  if(massEntryState.source==='calories')openMassCaloriesConfig();
+  else if(massEntryState.source==='library')startMassLibrarySelection();
+  else openMassSetConfig();
+ });
+}
+function openMassCaloriesConfig(){
+ if(!massEntryState)return;
+ const mode=massEntryState.calorieMode||'daily',value=massEntryState.calorieInput||'';
+ const body=`<div class="mass-entry-stack"><div class="mass-entry-intro">Калории будут записаны как дневной итог. Распределять их по завтраку, обеду и ужину приложение не будет, поскольку состав питания неизвестен.</div><div class="mass-entry-toggle"><button type="button" data-mass-calorie-mode="daily" class="${mode==='daily'?'active':''}">На день</button><button type="button" data-mass-calorie-mode="period" class="${mode==='period'?'active':''}">За весь период</button></div><div class="mass-entry-field"><label for="mass-calorie-value">${mode==='daily'?'Ккал в день':'Всего ккал за выбранный период'}</label><input id="mass-calorie-value" type="number" min="1" max="1000000" step="1" inputmode="numeric" value="${escapeHtml(value)}" placeholder="Например, 2000"></div><div class="mass-entry-warning">${mode==='daily'?`Значение будет записано на каждый из ${massEntryState.dates.length} выбранных дней.`:`Общее значение будет равномерно разделено на ${massEntryState.dates.length} выбранных дней.`} Белки, жиры, углеводы и микронутриенты останутся неизвестными, а не нулевыми.</div></div>`;
+ openModal('Только калории',body,'<button type="button" class="btn" id="mass-calorie-back">Назад</button><button type="button" class="btn-primary" id="mass-calorie-preview">Предпросмотр</button>');
+ document.querySelector('.modal').classList.add('mass-entry-modal');document.getElementById('modal-close').onclick=cancelMassEntryFlow;
+ document.getElementById('mass-calorie-back').onclick=openMassSourceStep;
+ document.querySelectorAll('[data-mass-calorie-mode]').forEach(button=>button.onclick=()=>{massEntryState.calorieInput=document.getElementById('mass-calorie-value').value;massEntryState.calorieMode=button.dataset.massCalorieMode;openMassCaloriesConfig()});
+ document.getElementById('mass-calorie-preview').onclick=()=>{const input=document.getElementById('mass-calorie-value'),amount=Number(input.value);if(!Number.isFinite(amount)||amount<=0||amount>1000000){toast('Укажи количество калорий от 1 до 1 000 000');input.focus();return}massEntryState.calorieInput=String(amount);openMassEntryPreview()};
+}
+function getMassSetDailyData(set){
+ const aggregate=aggregatePlannerNutrition(set?.weeks||[]),days=28,totals={};Object.keys(aggregate.totals).forEach(key=>totals[key]=aggregate.totals[key]/days);
+ return {aggregate,totals,components:aggregate.components.map(item=>({...item,amount:item.amount/days}))};
+}
+function openMassSetConfig(){
+ if(!massEntryState)return;
+ const rows=nutritionSets.map(set=>{
+  const daily=getMassSetDailyData(set),disabled=!daily.aggregate.recipeCount,selected=String(massEntryState.selectedSetId)===String(set.id);
+  return `<button type="button" class="mass-entry-choice ${selected?'is-selected':''}" data-mass-set="${escapeHtml(set.id)}" ${disabled?'disabled':''}><span class="mass-entry-choice-icon">▦</span><span class="mass-entry-choice-copy"><strong>${escapeHtml(set.name)}</strong><small>${disabled?'Нет рецептов для расчёта':`${fmt(daily.totals.kcal)} ккал в день · Б ${nutritionNumber(daily.totals.p)} · Ж ${nutritionNumber(daily.totals.f)} · У ${nutritionNumber(daily.totals.c)}`}${set.comment?` · ${escapeHtml(set.comment)}`:''}</small></span><b aria-hidden="true">${selected?'✓':'›'}</b></button>`;
+ }).join('');
+ const hasAny=nutritionSets.some(set=>getMassSetDailyData(set).aggregate.recipeCount>0);
+ const body=`<div class="mass-entry-stack"><div class="mass-entry-intro">Выбери набор, созданный в разделе «Планирование». Его суточные показатели будут записаны на каждый выбранный день.</div><div class="mass-entry-choice-list">${rows||''}</div>${hasAny?'':'<div class="mass-entry-empty">Пока нет наборов с рецептами, по которым можно рассчитать дневную пищевую ценность.</div>'}</div>`;
+ openModal('Выбор набора',body,'<button type="button" class="btn" id="mass-set-back">Назад</button><button type="button" class="btn-primary" id="mass-set-preview" disabled>Предпросмотр</button>');
+ document.querySelector('.modal').classList.add('mass-entry-modal');document.getElementById('modal-close').onclick=cancelMassEntryFlow;
+ document.getElementById('mass-set-back').onclick=openMassSourceStep;
+ document.querySelectorAll('[data-mass-set]').forEach(button=>button.onclick=()=>{massEntryState.selectedSetId=button.dataset.massSet;openMassSetConfig()});
+ const next=document.getElementById('mass-set-preview');next.disabled=!massEntryState.selectedSetId;
+ next.onclick=()=>{const selected=nutritionSets.find(set=>String(set.id)===String(massEntryState.selectedSetId));if(!selected){toast('Выбери набор');return}massEntryState.selectedSet=selected;openMassEntryPreview()};
+}
+function startMassLibrarySelection(){
+ if(!massEntryState)return;
+ massEntryState.source='library';
+ const firstMeal=getStandardMeals()[0]||'Завтрак',firstDate=massEntryState.dates[0];
+ mealAddContext={meal:firstMeal,date:firstDate,originPage:'diary',searchQuery:'',massEntry:true};mealAddDraft=[];recipeSelectionMode=false;mealPickerCatalogTab='recipes';activeCollectionId=null;collectionSearch='';mealProductSearch='';
+ openRecipeSelectionPage();
+}
+function massEntryDailyTotals(){
+ const state=massEntryState;if(!state)return null;
+ if(state.source==='calories'){
+  const entered=Number(state.calorieInput)||0,perDay=state.calorieMode==='period'?entered/state.dates.length:entered;
+  return {kcal:perDay,p:null,f:null,c:null,description:state.calorieMode==='period'?`${fmt(entered)} ккал за период`:`${fmt(entered)} ккал в день`};
+ }
+ if(state.source==='library'){
+  return mealAddDraft.reduce((total,item)=>{const grams=Number(item.grams)||0;total.kcal+=(Number(item.kcal)||0)*grams/100;total.p+=(Number(item.p)||0)*grams/100;total.f+=(Number(item.f)||0)*grams/100;total.c+=(Number(item.c)||0)*grams/100;return total},{kcal:0,p:0,f:0,c:0});
+ }
+ if(state.source==='set'&&state.selectedSet)return getMassSetDailyData(state.selectedSet).totals;
+ return null;
+}
+function openMassEntryPreview(){
+ if(!massEntryState)return;
+ const state=massEntryState,dates=state.dates||[],filled=dates.filter(massDateIsFilled),collision=state.collisionMode||'skip',toWrite=collision==='skip'?dates.length-filled.length:dates.length;
+ const daily=massEntryDailyTotals();if(!daily){toast('Не удалось рассчитать дневные значения');return}
+ let sourceTitle=state.source==='calories'?'Только калории':state.source==='library'?'Библиотека питания':`Набор: ${state.selectedSet?.name||'не выбран'}`;
+ let content='';
+ if(state.source==='library'){
+  if(!mealAddDraft.length){toast('Добавь хотя бы один продукт или рецепт');return}
+  const meals=[...new Set(mealAddDraft.map(item=>item.meal||getStandardMeals()[0]||'Завтрак'))];
+  content=`<div class="mass-entry-warning">Ежедневный рацион будет повторён на все выбранные даты. Количество каждой позиции указано на один день.</div><div class="mass-entry-preview-row"><span>Позиции рациона</span><strong>${mealAddDraft.length}</strong></div><div class="mass-entry-preview-row"><span>Приёмы пищи</span><strong>${meals.length}</strong></div><div class="mass-entry-preview-row"><span>Калорийность в день</span><strong>${fmt(daily.kcal)} ккал</strong></div><div class="mass-entry-preview-row"><span>Б / Ж / У в день</span><strong>${nutritionNumber(daily.p)} / ${nutritionNumber(daily.f)} / ${nutritionNumber(daily.c)} г</strong></div>`;
+ }else if(state.source==='calories'){
+  content=`<div class="mass-entry-preview-row"><span>Калорийность в день</span><strong>${fmt(daily.kcal)} ккал</strong></div><div class="mass-entry-preview-row"><span>Всего за выбранные даты</span><strong>${fmt(daily.kcal*dates.length)} ккал</strong></div><div class="mass-entry-warning">БЖУ и микронутриенты не определены. Эта запись будет участвовать в калорийной статистике, но не будет учитываться как нулевое содержание нутриентов.</div>`;
+ }else{
+  const aggregate=getMassSetDailyData(state.selectedSet);
+  content=`<div class="mass-entry-preview-row"><span>Калорийность в день</span><strong>${fmt(daily.kcal)} ккал</strong></div><div class="mass-entry-preview-row"><span>Б / Ж / У в день</span><strong>${nutritionNumber(daily.p)} / ${nutritionNumber(daily.f)} / ${nutritionNumber(daily.c)} г</strong></div><div class="mass-entry-preview-row"><span>Рецептов в исходном наборе</span><strong>${aggregate.aggregate.recipeCount}</strong></div><div class="mass-entry-warning">В текущей модели планирования показатели набора агрегируются по четырём неделям и делятся на 28 дней. В дневник будет внесено рассчитанное суточное значение, а не выдуманное распределение блюд по отдельным приёмам пищи.</div>`;
+ }
+ const conflictOptions=[['skip',`Пропустить заполненные дни (${filled.length})`],['append','Дополнить существующие записи'],['replace','Заменить питание за эти дни']].map(([value,label])=>`<option value="${value}" ${collision===value?'selected':''}>${label}</option>`).join('');
+ const body=`<div class="mass-entry-stack"><div class="mass-entry-summary"><span>${readableDate(dates[0])}${dates.length>1?` — ${readableDate(dates[dates.length-1])}`:''}</span><strong>${dates.length} дн.</strong></div><div class="mass-entry-preview"><div class="mass-entry-preview-row"><span>Способ</span><strong>${escapeHtml(sourceTitle)}</strong></div>${content}</div><div class="mass-entry-field"><label for="mass-collision-mode">Если в выбранный день уже есть записи</label><select id="mass-collision-mode">${conflictOptions}</select></div><div class="mass-entry-summary"><span>${collision==='skip'?'Будет пропущено заполненных дней':collision==='replace'?'Питание будет заменено за дни':'Будут добавлены новые записи'}</span><strong>${toWrite} дн.</strong></div></div>`;
+ openModal('Предпросмотр массовой записи',body,`<button type="button" class="btn" id="mass-preview-back">Назад</button><button type="button" class="btn-primary" id="mass-entry-apply" ${toWrite?'':'disabled'}>${collision==='replace'?'Заменить питание':`Записать на ${toWrite} дн.`}</button>`);
+ document.querySelector('.modal').classList.add('mass-entry-modal');document.getElementById('modal-close').onclick=cancelMassEntryFlow;
+ document.getElementById('mass-preview-back').onclick=()=>state.source==='calories'?openMassCaloriesConfig():state.source==='set'?openMassSetConfig():showMealAddPlate();
+ document.getElementById('mass-collision-mode').onchange=event=>{state.collisionMode=event.target.value;openMassEntryPreview()};
+ document.getElementById('mass-entry-apply').onclick=applyMassEntry;
+}
+function applyMassEntry(){
+ const state=massEntryState;if(!state)return;
+ const dates=state.dates||[],mode=state.collisionMode||'skip',filled=dates.filter(massDateIsFilled);
+ const targetDates=mode==='skip'?dates.filter(key=>!massDateIsFilled(key)):dates;
+ if(!targetDates.length){toast('Все выбранные дни уже заполнены. Измени способ обработки или выбери другие даты.');return}
+ const created=[];
+ const makeId=index=>Date.now()+Math.floor(Math.random()*100000)+index;
+ if(state.source==='calories'){
+  const entered=Number(state.calorieInput)||0,perDay=state.calorieMode==='period'?entered/dates.length:entered;
+  targetDates.forEach((date,index)=>created.push({id:makeId(index),date,meal:'Калории за день',name:'Калорийность за день',grams:0,kcal:perDay,p:null,f:null,c:null,calorieOnly:true,quantityMode:'calorie-only',quantityUnit:'ккал',quantityValue:perDay,foodMetadataSnapshot:{categories:[],items:[]}}));
+ }else if(state.source==='library'){
+  const valid=mealAddDraft.filter(item=>Number.isFinite(Number(item.grams))&&Number(item.grams)>0&&Number(item.grams)<=30000);
+  if(!valid.length||valid.length!==mealAddDraft.length){toast('Проверь количество выбранных продуктов и рецептов');return}
+  targetDates.forEach(date=>valid.forEach(item=>{
+   const grams=Number(item.grams),meal=item.meal||getStandardMeals()[0]||'Завтрак';
+   created.push({id:makeId(created.length),date,meal,name:item.name,grams,kcal:item.kcal*grams/100,p:item.p*grams/100,f:item.f*grams/100,c:item.c*grams/100,recipeId:item.kind==='recipe'?item.id:null,productId:item.kind==='product'?item.id:null,quantityMode:item.quantityMode||'grams',quantityValue:Number(item.quantityValue)||grams,portionGrams:item.portionGrams||null,quantityUnit:'г',...createDiaryFoodEntrySnapshot(item)});
+   expandedMeals.add(meal);
+  }));
+ }else if(state.source==='set'){
+  const set=state.selectedSet||nutritionSets.find(item=>String(item.id)===String(state.selectedSetId));if(!set){toast('Выбранный набор не найден');return}
+  const daily=getMassSetDailyData(set);
+  if(!daily.aggregate.recipeCount){toast('В наборе нет рецептов для расчёта');return}
+  targetDates.forEach((date,index)=>created.push({id:makeId(index),date,meal:'Набор питания',name:`${set.name} · суточное значение`,grams:100,kcal:daily.totals.kcal,p:daily.totals.p,f:daily.totals.f,c:daily.totals.c,isNutritionSetAverage:true,quantityMode:'set-average',quantityUnit:'день',quantityValue:1,sourceNutritionSetId:set.id,foodMetadataSnapshot:{categories:[],items:[]},nutritionSnapshot:{kcal:daily.totals.kcal,p:daily.totals.p,f:daily.totals.f,c:daily.totals.c,components:daily.components}}));
+ }
+ if(mode==='replace')diaryEntries=diaryEntries.filter(entry=>!targetDates.includes(entry.date));
+ diaryEntries.push(...created);saveDiaryData();
+ const latest=[...targetDates].sort().at(-1),[y,m,d]=latest.split('-').map(Number);currentDate=new Date(y,m-1,d);
+ massEntryState=null;mealAddContext=null;mealAddDraft=[];recipeSelectionMode=false;mealAddDrafts={};closeModal();setPage('diary');
+ toast(`Создано записей: ${created.length} · дней: ${targetDates.length}${mode==='skip'&&filled.length?` · пропущено: ${filled.length}`:''}`);
+}
+
+// #endregion JS / Массовая запись
+// #region JS / Быстрая запись и выбор еды
 function openQuickMealChooser(){
  const dateKeyForEntry=dateKey(activePage==='diary'?currentDate:todayLocalDate()),todayKey=dateKey(todayLocalDate());
  if(dateKeyForEntry>todayKey){toast('Нельзя добавлять записи на будущую дату');return}
@@ -3184,6 +3638,7 @@ function openQuickMealChooser(){
 }
 function mealAddDraftStorageKey(context){return context?`${context.date}|${context.meal}|${context.replaceEntryId||'new'}`:''}
 function startMealAddFlow(meal,originPage=activePage,directToCatalog=false,initialItem=null,entryDateOverride=null){
+ massEntryState=null;
  if(mealAddContext)mealAddDrafts[mealAddDraftStorageKey(mealAddContext)]=mealAddDraft;
  const entryDate=entryDateOverride||dateKey(currentDate),todayKey=dateKey(todayLocalDate());
  if(entryDate>todayKey){toast('Нельзя добавлять записи на будущую дату');return}
@@ -3207,6 +3662,8 @@ function itemNutritionPer100(item,kind){
  return {kcal:Number(item.kcal)||0,p:Number(item.p)||0,f:Number(item.f)||0,c:Number(item.c)||0};
 }
 function diaryEntryQuantityLabel(entry){
+ if(isCalorieOnlyEntry(entry))return 'Введённые калории · БЖУ и микронутриенты неизвестны';
+ if(isNutritionSetAverageEntry(entry))return 'Суточное значение из набора питания';
  if(entry.quantityMode==='portions'&&Number(entry.quantityValue)>0&&Number(entry.portionGrams)>0)return `${nutritionNumber(entry.quantityValue)} порц. · ${fmt(entry.grams)} г`;
  return `${fmt(entry.grams)} ${entry.quantityUnit==='мл'?'мл':'г'}`;
 }
@@ -3215,7 +3672,7 @@ function addMealDraftItem(item,kind){
  const key=(kind==='recipe'?'r-':'p-')+item.id;
  if(mealAddContext.replaceEntryId)mealAddDraft=[];else if(mealAddDraft.some(x=>x.key===key))return false;
  const values=itemNutritionPer100(item,kind);
- mealAddDraft.push({key,kind,id:item.id,name:item.name,...values,grams:100,quantityMode:'grams',quantityValue:100,recipeId:kind==='recipe'?item.id:null,portionGrams:kind==='recipe'?Number(item.portionGrams)||200:null});
+ const defaultMeals=getStandardMeals(),suggested=kind==='recipe'?recipeArray(item.mealTypes).find(meal=>defaultMeals.includes(meal)):null;mealAddDraft.push({key,kind,id:item.id,name:item.name,...values,grams:100,quantityMode:'grams',quantityValue:100,meal:massEntryState?.source==='library'?(suggested||defaultMeals[0]||'Завтрак'):undefined,recipeId:kind==='recipe'?item.id:null,portionGrams:kind==='recipe'?Number(item.portionGrams)||200:null});
  return true;
 }
 function addCurrentPickerDraftItem(item,kind){
@@ -3288,24 +3745,25 @@ function returnToMealAddPlate(){
  recipeSelectionMode=false;setPage(mealAddContext.originPage||'diary');showMealAddPlate();
 }
 function cancelMealAddFlow(){
- if(!mealAddContext){closeModal();return}
- const destination=mealAddContext.originPage||'diary';delete mealAddDrafts[mealAddDraftStorageKey(mealAddContext)];mealAddContext=null;mealAddDraft=[];recipeSelectionMode=false;
+ if(!mealAddContext){massEntryState=null;closeModal();return}
+ const destination=mealAddContext.originPage||'diary';delete mealAddDrafts[mealAddDraftStorageKey(mealAddContext)];mealAddContext=null;mealAddDraft=[];recipeSelectionMode=false;massEntryState=null;
  closeModal();if(activePage!==destination)setPage(destination);else render();
 }
 function mealDraftMarkup(){
  if(!mealAddDraft.length)return '';
- return `<div class="meal-draft-block"><div class="meal-draft-heading"><strong>${mealAddContext?.replaceEntryId?'Новое блюдо':'Добавлено'}</strong><span>${mealAddDraft.length} поз.</span></div><div class="meal-draft-list">${mealAddDraft.map((item,index)=>{const g=Number(item.grams)||0,hasPortion=item.kind==='recipe'&&Number(item.portionGrams)>0,mode=item.quantityMode||'grams',value=mode==='portions'?(Number(item.quantityValue)||g/(Number(item.portionGrams)||1)):g;return `<div class="meal-draft-row" data-draft-row="${index}"><div class="meal-draft-info"><strong>${item.name}</strong><small>${fmt(item.kcal*g/100)} ккал · Б ${(item.p*g/100).toFixed(1)} · Ж ${(item.f*g/100).toFixed(1)} · У ${(item.c*g/100).toFixed(1)}</small></div><div class="meal-draft-quantity">${hasPortion?`<div class="entry-unit-switch meal-draft-unit-switch"><button type="button" data-draft-unit="grams" data-draft-index="${index}" class="${mode==='grams'?'active':''}">г</button><button type="button" data-draft-unit="portions" data-draft-index="${index}" class="${mode==='portions'?'active':''}">порции</button></div>`:''}<label class="meal-draft-grams"><input type="number" min="0.1" max="30000" step="${mode==='portions'?'0.1':'1'}" value="${mealAddContext?.replaceEntryId&&!value?'':Number(value.toFixed(2))}" data-draft-quantity="${index}" aria-label="Количество: ${item.name}"><span>${mode==='portions'?'порц.':'г'}</span></label>${hasPortion?`<small class="meal-draft-quantity-note">1 порция = ${nutritionNumber(item.portionGrams)} г · всего ${fmt(g)} г</small>`:''}</div><button type="button" class="meal-draft-remove" data-remove-draft="${index}" aria-label="Убрать ${item.name}">×</button></div>`}).join('')}</div></div>`;
+ return `<div class="meal-draft-block"><div class="meal-draft-heading"><strong>${mealAddContext?.replaceEntryId?'Новое блюдо':'Добавлено'}</strong><span>${mealAddDraft.length} поз.</span></div><div class="meal-draft-list">${mealAddDraft.map((item,index)=>{const g=Number(item.grams)||0,hasPortion=item.kind==='recipe'&&Number(item.portionGrams)>0,mode=item.quantityMode||'grams',value=mode==='portions'?(Number(item.quantityValue)||g/(Number(item.portionGrams)||1)):g;return `<div class="meal-draft-row" data-draft-row="${index}"><div class="meal-draft-info"><strong>${item.name}</strong><small>${fmt(item.kcal*g/100)} ккал · Б ${(item.p*g/100).toFixed(1)} · Ж ${(item.f*g/100).toFixed(1)} · У ${(item.c*g/100).toFixed(1)}</small></div><div class="meal-draft-quantity">${massEntryState?.source==='library'?`<select class="mass-entry-item-meal" data-draft-meal="${index}" aria-label="Приём пищи: ${escapeHtml(item.name)}">${[...getStandardMeals(),'Перекус'].map(meal=>`<option value="${escapeHtml(meal)}" ${meal===(item.meal||getStandardMeals()[0])?'selected':''}>${escapeHtml(meal)}</option>`).join('')}</select>`:''}${hasPortion?`<div class="entry-unit-switch meal-draft-unit-switch"><button type="button" data-draft-unit="grams" data-draft-index="${index}" class="${mode==='grams'?'active':''}">г</button><button type="button" data-draft-unit="portions" data-draft-index="${index}" class="${mode==='portions'?'active':''}">порции</button></div>`:''}<label class="meal-draft-grams"><input type="number" min="0.1" max="30000" step="${mode==='portions'?'0.1':'1'}" value="${mealAddContext?.replaceEntryId&&!value?'':Number(value.toFixed(2))}" data-draft-quantity="${index}" aria-label="Количество: ${item.name}"><span>${mode==='portions'?'порц.':'г'}</span></label>${hasPortion?`<small class="meal-draft-quantity-note">1 порция = ${nutritionNumber(item.portionGrams)} г · всего ${fmt(g)} г</small>`:''}</div><button type="button" class="meal-draft-remove" data-remove-draft="${index}" aria-label="Убрать ${item.name}">×</button></div>`}).join('')}</div></div>`;
 }
 function showMealAddPlate(){
  if(!mealAddContext)return;
  const {meal,date,searchQuery='',replaceEntryId}=mealAddContext,replaceTarget=replaceEntryId?diaryEntries.find(e=>e.id===replaceEntryId):null,context=replaceTarget?`Замена «${replaceTarget.name}» · ${readableDate(date)}`:`${meal} · ${readableDate(date)}`;
  const body=`<div class="food-picker-context">${context}</div><div class="food-picker-search"><span aria-hidden="true">⌕</span><input id="meal-food-search" type="search" placeholder="Поиск продуктов" autocomplete="off" aria-label="Поиск продуктов"></div><div class="food-picker-results" id="meal-food-results" aria-live="polite"></div><button type="button" class="btn meal-open-catalog" id="open-meal-recipe-catalog">Открыть рецепты <span aria-hidden="true">›</span></button><div id="meal-draft-container">${mealDraftMarkup()}</div>`;
- const primaryLabel=replaceEntryId?'Заменить запись':`Добавить в ${meal}`;
+ const primaryLabel=replaceEntryId?'Заменить запись':massEntryState?.source==='library'?'Предпросмотр массовой записи':`Добавить в ${meal}`;
  const actions=`<button type="button" class="btn" id="meal-picker-cancel">Отмена</button><button type="button" class="btn-primary" id="meal-picker-save" ${mealAddDraft.length?'':'disabled'}>${primaryLabel}</button>`;
- openModal(replaceEntryId?'Заменить еду':'Добавить еду',body,actions);document.querySelector('.modal').classList.add('meal-picker-modal');
+ openModal(replaceEntryId?'Заменить еду':massEntryState?.source==='library'?'Массовое питание · один день':'Добавить еду',body,actions);document.querySelector('.modal').classList.add('meal-picker-modal');
  // Closing this plate cancels the temporary selection.
  document.getElementById('modal-close').onclick=cancelMealAddFlow;
  const input=document.getElementById('meal-food-search'),results=document.getElementById('meal-food-results');input.value=searchQuery;
+ if(massEntryState?.source==='library'){const context=document.querySelector('.food-picker-context');if(context)context.textContent=`Один дневной рацион · повторится на ${massEntryState.dates.length} выбранных датах`;}
  const paintResults=()=>{
   const q=input.value.trim().toLocaleLowerCase('ru-RU');
   if(!q){results.innerHTML='';return}
@@ -3323,10 +3781,12 @@ function showMealAddPlate(){
  const refreshDraftRow=(row,item)=>{const g=Number(item.grams)||0,small=row.querySelector('.meal-draft-info small');if(small)small.textContent=`${fmt(item.kcal*g/100)} ккал · Б ${(item.p*g/100).toFixed(1)} · Ж ${(item.f*g/100).toFixed(1)} · У ${(item.c*g/100).toFixed(1)}`;const note=row.querySelector('.meal-draft-quantity-note');if(note)note.textContent=`1 порция = ${nutritionNumber(item.portionGrams)} г · всего ${fmt(g)} г`;};
  document.querySelectorAll('[data-draft-quantity]').forEach(control=>control.addEventListener('input',()=>{const item=mealAddDraft[Number(control.dataset.draftQuantity)];if(!item)return;item.quantityValue=Math.max(0,Number(control.value)||0);item.grams=item.quantityMode==='portions'?item.quantityValue*(Number(item.portionGrams)||100):item.quantityValue;refreshDraftRow(control.closest('.meal-draft-row'),item)}));
  document.querySelectorAll('[data-draft-unit]').forEach(button=>button.onclick=()=>{const index=Number(button.dataset.draftIndex),item=mealAddDraft[index];if(!item)return;item.quantityMode=button.dataset.draftUnit;item.quantityValue=item.quantityMode==='portions'?item.grams/(Number(item.portionGrams)||100):item.grams;const row=button.closest('.meal-draft-row'),input=row.querySelector('[data-draft-quantity]'),unit=row.querySelector('.meal-draft-grams span');input.value=Number(item.quantityValue.toFixed(2));input.step=item.quantityMode==='portions'?'0.1':'1';unit.textContent=item.quantityMode==='portions'?'порц.':'г';row.querySelectorAll('[data-draft-unit]').forEach(b=>b.classList.toggle('active',b===button));refreshDraftRow(row,item)});
+ document.querySelectorAll('[data-draft-meal]').forEach(control=>control.onchange=()=>{const item=mealAddDraft[Number(control.dataset.draftMeal)];if(item)item.meal=control.value});
  document.querySelectorAll('[data-remove-draft]').forEach(button=>button.onclick=()=>{mealAddDraft.splice(Number(button.dataset.removeDraft),1);showMealAddPlate()});
 }
 function commitMealAddDraft(){
  if(!mealAddContext||!mealAddDraft.length)return;
+ if(massEntryState?.source==='library'){const valid=mealAddDraft.filter(item=>Number.isFinite(Number(item.grams))&&Number(item.grams)>0&&Number(item.grams)<=30000);if(valid.length!==mealAddDraft.length){toast('Проверь граммовку выбранных позиций');return}openMassEntryPreview();return}
  const {meal,date,originPage,replaceEntryId}=mealAddContext;
  const valid=mealAddDraft.filter(item=>Number.isFinite(Number(item.grams))&&Number(item.grams)>0&&Number(item.grams)<=30000);
  if(valid.length!==mealAddDraft.length){toast('Проверь граммовку выбранных позиций');return}
@@ -3521,6 +3981,8 @@ recipes.forEach(recipe=>{
 });
 const recipeMicroKeys=['fiber','sugar','sodium','cholesterol','potassium'];
 const recipeMicroLabels={fiber:'Клетчатка',sugar:'Сахар',sodium:'Натрий',cholesterol:'Холестерин',potassium:'Калий'};
+// #endregion JS / Быстрая запись и выбор еды
+// #region JS / Пищевая ценность, рецепты и снимки записей
 function productBasisUnit(product){return product?.basisUnit==='мл'?'мл':'г'}
 function ingredientAmountInProductBasis(row,product){
  const amount=Math.max(0,Number(row?.amount??row?.grams)||0);
@@ -3594,7 +4056,7 @@ function createDiaryFoodEntrySnapshot(item){
   nutritionSnapshot:{kcal:Number(item.kcal)||0,p:Number(item.p)||0,f:Number(item.f)||0,c:Number(item.c)||0,components:snapshotComponents}
  };
 }
-diaryEntries.forEach(entry=>{if(!entry.foodMetadataSnapshot){const metadata=getDiaryFoodMetadata(entry);entry.foodMetadataSnapshot={categories:[...metadata.categories],items:[...metadata.items]}};if(!entry.nutritionSnapshot){const grams=Math.max(1,Number(entry.grams)||100);entry.nutritionSnapshot={kcal:(Number(entry.kcal)||0)/grams*100,p:(Number(entry.p)||0)/grams*100,f:(Number(entry.f)||0)/grams*100,c:(Number(entry.c)||0)/grams*100,components:recipeArray(entry.components).map(component=>({...component,amount:Number(component.amount)*100/grams}))}}});
+diaryEntries.forEach(entry=>{if(isCalorieOnlyEntry(entry))return;if(!entry.foodMetadataSnapshot){const metadata=getDiaryFoodMetadata(entry);entry.foodMetadataSnapshot={categories:[...metadata.categories],items:[...metadata.items]}};if(!entry.nutritionSnapshot){const grams=Math.max(1,Number(entry.grams)||100);entry.nutritionSnapshot={kcal:(Number(entry.kcal)||0)/grams*100,p:(Number(entry.p)||0)/grams*100,f:(Number(entry.f)||0)/grams*100,c:(Number(entry.c)||0)/grams*100,components:recipeArray(entry.components).map(component=>({...component,amount:Number(component.amount)*100/grams}))}}});
 if(diaryEntries.length)saveDiaryData();
 function nutritionNumber(value){return (Math.round((Number(value)||0)*10)/10).toLocaleString(localeTags(),{maximumFractionDigits:1})}
 function recipeNutritionPanel(recipe,mode){
@@ -3863,6 +4325,8 @@ function openRecipeModal(recipeId=null,resumeDraft=null){
  };
  updateIngredientHints();
 }
+// #endregion JS / Пищевая ценность, рецепты и снимки записей
+// #region JS / Карточки и редакторы продуктов
 function openProductDetail(productId){
  const product=productDB.find(x=>String(x.id)===String(productId));if(!product)return;
  const inPickMode=Boolean(recipeSelectionMode&&(mealAddContext||collectionAddContext||recipeIngredientPickContext||plannerDishAddContext||plannerCategoryAddContext));
@@ -4042,6 +4506,8 @@ function openProductModal(productId=null){
   closeModal();recipeTab='myProducts';myProductSearch='';setPage('recipes');
  };
 }
+// #endregion JS / Карточки и редакторы продуктов
+// #region JS / Профиль, вес и замеры тела
 function openSetupModal(){
  const existingCalc=calculatePlanTargets();
  const goal=normalizeGoalLabel(plan.goal);
@@ -4287,15 +4753,10 @@ function openProfileModal(){
   saveProfileData();syncPlanCalculations(true);closeModal();renderProfile();toast('Персональные параметры обновлены');
  };
 }
-/* i18n: подключаем переводчики к уже определённым функциям */
-const _escapeHtmlOriginal=escapeHtml;
-function escapeHtml(value){return _escapeHtmlOriginal(translateText(value))}
-const _toastOriginal=toast;
-function toast(msg,actionLabel=null,action=null){_toastOriginal(translateText(msg),actionLabel?translateText(actionLabel):actionLabel,action)}
-const _openModalOriginal=openModal;
-function openModal(title,body,actions){_openModalOriginal(translateText(title),translateText(body),translateText(actions))}
-applyI18n(document.body);
+// #endregion JS / Профиль, вес и замеры тела
+/* Незавершённые глобальные i18n-обёртки удалены: повторные function declarations вызывали бесконечную рекурсию. */
 render();
+// #endregion JAVASCRIPT — Логика приложения
 </script>
 </body>
 </html>
