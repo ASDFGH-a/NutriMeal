@@ -1,67 +1,25 @@
 <!doctype html>
 <html lang="ru">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Питание — трекер</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles/app.css">
-<script type="module" src="main.js"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Питание — трекер</title>
+  <style>
+    html,
+    body,
+    iframe {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      border: 0;
+    }
+
+    iframe {
+      display: block;
+    }
+  </style>
 </head>
 <body>
-<div class="app">
-  <aside class="sidebar">
-    <div class="brand">
-      <div class="brand-mark">п.</div>
-      <div><div class="brand-name">Питание</div><div class="brand-sub">личный трекер</div></div>
-    </div>
-    <div>
-      <div class="nav-label">Рабочее пространство</div>
-      <nav class="nav" id="nav">
-        <button class="nav-btn active" data-page="diary" data-label="Дневник"><span class="nav-ico">&#x25A0;</span>Дневник</button>
-        <button class="nav-btn" data-page="recipes" data-label="Рецепты"><span class="nav-ico">&#x25A4;</span>Рецепты</button>
-        <button class="nav-btn" data-page="planning" data-label="Планирование"><span class="nav-ico">&#x25A0;</span>Планирование</button>
-        <button class="nav-btn" data-page="stats" data-label="Статистика"><span class="nav-ico">&#x2301;</span>Статистика</button>
-        <button class="nav-btn" data-page="profile" data-label="Профиль"><span class="nav-ico">&#x25CB;</span>Профиль</button>
-        <button class="nav-btn" data-page="settings" data-label="Настройки"><span class="nav-ico">&#x2699;</span>Настройки</button>
-      </nav>
-    </div>
-    <div class="sidebar-bottom">
-      <div class="muted-box">Локальный прототип интерфейса. Данные демонстрационные.</div>
-      <div class="profile-mini">
-        <div class="avatar">U</div>
-        <div><strong>Пользователь</strong><small>Личный профиль</small></div>
-      </div>
-    </div>
-  </aside>
-  <main class="main">
-    <header class="topbar">
-      <div class="heading">
-        <h1 id="page-title">Дневник</h1>
-        <p id="page-subtitle">Ежедневный учёт питания и показателей</p>
-      </div>
-      <div class="top-actions">
-        <button class="btn-quiet" id="quick-add">&#xFF0B;&#xFE0E; Быстрая запись</button>
-      </div>
-    </header>
-    <div id="page" class="content"></div>
-  </main>
-</div>
-
-<!-- Общие элементы: модальное окно и уведомления -->
-<div class="modal-backdrop" id="modal-backdrop">
-  <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" tabindex="-1">
-    <div class="modal-head">
-      <h2 id="modal-title">Добавить</h2>
-      <button class="modal-close" id="modal-close" aria-label="Закрыть">&times;</button>
-    </div>
-    <div id="modal-body"></div>
-    <div class="modal-actions" id="modal-actions"></div>
-  </section>
-</div>
-<div class="toast" id="toast" role="status" aria-live="polite"></div>
-
+  <iframe src="./PWA_v60_code_blocks.html" title="Питание — трекер"></iframe>
 </body>
 </html>

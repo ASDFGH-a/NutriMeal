@@ -1,1 +1,8 @@
-{"type":"module","private":true}
+{
+  "name": "nutrimeal",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  }
+}

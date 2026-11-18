@@ -1,36 +1,27 @@
-import { writeStoredArray } from '../storage.js';
-import { createDefaultNutritionSets } from '../../../domain/nutrition-set/nutrition-set.model.js';
-import { normalizeNutritionSets } from '../../../domain/nutrition-set/nutrition-set.normalizer.js';
+import { createDefaultNutritionSets } from '../../../domain/nutrition-set/nutrition-set.defaults.js';
+import { normalizeNutritionSet } from '../../../domain/nutrition-set/nutrition-set.model.js';
 
 export const NUTRITION_SETS_STORAGE_KEY = 'nutrition-sets-v1';
 
-export function createNutritionSetsRepository(storage, { isProductIdValid, logger = console } = {}) {
-  if (typeof isProductIdValid !== 'function') {
-    throw new TypeError('createNutritionSetsRepository requires isProductIdValid(id)');
+export function createNutritionSetsRepository(storage, products) {
+  if (!storage || typeof storage.getItem !== 'function' || typeof storage.setItem !== 'function') {
+    throw new TypeError('An object with getItem and setItem methods is required.');
   }
+  if (!Array.isArray(products)) throw new TypeError('Products must be an array.');
+
   return {
-    loadAll: () => {
-      let raw;
-      try { raw = storage.getItem(NUTRITION_SETS_STORAGE_KEY); }
-      catch (error) {
-        logger?.warn?.('Не удалось прочитать наборы питания', error);
-        return normalizeNutritionSets(createDefaultNutritionSets(), isProductIdValid);
-      }
-      if (raw == null || raw === '') {
-        const defaults = normalizeNutritionSets(createDefaultNutritionSets(), isProductIdValid);
-        writeStoredArray(storage, NUTRITION_SETS_STORAGE_KEY, defaults, 'Не удалось сохранить стартовые наборы питания', logger);
-        return defaults;
-      }
-      try {
-        const stored = JSON.parse(raw);
-        return Array.isArray(stored)
-          ? normalizeNutritionSets(stored, isProductIdValid)
-          : normalizeNutritionSets(createDefaultNutritionSets(), isProductIdValid);
-      } catch (error) {
-        logger?.warn?.('Не удалось разобрать наборы питания', error);
-        return normalizeNutritionSets(createDefaultNutritionSets(), isProductIdValid);
-      }
+    load() {
+      const serialized = storage.getItem(NUTRITION_SETS_STORAGE_KEY);
+      if (serialized === null) return createDefaultNutritionSets(products);
+
+      const value = JSON.parse(serialized);
+      if (!Array.isArray(value)) return createDefaultNutritionSets(products);
+      return value.map((set, index) => normalizeNutritionSet(set, index, products));
     },
-    saveAll: sets => writeStoredArray(storage, NUTRITION_SETS_STORAGE_KEY, sets, 'Не удалось сохранить наборы питания', logger)
+    save(sets) {
+      if (!Array.isArray(sets)) throw new TypeError('Nutrition sets must be an array.');
+      const normalized = sets.map((set, index) => normalizeNutritionSet(set, index, products));
+      storage.setItem(NUTRITION_SETS_STORAGE_KEY, JSON.stringify(normalized));
+    }
   };
 }

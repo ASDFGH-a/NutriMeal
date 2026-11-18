@@ -909,38 +909,29 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 <!-- #region HTML — Статический каркас приложения -->
 <body>
   <!-- Основная оболочка: боковая навигация и рабочая область -->
-<div class="app">
-  <aside class="sidebar">
-    <div class="brand"><div class="brand-mark">п.</div><div><div class="brand-name">Питание</div><div class="brand-sub">личный трекер</div></div></div>
-    <div><div class="nav-label">Рабочее пространство</div><nav class="nav" id="nav">
-      <button class="nav-btn active" data-page="diary" data-label="Дневник"><span class="nav-ico">▦</span>Дневник</button>
-      <button class="nav-btn" data-page="recipes" data-label="Рецепты"><span class="nav-ico">▤</span>Рецепты</button>
-      <button class="nav-btn" data-page="planning" data-label="Планирование"><span class="nav-ico">▦</span>Планирование</button>
-      <button class="nav-btn" data-page="stats" data-label="Статистика"><span class="nav-ico">⌁</span>Статистика</button>
-      <button class="nav-btn" data-page="profile" data-label="Профиль"><span class="nav-ico">○</span>Профиль</button>
-      <button class="nav-btn" data-page="settings" data-label="Настройки"><span class="nav-ico">⚙</span>Настройки</button>
-    </nav></div>
-    <div class="sidebar-bottom">
-      <div class="muted-box">Локальный прототип интерфейса. Данные демонстрационные.</div>
-      <div class="profile-mini"><div class="avatar">U</div><div><strong>Пользователь</strong><small>Личный профиль</small></div></div>
-    </div>
-  </aside>
-  <main class="main">
-    <header class="topbar">
-      <div class="heading"><h1 id="page-title">Дневник</h1><p id="page-subtitle">Ежедневный учёт питания и показателей</p></div>
-      <div class="top-actions"><button class="btn-quiet" id="quick-add">＋ Быстрая запись</button></div>
-    </header>
-    <div id="page" class="content"></div>
-  </main>
-</div>
+<div id="app-shell"></div>
   <!-- Общие элементы: модальное окно и уведомления -->
-<div class="modal-backdrop" id="modal-backdrop"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" tabindex="-1"><div class="modal-head"><h2 id="modal-title">Добавить</h2><button class="modal-close" id="modal-close" aria-label="Закрыть">×</button></div><div id="modal-body"></div><div class="modal-actions" id="modal-actions"></div></section></div>
-<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div id="overlay-host"></div>
   <!-- Динамические экраны, карточки, формы и окна создаются шаблонами в JavaScript ниже. -->
   <!-- #endregion HTML — Статический каркас приложения -->
+<script src="./src/ui/screens/profile/profile-screen.js"></script>
+<script src="./src/ui/modals/body-history-modals.js"></script>
+<script src="./src/ui/modals/profile-modal.js"></script>
+<script src="./src/ui/state/app-state.js"></script>
+<script src="./src/ui/router/app-router.js"></script>
+<script src="./src/ui/components/app-shell.js"></script>
+<script src="./src/ui/screens/screen-router.js"></script>
+<script src="./src/ui/screens/settings/settings-screen.js"></script>
+<script src="./src/ui/components/overlay-host.js"></script>
+<script src="./src/ui/app/application-bootstrap.js"></script>
+<script src="./src/ui/screens/settings/theory-screen.js"></script>
+<script src="./src/ui/screens/diary/diary-screen.js"></script>
+<script src="./src/ui/screens/statistics/statistics-screen.js"></script>
+<script src="./src/ui/screens/planning/planning-screen.js"></script>
 <script>
 // #region JAVASCRIPT — Логика приложения
 // Примечание: большая часть динамической HTML-разметки создаётся внутри render/open-функций ниже.
+const application=NutriMealUI.bootstrapApplication({document,initialPage:'diary'});
 // #region JS / Стартовые данные каталога
 const recipes = [
  {id:1,name:'Овсяная каша на молоке',emoji:'🥣',time:15,kcal:146,p:5.8,f:5.1,c:20.2,tags:['завтрак','быстро'],type:'Завтраки',ingredients:'Овсянка, молоко',favorite:true},
@@ -1005,8 +996,27 @@ const MEASUREMENT_HISTORY_STORAGE_KEY='nutrition-measurement-history-v1';
 function readStoredArray(key){try{const value=JSON.parse(localStorage.getItem(key)||'null');return Array.isArray(value)?value:[]}catch(error){return []}}
 function saveDiaryData(){try{localStorage.setItem(DIARY_STORAGE_KEY,JSON.stringify(diaryEntries))}catch(error){console.warn('Не удалось сохранить дневник питания',error)}}
 function saveWaterData(){try{localStorage.setItem(WATER_STORAGE_KEY,JSON.stringify(waterEntries))}catch(error){console.warn('Не удалось сохранить записи воды',error)}}
-function saveWeightHistory(){try{localStorage.setItem(WEIGHT_HISTORY_STORAGE_KEY,JSON.stringify(weightHistory))}catch(error){console.warn('Не удалось сохранить историю веса',error)}}
-function saveMeasurementHistory(){try{localStorage.setItem(MEASUREMENT_HISTORY_STORAGE_KEY,JSON.stringify(measurementHistory))}catch(error){console.warn('Не удалось сохранить историю замеров',error)}}
+let bodyHistoryServices=null,bodyHistoryServicesError=null;
+const bodyHistoryServicesPromise=Promise.all([
+ import('./src/application/usecases/weight/weight-history.js'),
+ import('./src/application/usecases/measurement/measurement-history.js'),
+ import('./src/infrastructure/persistence/repositories/weight.repository.js'),
+ import('./src/infrastructure/persistence/repositories/measurement.repository.js'),
+ import('./src/infrastructure/persistence/repositories/profile.repository.js')
+]).then(([weightUseCases,measurementUseCases,weightRepositories,measurementRepositories,profileRepositories])=>{
+ bodyHistoryServices={
+  weightUseCases,
+  measurementUseCases,
+  weightRepository:weightRepositories.createWeightHistoryRepository(localStorage),
+  measurementRepository:measurementRepositories.createMeasurementHistoryRepository(localStorage),
+  profileRepository:profileRepositories.createProfileRepository(localStorage)
+ };
+}).catch(error=>{bodyHistoryServicesError=error;console.error('Не удалось загрузить сценарии истории веса и замеров',error)});
+async function getBodyHistoryServices(){
+ await bodyHistoryServicesPromise;
+ if(bodyHistoryServicesError)throw bodyHistoryServicesError;
+ return bodyHistoryServices;
+}
 let activePage='diary', recipeTab='recipes', recipeSearch='', recipeFiltersOpen=false, recipeFilterMode='standard', recipeFilters={timeMin:'',timeMax:'',mealTypes:[],cuisines:[],dishTypes:[],allergenInclude:[],allergenExclude:[],categories:[],kcalMin:'',kcalMax:'',pMin:'',pMax:'',cMin:'',cMax:'',productsInclude:[],productsExclude:[],customTags:[],customAttributes:{}}, customRecipeFilterTags=[], customRecipeFilterTitle='Пользовательские теги', recipeCustomFilterCategories=[], recipeStandardFilters=[
  {id:'time',label:'Время приготовления',kind:'timeRange'},
  {id:'mealTypes',label:'Приём пищи',kind:'multi',filterKey:'mealTypes',recipeField:'mealTypes',values:['Завтрак','Второй завтрак','Обед','Полдник','Ужин','Поздний ужин','Перекус']},
@@ -1031,6 +1041,11 @@ let activePage='diary', recipeTab='recipes', recipeSearch='', recipeFiltersOpen=
  {name:'Икра — левая нога',value:null,group:'Ноги'},
  {name:'Икра — правая нога',value:null,group:'Ноги'}
 ], profile={sex:'',birthDate:'',height:166,currentWeight:65.5,activityFactor:1.375,trainingFrequency:'1–2 раза в неделю',trainingDays:[],allergies:[],foodRestrictions:[],mealCount:5}, plan={goal:'Поддержание веса',targetWeight:65,kcal:2200,p:110,f:70,c:275,energyAdjustment:0,proteinPerKg:null,fatPercent:30,personalWeeklyGoals:{completeness:{},frequency:{},diversity:{}}};
+const appState=application.state;
+const appRouter=NutriMealUI.createAppRouter({
+ state:appState,
+ onNavigate:name=>setPage(name)
+});
 // #endregion JS / Дневник: базовые настройки и локальное хранение
 // #region JS / Профиль, планирование и наборы питания
 const PROFILE_ACTIVITY_LEVELS=[
@@ -1590,18 +1605,63 @@ function dateKey(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart
 function todayLocalDate(){const d=new Date();d.setHours(0,0,0,0);return d}
 function dateLabel(d){return d.toLocaleDateString(localeTags(),{day:'numeric',month:'long',year:'numeric'})}
 function readableDate(key){const [y,m,d]=String(key).split('-').map(Number);if(!y||!m||!d)return key;return new Date(y,m-1,d).toLocaleDateString(localeTags(),{day:'numeric',month:'long',year:'numeric'})}
-function upsertWeightRecord(weight,date){
- const existing=weightHistory.findIndex(x=>x.date===date);
- if(existing>=0)weightHistory[existing].weight=weight;else weightHistory.push({date,weight});
- weightHistory.sort((a,b)=>b.date.localeCompare(a.date));
- if(weightHistory.length)profile.currentWeight=weightHistory[0].weight;
- saveWeightHistory();saveProfileData();
+async function saveWeightRecordThroughUseCase(weight,date,previousDate=null,profileData=profile){
+ const services=await getBodyHistoryServices();
+ return services.weightUseCases.saveWeightRecord({
+  history:weightHistory,
+  historyRepository:services.weightRepository,
+  profile:profileData,
+  profileRepository:services.profileRepository,
+  weight,
+  date,
+  previousDate,
+  today:dateKey(todayLocalDate())
+ });
 }
-function saveMeasurementSnapshot(date,values){
- const existing=measurementHistory.findIndex(x=>x.date===date),snapshot={date,values:{...values}};
- if(existing>=0)measurementHistory[existing]=snapshot;else measurementHistory.push(snapshot);
- measurementHistory.sort((a,b)=>b.date.localeCompare(a.date));
- saveMeasurementHistory();syncCurrentBodyParameters(date);
+async function deleteWeightRecordThroughUseCase(date,profileData=profile){
+ const services=await getBodyHistoryServices();
+ return services.weightUseCases.deleteWeightRecord({
+  history:weightHistory,
+  historyRepository:services.weightRepository,
+  profile:profileData,
+  profileRepository:services.profileRepository,
+  date,
+  today:dateKey(todayLocalDate())
+ });
+}
+async function restoreWeightRecordThroughUseCase(record,profileData=profile){
+ const services=await getBodyHistoryServices();
+ return services.weightUseCases.restoreWeightRecord({
+  history:weightHistory,
+  historyRepository:services.weightRepository,
+  profile:profileData,
+  profileRepository:services.profileRepository,
+  record,
+  today:dateKey(todayLocalDate())
+ });
+}
+async function saveMeasurementSnapshot(date,values,profileData=profile){
+ const services=await getBodyHistoryServices();
+ return services.measurementUseCases.saveMeasurementSnapshot({
+  history:measurementHistory,
+  historyRepository:services.measurementRepository,
+  profile:profileData,
+  profileRepository:services.profileRepository,
+  date,
+  values,
+  today:dateKey(todayLocalDate())
+ });
+}
+async function restoreMeasurementSnapshotThroughUseCase(snapshot,profileData=profile){
+ const services=await getBodyHistoryServices();
+ return services.measurementUseCases.restoreMeasurementSnapshot({
+  history:measurementHistory,
+  historyRepository:services.measurementRepository,
+  profile:profileData,
+  profileRepository:services.profileRepository,
+  snapshot,
+  today:dateKey(todayLocalDate())
+ });
 }
 function syncCurrentBodyParameters(savedDate=null){
  const latest=[...measurementHistory].sort((a,b)=>b.date.localeCompare(a.date))[0]||null;
@@ -1609,14 +1669,28 @@ function syncCurrentBodyParameters(savedDate=null){
  if(latest){const latestHeight=Number(latest.values?.height);if(Number.isFinite(latestHeight)&&latestHeight>=80&&latestHeight<=250)profile.height=latestHeight;}
  saveProfileData();
 }
-function deleteMeasurementSnapshot(date){
- const index=measurementHistory.findIndex(record=>record.date===date);if(index<0)return;
- const removed=measurementHistory.splice(index,1)[0];saveMeasurementHistory();syncCurrentBodyParameters();
- closeModal();render();
- toast('Замер удалён','Отменить',()=>{
-  if(!measurementHistory.some(record=>record.date===removed.date))measurementHistory.push(removed);
-  measurementHistory.sort((a,b)=>b.date.localeCompare(a.date));saveMeasurementHistory();syncCurrentBodyParameters();render();toast('Замер восстановлен');
- });
+async function deleteMeasurementSnapshot(date){
+ try{
+  const services=await getBodyHistoryServices();
+  const result=await services.measurementUseCases.deleteMeasurementSnapshot({
+   history:measurementHistory,
+   historyRepository:services.measurementRepository,
+   profile,
+   profileRepository:services.profileRepository,
+   date,
+   today:dateKey(todayLocalDate())
+  });
+  if(!result.removed)return;
+  measurementHistory=result.history;measurements=result.measurements;profile=result.profile;
+  closeModal();render();
+  toast('Замер удалён','Отменить',async()=>{
+   try{
+    const restored=await restoreMeasurementSnapshotThroughUseCase(result.removed);
+    measurementHistory=restored.history;measurements=restored.measurements;profile=restored.profile;
+    render();toast('Замер восстановлен');
+   }catch(error){console.error('Не удалось восстановить замер',error);toast(error instanceof Error?error.message:'Не удалось восстановить замер')}
+  });
+ }catch(error){console.error('Не удалось удалить замер',error);toast(error instanceof Error?error.message:'Не удалось удалить замер')}
 }
 if(measurementHistory.length)syncCurrentBodyParameters();
 function measurementValue(name,values=null){const source=values||Object.fromEntries(measurements.map(m=>[m.name,m.value]));const n=Number(source[name]);return Number.isFinite(n)&&n>0?n:null}
@@ -1640,11 +1714,23 @@ function toast(msg,actionLabel=null,action=null){
  }
  el.classList.add('show');clearTimeout(window.toastTimer);window.toastTimer=setTimeout(()=>el.classList.remove('show'),4200);
 }
-function setPage(name){activePage=name;document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.page===name));document.getElementById('page-title').textContent=translateText(titles[name][0]);document.getElementById('page-subtitle').textContent=translateText(titles[name][1]);render()}
-document.getElementById('nav').addEventListener('click',e=>{const b=e.target.closest('[data-page]');if(!b)return;if(recipeSelectionMode&&(mealAddContext||collectionAddContext||recipeIngredientPickContext||plannerDishAddContext||plannerCategoryAddContext)){if(mealAddContext){mealAddDrafts[mealAddDraftStorageKey(mealAddContext)]=mealAddDraft;mealAddContext=null;mealAddDraft=[];massEntryState=null}if(collectionAddContext){collectionAddContext=null;collectionAddDraft=[]}if(recipeIngredientPickContext){recipeIngredientPickContext=null;recipeIngredientPickDraft=[]}if(plannerDishAddContext){const abandonCreate=nutritionSetCreateDraft?.id===activeNutritionSetId;plannerDishAddContext=null;plannerDishAddDraft=[];plannerWeekEditDraft=null;plannerWeekEditIndex=null;if(abandonCreate)cancelNutritionSetCreateFlow()}if(plannerCategoryAddContext){restorePlannerCategoryPickerState(plannerCategoryAddContext);plannerCategoryAddContext=null;plannerCategoryAddDraft=[]}recipeSelectionMode=false;toast('Режим выбора закрыт')}setPage(b.dataset.page)});
+function setPage(name){if(appState.activePage!==name)appState.setPage(name);activePage=name;document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.page===name));document.getElementById('page-title').textContent=translateText(titles[name][0]);document.getElementById('page-subtitle').textContent=translateText(titles[name][1]);render()}
+document.getElementById('nav').addEventListener('click',e=>{const b=e.target.closest('[data-page]');if(!b)return;if(recipeSelectionMode&&(mealAddContext||collectionAddContext||recipeIngredientPickContext||plannerDishAddContext||plannerCategoryAddContext)){if(mealAddContext){mealAddDrafts[mealAddDraftStorageKey(mealAddContext)]=mealAddDraft;mealAddContext=null;mealAddDraft=[];massEntryState=null}if(collectionAddContext){collectionAddContext=null;collectionAddDraft=[]}if(recipeIngredientPickContext){recipeIngredientPickContext=null;recipeIngredientPickDraft=[]}if(plannerDishAddContext){const abandonCreate=nutritionSetCreateDraft?.id===activeNutritionSetId;plannerDishAddContext=null;plannerDishAddDraft=[];plannerWeekEditDraft=null;plannerWeekEditIndex=null;if(abandonCreate)cancelNutritionSetCreateFlow()}if(plannerCategoryAddContext){restorePlannerCategoryPickerState(plannerCategoryAddContext);plannerCategoryAddContext=null;plannerCategoryAddDraft=[]}recipeSelectionMode=false;toast('Режим выбора закрыт')}appRouter.navigate(b.dataset.page)});
 let savedTheme=null;try{savedTheme=localStorage.getItem('nutrition-theme')}catch(e){}if(savedTheme)document.documentElement.dataset.theme=savedTheme;
 document.getElementById('quick-add').addEventListener('click',openQuickAddMenu);
-function render(){syncPlanCalculations(false);if(activePage==='diary')renderDiary();if(activePage==='recipes')renderRecipes();if(activePage==='planning')renderPlanning();if(activePage==='stats')renderStats();if(activePage==='profile')renderProfile();if(activePage==='settings')renderSettings();if(appLocale!=='ru')applyI18n(page)}
+const screenRouter=NutriMealUI.createScreenRouter({
+ screens:{
+  diary:renderDiary,
+  recipes:renderRecipes,
+  planning:renderPlanning,
+  stats:renderStats,
+  profile:renderProfile,
+  settings:renderSettings
+ },
+ beforeRender:()=>syncPlanCalculations(false),
+ afterRender:()=>{if(appLocale!=='ru')applyI18n(page)}
+});
+function render(){screenRouter.render(activePage)}
 function metricCard(label,value,unit,foot,percent,cls=''){return `<div class="card"><div class="metric-label">${label}</div><div class="metric-value">${value} <span class="metric-unit">${unit}</span></div><div class="metric-foot">${foot}</div><div class="progress ${cls}"><span style="width:${Math.min(percent,100)}%"></span></div></div>`}
 function renderDiary(){
  const selectedDate=dateKey(currentDate),todayKey=dateKey(todayLocalDate()),futureDate=selectedDate>todayKey;
@@ -1655,27 +1741,35 @@ function renderDiary(){
  const waterLitres=(waterTotal/1000).toLocaleString(localeTags(),{minimumFractionDigits:2,maximumFractionDigits:2});
  const norm={kcal:plan.kcal,p:plan.p,f:plan.f,c:plan.c},weightStatus=weightGoalStatus(),bmi=bmiSummary();
  const entryRows=items=>items.length?items.map(e=>{const system=isMassSystemEntry(e),macroLine=isCalorieOnlyEntry(e)?'БЖУ не указано':`Б ${nutritionNumber(e.p)} · Ж ${nutritionNumber(e.f)} · У ${nutritionNumber(e.c)}`;return `<div class="meal-entry"><div class="meal-entry-name"><strong>${escapeHtml(e.name)}</strong><div class="small muted">${diaryEntryQuantityLabel(e)}</div></div><div class="entry-right"><b>${fmt(e.kcal)} ккал</b><small>${macroLine}</small></div><div class="entry-actions">${system?'':`<button class="entry-action" data-edit-entry="${e.id}" aria-label="Изменить ${escapeHtml(e.name)}" title="Изменить количество и запись">✎</button><button class="entry-action" data-replace-entry="${e.id}" aria-label="Заменить ${escapeHtml(e.name)}" title="Заменить блюдо">↻</button>`}<button class="entry-action" data-remove-entry="${e.id}" aria-label="Удалить ${escapeHtml(e.name)}" title="Удалить">×</button></div></div>`}).join(''):'<div class="empty">Добавленных продуктов и блюд пока нет</div>';
- page.innerHTML=`
- <div class="between"><div class="date-switch"><button data-date="prev" aria-label="Предыдущий день">‹</button><button class="date-open" id="open-calendar" aria-label="Открыть календарь">${dateLabel(currentDate)}</button><button data-date="next" aria-label="Следующий день">›</button></div><button class="btn-quiet" id="today-btn">Сегодня</button></div>
- <div class="grid grid-4">
- ${metricCard('Калории',fmt(total.kcal),'ккал',`из ${fmt(norm.kcal)} ккал`,total.kcal/norm.kcal*100)}
- ${dayEntries.some(isCalorieOnlyEntry)?metricCard('Белки','—','г','Часть калорий без распределения БЖУ',0):metricCard('Белки',total.p.toFixed(1),'г',`из ${norm.p} г`,total.p/norm.p*100)}
- ${dayEntries.some(isCalorieOnlyEntry)?metricCard('Жиры','—','г','Часть калорий без распределения БЖУ',0):metricCard('Жиры',total.f.toFixed(1),'г',`из ${norm.f} г`,total.f/norm.f*100)}
- ${dayEntries.some(isCalorieOnlyEntry)?metricCard('Углеводы','—','г','Часть калорий без распределения БЖУ',0):metricCard('Углеводы',total.c.toFixed(1),'г',`из ${norm.c} г`,total.c/norm.c*100)}
- </div>
- <div class="between"><div><div class="section-title">Приёмы пищи</div><div class="card-desc">${standardMeals.length} стандартных приёмов пищи · количество задаётся в Профиле</div></div></div>
- ${futureDate?'<div class="muted-box">Это будущая дата. Её можно просматривать, но добавление записей в дневник доступно только за сегодняшний или прошедший день.</div>':''}
- <div class="meal-list">${displayMeals.map((m,index)=>{
-   const items=dayEntries.filter(e=>e.meal===m),sum=macrosFor(items),share=diaryMealShare(m);
-   const target=Number.isFinite(share)?Math.round(plan.kcal*share):null;
-   const progress=target?Math.min(sum.kcal/target*100,100):0,expanded=expandedMeals.has(m);
-   const itemRows=entryRows(items);
-   return `<section class="card meal"><div class="meal-summary"><div class="meal-main"><div class="meal-title">${m}</div><div class="meal-controls"><div class="meal-kcal"><strong>${fmt(sum.kcal)}</strong><span>${target===null?'без ориентира':`из ~${fmt(target)} ккал`}</span></div>${['Калории за день','Набор питания'].includes(m)?'':`<button class="btn-quiet meal-add" data-add-meal="${escapeHtml(m)}" ${futureDate?'disabled':''}>＋ Добавить</button>`}<button type="button" class="meal-toggle" data-toggle-meal="${escapeHtml(m)}" aria-label="${expanded?'Свернуть':'Раскрыть'} список: ${m}" aria-expanded="${expanded}" aria-controls="meal-details-${index}" title="${expanded?'Свернуть список':'Показать список'}"><span aria-hidden="true">›</span></button></div></div>${target!==null?`<div class="meal-progress" role="progressbar" aria-label="Заполнение ориентира: ${m}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(progress)}"><span style="width:${progress}%"></span></div>`:''}</div><div class="meal-details" id="meal-details-${index}" ${expanded?'':'hidden'}>${itemRows}</div></section>`;
- }).join('')}</div>
- <section class="card meal snack-meal"><div class="meal-summary"><div class="meal-main"><div><div class="meal-title">Перекус</div><div class="card-desc">Дополнительный приём пищи вне стандартного расписания</div></div><div class="meal-controls"><div class="meal-kcal"><strong>${fmt(macrosFor(snackEntries).kcal)}</strong><span>дополнительно</span></div><button class="btn-quiet meal-add" id="add-snack" ${futureDate?'disabled':''}>＋ Добавить перекус</button><button type="button" class="meal-toggle" id="toggle-snack" aria-label="${expandedMeals.has('Перекус')?'Свернуть':'Раскрыть'} перекусы" aria-expanded="${expandedMeals.has('Перекус')}" aria-controls="snack-details"><span aria-hidden="true">›</span></button></div></div></div><div class="meal-details" id="snack-details" ${expandedMeals.has('Перекус')?'':'hidden'}>${entryRows(snackEntries)}</div></section>
- <section class="card water-card"><div class="card-head"><div><div class="card-title">Вода</div><div class="card-desc">Учёт обычной питьевой воды отдельно от еды и других напитков</div></div><span class="tag">${waterLitres} л</span></div><div class="water-summary"><strong>${fmt(waterTotal)}</strong><span>мл за день</span></div><div class="water-actions"><button class="btn" data-water-quick="250" ${futureDate?'disabled':''}>＋ 250 мл</button></div><div class="water-entry-list" style="margin-top:12px">${waterRows||'<div class="empty">Записей воды пока нет</div>'}</div></section>
- <div class="grid grid-2"><section class="card"><div class="card-head"><div><div class="card-title">Цель по весу</div><div class="card-desc">Текущий вес и движение к цели</div></div><div class="card-actions"><button class="btn-quiet" id="open-weight-history">История</button><button class="btn-quiet" id="open-weight">Изменить</button></div></div><div class="weight-primary"><div><div class="metric-value">${profile.currentWeight.toFixed(1).replace('.',',')} <span class="metric-unit">кг</span></div><div class="metric-foot">Целевой вес ${plan.targetWeight} кг</div>${weightStatus.note?`<div class="weight-bmi-note">${weightStatus.note}</div>`:''}</div><div class="tag active">${weightStatus.label}</div></div><div class="weight-bmi"><div><div class="metric-label">ИМТ</div><div class="metric-foot">Индекс массы тела</div></div><div class="weight-bmi-value"><strong>${bmi.value}</strong><span class="tag">${bmi.label}</span></div></div></section>
- <section class="card"><div class="card-head"><div><div class="card-title">Замеры тела</div><div class="card-desc">${measurementHistory.length?`Последнее измерение · ${readableDate([...measurementHistory].sort((a,b)=>b.date.localeCompare(a.date))[0].date)}`:'Замеры пока не добавлены'}</div></div><button class="btn-quiet" id="open-measures">Подробнее</button></div>${measurementCardSummary()}</section></div>`;
+ const entriesByMeal=Object.fromEntries(displayMeals.map(meal=>[meal,dayEntries.filter(entry=>entry.meal===meal)]));
+ page.innerHTML=NutriMealUI.renderDiaryScreen({
+  dateLabel:dateLabel(currentDate),
+  selectedDate,
+  todayKey,
+  futureDate,
+  standardMeals,
+  displayMeals,
+  snackEntries,
+  entriesByMeal,
+  dayEntries,
+  macrosFor,
+  diaryMealShare,
+  plan,
+  profile,
+  expandedMeals,
+  waterEntries:dayWaterEntries,
+  waterTotal,
+  waterLitres,
+  weightStatus,
+  bmi,
+  measurementHistory,
+  readableDate,
+  measurementCardSummary,
+  fmt,
+  nutritionNumber,
+  escapeHtml,
+  diaryEntryQuantityLabel
+ });
  page.querySelectorAll('[data-date]').forEach(b=>b.addEventListener('click',()=>{currentDate.setDate(currentDate.getDate()+(b.dataset.date==='next'?1:-1));renderDiary()}));
  document.getElementById('open-calendar').onclick=openCalendarModal;
  document.getElementById('today-btn').onclick=()=>{currentDate=todayLocalDate();renderDiary()};
@@ -2359,20 +2453,20 @@ function renderPlanning(){
  if(missingDataCount>0)nutritionFootParts.push(`Есть неполные позиции состава или недоступные рецепты (${missingDataCount}); их отсутствующая пищевая ценность не включена в расчёт.`);
  if(!hasNutrition)nutritionFootParts.push('Добавь рецепты в выбранную неделю, чтобы получить фактические показатели.');
  const rdaText=nutrientStats.averageCoverage===null?'—':`${nutrientStats.averageCoverage}%`;
- page.innerHTML=`
- <section class="card planning-goal-card">
-  <div class="card-head"><div><div class="card-title">Цель и стратегия</div><div class="card-desc">Цель и целевой вес задаются здесь, отдельно от Профиля.</div></div><button class="btn" id="edit-setup">Настроить план</button></div>
-  <div class="planning-goal-summary"><div><span class="metric-label">Текущая цель</span><strong>${escapeHtml(plan.goal)}</strong></div><div><span class="metric-label">Текущий вес</span><strong>${Number(profile.currentWeight).toLocaleString(localeTags(),{maximumFractionDigits:1})} кг</strong></div><div><span class="metric-label">Целевой вес</span><strong>${Number(plan.targetWeight).toLocaleString(localeTags(),{maximumFractionDigits:1})} кг</strong></div><div><span class="metric-label">Разница</span><strong>${(Number(plan.targetWeight)-Number(profile.currentWeight)).toLocaleString(localeTags(),{maximumFractionDigits:1,signDisplay:'always'})} кг</strong></div></div>
-  <div class="plan-toolbar"><div class="field"><label for="plan-preset-select">Сохранённые настройки цели</label><select id="plan-preset-select"><option value="">Выбрать пресет…</option>${planPresets.map(item=>`<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)}</option>`).join('')}</select></div><button class="btn" id="plan-preset-save-open">Сохранить пресет</button><button class="btn-quiet" id="plan-presets-manage">Управление пресетами (${planPresets.length})</button></div>
- </section>
- ${ready?'':`<div class="notice-card"><strong>Для точного персонального расчёта проверь Профиль</strong><span>Персональные базовые и целевые значения рассчитываются по данным Профиля. Аналитика набора рассчитывается по составам добавленных рецептов.</span><button class="btn" id="planning-open-profile">Открыть Профиль</button></div>`}
- <section class="card planning-core-card">
-  <div class="card-head"><div><div class="card-title">Расход и целевое потребление</div><div class="card-desc">Базовый расход и твои целевые КБЖУ.</div></div></div>
-  <div class="planning-core-grid">
-   <div class="planning-core-panel"><div class="planning-core-panel-head"><h3>Расход энергии</h3><span class="tag">BMR / TDEE</span></div><div class="planning-core-metrics"><div class="planning-core-metric"><div class="metric-label">BMR</div><div class="metric-value">${ready?fmt(calc.bmr):'—'} <span class="metric-unit">ккал / день</span></div><div class="metric-foot">Основной обмен</div></div><div class="planning-core-metric"><div class="metric-label">TDEE</div><div class="metric-value">${ready?fmt(calc.tdee):'—'} <span class="metric-unit">ккал / день</span></div><div class="metric-foot">С учётом уровня активности из Профиля</div></div></div></div>
-   <div class="planning-core-panel"><div class="planning-core-panel-head"><h3>Целевое потребление</h3><span class="tag">Профиль и цель</span></div><div class="planning-core-metrics planning-target-metrics"><div class="planning-core-metric"><div class="metric-label">Калории</div><div class="metric-value">${ready?fmt(calc.kcal):fmt(targetKcal)} <span class="metric-unit">ккал / день</span></div><div class="metric-foot">${ready?`${calc.adjustment>0?'+':''}${calc.adjustment} ккал к TDEE`:'Текущий ориентир плана'}</div></div><div class="planning-core-metric"><div class="metric-label">Белки</div><div class="metric-value">${ready?calc.protein:targetP} <span class="metric-unit">г / день</span></div><div class="metric-foot">Целевое потребление</div></div><div class="planning-core-metric"><div class="metric-label">Жиры</div><div class="metric-value">${ready?calc.fat:targetF} <span class="metric-unit">г / день</span></div><div class="metric-foot">Целевое потребление</div></div><div class="planning-core-metric"><div class="metric-label">Углеводы</div><div class="metric-value">${ready?calc.carbs:targetC} <span class="metric-unit">г / день</span></div><div class="metric-foot">Целевое потребление</div></div></div></div>
-  </div>
- </section>
+ page.innerHTML=NutriMealUI.renderPlanningOverview({
+  plan,
+  profile,
+  planPresets,
+  ready,
+  calc,
+  targetKcal,
+  targetP,
+  targetF,
+  targetC,
+  fmt,
+  locale:localeTags(),
+  escapeHtml
+ })+`
  <section class="card planner48-library">
   <div class="planner48-section-head"><div><div class="planner48-eyebrow">01 / НАБОРЫ ПИТАНИЯ</div><h2>Библиотека наборов</h2><p>Выбери набор. Его совокупная пищевая ценность рассчитывается по блюдам всех четырёх недель.</p></div><button class="btn" id="planner-create-set">＋ Создать набор</button></div>
   <div class="planner48-set-grid">${setCards||`<div class="planner48-library-empty">Библиотека пока пуста. Создай набор, чтобы начать планирование.</div>`}</div>
@@ -3059,6 +3153,36 @@ function renderStats(){
  const canMoveForward=stats.endKey<dateKey(todayLocalDate());
  const foodRange=`${readableDate(stats.startKey)} — ${readableDate(stats.endKey)}`;
  const coverageMarkup=`<section class="card stats-coverage-card"><div class="stats-coverage-head"><b>Покрытие аналитики</b><small>Сколько дней выбранного периода содержит данные для каждого показателя</small></div><div class="stats-coverage-grid">${statsCoverageMetric('Калории',stats.loggedFoodDays,stats.days,`${stats.noRecordDays} дн. без записей. Среднее калорий по-прежнему делится на все ${stats.days} календарных дней.`)}${statsCoverageMetric('БЖУ',stats.macroKnownDays,stats.days,`Исключено ${stats.macroIncompleteDays} дн. с калорийными записями без полного состава и ${stats.noRecordDays} дн. без записей.`)}${statsCoverageMetric('Витамины и минералы',stats.microKnownDays,stats.days,`Нет данных ещё за ${stats.microMissingOnKnownMacroDays} дн. с известными БЖУ, ${stats.macroIncompleteDays} неполных дн. и ${stats.noRecordDays} дн. без записей.`)}${statsCoverageMetric('Полнота и разнообразие',stats.varietyKnownDays,stats.days,`Дни с данными о продуктах и категориях. Калорийные записи и дни без записей не учитываются.`)}</div><div class="stats-coverage-status"><b>Состояние дней:</b> данные о БЖУ — ${stats.macroKnownDays}; только калории — ${stats.onlyCalorieDays}; смешанные записи с неполными данными — ${stats.mixedCalorieDays}; без записей — ${stats.noRecordDays}.</div></section>`;
+ const calorieCard=`<section class="card stats-overview-card" role="button" tabindex="0" data-stats-detail="calories" aria-label="Подробнее: калории"><div class="stats-card-head"><div class="stats-card-title"><span class="stats-card-icon stats-icon-calories">♨</span><div><b>Калории</b><small>Среднее потребление на календарный день</small></div></div><span class="tag">ккал</span></div><div class="stats-card-main"><strong>${nutritionNumber(stats.averages.kcal)} <small>ккал / день</small></strong><span>${escapeHtml(calorieGoalText)}</span></div>${statsBars(calorieSeries,'')}<div class="stats-card-foot"><span>${stats.foodEntries.length?`Всего ${nutritionNumber(stats.totals.kcal)} ккал · ${stats.loggedFoodDays} дн. с записями`:'Нет записей за период'}</span><b>Подробнее ↗</b></div></section>`;
+ const macroCard=`<section class="card stats-overview-card" role="button" tabindex="0" data-stats-detail="macros" aria-label="Подробнее: БЖУ"><div class="stats-card-head"><div class="stats-card-title"><span class="stats-card-icon stats-icon-macros">∑</span><div><b>БЖУ</b><small>Среднее по дням с известным составом</small></div></div><span class="tag">г / день с данными</span></div><div class="stats-macro-overview">${macroMarkup}</div><div class="stats-card-foot"><span>${stats.macroKnownDays} из ${stats.days} дн. участвуют в среднем БЖУ${stats.macroIncompleteDays?` · ${stats.macroIncompleteDays} с неполными данными исключено`:''}</span><b>Подробнее ↗</b></div></section>`;
+ const waterCard=`<section class="card stats-overview-card" role="button" tabindex="0" data-stats-detail="water" aria-label="Подробнее: вода"><div class="stats-card-head"><div class="stats-card-title"><span class="stats-card-icon stats-icon-water">◉</span><div><b>Вода</b><small>Среднее потребление на календарный день</small></div></div><span class="tag">л</span></div><div class="stats-card-main"><strong>${nutritionNumber(waterAverageLitres)} <small>л / день</small></strong><span>${nutritionNumber(waterTotalLitres)} л всего · ${stats.loggedWaterDays} дн. с записями</span></div>${statsBars(waterSeries,' л')}<div class="stats-card-foot"><span>Учитывается обычная вода из дневника</span><b>Подробнее ↗</b></div></section>`;
+ const varietyCard=`<section class="card stats-overview-card" role="button" tabindex="0" data-stats-detail="variety" aria-label="Подробнее: полнота и разнообразие"><div class="stats-card-head"><div class="stats-card-title"><span class="stats-card-icon stats-icon-variety">✿</span><div><b>Полнота и разнообразие</b><small>Фактически съеденные продукты по группам</small></div></div><span class="tag">Категории</span></div><div class="stats-variety-grid">${varietyMarkup}</div><div class="stats-card-foot"><span>${stats.allFoodItemCount} уникальных продуктов · ${stats.groupStats.filter(item=>item.entries>=item.targetEntries).length} групп достигли ориентира</span><b>Подробнее ↗</b></div></section>`;
+ const microCard=`<section class="card stats-overview-card" role="button" tabindex="0" data-stats-detail="micros" aria-label="Подробнее: витамины и минералы"><div class="stats-card-head"><div class="stats-card-title"><span class="stats-card-icon stats-icon-micros">✣</span><div><b>Витамины и минералы</b><small>По составу съеденных продуктов и рецептов</small></div></div><span class="tag">RDA / AI</span></div><div class="stats-micro-summary"><strong>${microSummary}</strong><span>${escapeHtml(microSummaryLabel)}</span></div><div class="stats-micro-grid">${microPreview||'<div class="muted-box">В записях за период пока нет данных о микронутриентах.</div>'}</div><div class="stats-card-foot"><span>${stats.micronutrients.length?`${stats.micronutrients.length} компонентов · ${stats.microKnownDays} дн. с данными`:'Нет данных состава'}</span><b>Подробнее ↗</b></div></section>`;
+ const weightCard=`<section class="card stats-overview-card" role="button" tabindex="0" data-stats-detail="weight" aria-label="Подробнее: вес"><div class="stats-card-head"><div class="stats-card-title"><span class="stats-card-icon stats-icon-weight">◎</span><div><b>Вес</b><small>Динамика массы тела · ${escapeHtml(foodRange)}</small></div></div><span class="tag">кг</span></div><div class="stats-card-main"><strong>${weightLatest?`${nutritionNumber(weightLatest.weight)} <small>кг</small>`:'— <small>кг</small>'}</strong><span>${weightLatest?`${weightTargetText} · ${readableDate(weightLatest.date)}`:'Добавь фактическое измерение веса'}</span></div>${bodyStats.weights.length?statsLine(bodyStats.weights.map(item=>({label:new Date(`${item.date}T00:00:00`).toLocaleDateString(localeTags(),{day:'2-digit',month:'2-digit'}),value:Number(item.weight)}))):'<div class="history-empty">Нет данных о весе за выбранный период.</div>'}<div class="stats-card-foot"><span>${escapeHtml(weightChangeText)}</span><b>Подробнее ↗</b></div></section>`;
+ const measuresCard=`<section class="card stats-overview-card" role="button" tabindex="0" data-stats-detail="measures" aria-label="Подробнее: замеры тела"><div class="stats-card-head"><div class="stats-card-title"><span class="stats-card-icon stats-icon-measures">↔</span><div><b>Замеры тела</b><small>Окружности и динамика параметров</small></div></div><span class="tag">см</span></div><div class="stats-measures-grid">${measureCards}</div><div class="stats-card-foot"><span>${latest?`Последнее измерение · ${readableDate(latest.date)}`:'Замеры пока не добавлены за период'}</span><b>Подробнее ↗</b></div></section>`;
+ page.innerHTML=NutriMealUI.renderStatisticsScreen({
+  periodLabel,
+  periodRangeLabel,
+  canMoveForward,
+  foodRange,
+  coverageMarkup,
+  calorieCard,
+  macroCard,
+  waterCard,
+  varietyCard,
+  microCard,
+  weightCard,
+  measuresCard,
+  footerNote:'Калории и вода усредняются по всем календарным дням периода. БЖУ усредняются только по дням с известным составом питания; дни с калорийными записями без полного состава и дни без записей исключаются. Каждый микронутриент усредняется только по дням, в которых он действительно указан. Блок «Покрытие аналитики» показывает, сколько дней участвует в каждом расчёте. Вес и замеры берутся из отдельных историй измерений.'
+ });
+ document.getElementById('stats-period-trigger').onclick=openStatsPeriodPicker;
+ document.getElementById('stats-period-prev').onclick=()=>shiftStatsPeriod(-1);
+ const uiNextPeriodButton=document.getElementById('stats-period-next');if(uiNextPeriodButton)uiNextPeriodButton.onclick=()=>shiftStatsPeriod(1);
+ document.querySelectorAll('[data-stats-detail]').forEach(card=>{
+  card.addEventListener('click',()=>openStatsDetail(card.dataset.statsDetail));
+  card.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();openStatsDetail(card.dataset.statsDetail)}});
+ });
+ return;
  page.innerHTML=`
   <header class="stats-page-head"><div class="stats-period-toolbar" aria-label="Период статистики">
    <button type="button" class="stats-period-trigger" id="stats-period-trigger" aria-haspopup="dialog" aria-label="Выбрать период статистики"><span class="stats-period-trigger-copy"><strong>${escapeHtml(periodLabel)}</strong><small>${escapeHtml(periodRangeLabel)}</small></span><span class="stats-period-trigger-chevron" aria-hidden="true">⌄</span></button>
@@ -3092,45 +3216,18 @@ function renderStats(){
 // #endregion JS / Статистика, аналитика и выбор периода
 // #region JS / Профиль и настройки приложения
 function renderProfile(){
- const latest=measurementHistory.length?[...measurementHistory].sort((a,b)=>b.date.localeCompare(a.date))[0]:null;
- const latestValues=latest?.values||Object.fromEntries(measurements.map(m=>[m.name,m.value]));
- const valueText=v=>Number(v)>0?`${Number(v).toLocaleString(localeTags(),{maximumFractionDigits:1})} см`:'—';
- const groups=['Верхняя часть тела','Талия и таз','Руки','Ноги'];
- const groupMarkup=groups.map(group=>{
-  const items=measurements.filter(m=>m.group===group);
-  if(group==='Руки'||group==='Ноги'){
-   const labels=group==='Руки'?['Бицепс','Предплечье']:['Бедро','Икра'];const side=group==='Руки'?'рука':'нога';
-   return `<div class="profile-measure-group"><div class="profile-measure-group-title">${group.toUpperCase()}</div><div class="profile-measure-table"><div class="profile-measure-pair-head"><span></span><span>Левая</span><span>Правая</span></div>${labels.map(label=>{const left=items.find(m=>m.name===`${label} — левая ${side}`),right=items.find(m=>m.name===`${label} — правая ${side}`);return left&&right?`<div class="profile-measure-pair-row"><span>${label}</span><b>${valueText(latestValues[left.name])}</b><b>${valueText(latestValues[right.name])}</b></div>`:''}).join('')}</div></div>`;
-  }
-  return `<div class="profile-measure-group"><div class="profile-measure-group-title">${group.toUpperCase()}</div><div class="profile-measure-table">${items.map(m=>`<div class="profile-measure-row"><span>${m.name}</span><b>${valueText(latestValues[m.name])}</b></div>`).join('')}</div></div>`;
- }).join('');
- const profileAge=calculateProfileAge(profile.birthDate);
- const birthDateText=profile.birthDate?readableDate(profile.birthDate):'Не указана';
- const trainingDaysText=(profile.trainingDays||[]).length?PROFILE_WEEKDAYS.filter(day=>profile.trainingDays.includes(day)).join(' · '):'Дни не выбраны';
- page.innerHTML=`<section class="card profile-overview-card">
-  <div class="card-head"><div><div class="card-title">Персональные параметры</div><div class="card-desc">Личные данные и актуальные показатели тела</div></div><button class="btn" id="edit-profile">Изменить параметры</button></div>
-  <div class="profile-basic-grid">
-   <div class="profile-basic-item"><span>Пол</span><strong>${escapeHtml(profile.sex||'—')}</strong></div>
-   <div class="profile-basic-item"><span>Дата рождения</span><strong style="font-size:14px;letter-spacing:0">${escapeHtml(birthDateText)}</strong></div>
-   <div class="profile-basic-item"><span>Возраст</span><strong>${profileAge===null?'—':profileAge}</strong><small>${profileAge===null?'':'лет'}</small></div>
-   <div class="profile-basic-item"><span>Рост</span><strong>${Number(profile.height).toLocaleString(localeTags(),{maximumFractionDigits:1})}</strong><small>см</small></div>
-   <div class="profile-basic-item"><span>Текущий вес</span><strong>${Number(profile.currentWeight).toLocaleString(localeTags(),{maximumFractionDigits:1})}</strong><small>кг</small></div>
-  </div>
-  <div class="profile-activity-grid">
-   <div class="profile-activity-item"><span>Активность · коэффициент</span><strong>${escapeHtml(getActivityLevel(profile.activityFactor).label)} · ×${formatActivityFactor(profile.activityFactor)}</strong></div>
-   <div class="profile-activity-item"><span>Частота тренировок</span><strong>${escapeHtml(profile.trainingFrequency||'Не указана')}</strong></div>
-   <div class="profile-activity-item"><span>Дни тренировок</span><strong>${escapeHtml(trainingDaysText)}</strong></div>
-   <div class="profile-activity-item"><span>Стандартных приёмов пищи</span><strong>${profile.mealCount}</strong></div>
-  </div>
-  <div class="profile-data-groups">
-   <div class="profile-data-group"><div class="profile-data-group-title">АЛЛЕРГИИ</div><div class="profile-token-list">${profileTokenDisplayMarkup(profile.allergies||[])}</div></div>
-   <div class="profile-data-group"><div class="profile-data-group-title">ПИЩЕВЫЕ ОГРАНИЧЕНИЯ</div><div class="profile-token-list">${profileTokenDisplayMarkup(profile.foodRestrictions||[])}</div></div>
-  </div>
-  <div class="profile-measures-block">
-   <div class="profile-measures-head"><div><div class="card-title">Замеры тела</div><div class="card-desc">${latest?`Последнее измерение · ${readableDate(latest.date)}`:'Замеры пока не добавлены'}</div></div><button class="btn-quiet" id="profile-edit-measures">Изменить замеры</button></div>
-   <div class="profile-measurement-groups">${groupMarkup}</div>
-  </div>
- </section>`;
+ page.innerHTML=NutriMealUI.renderProfileScreen({
+  profile,
+  measurementHistory,
+  measurements,
+  weekdays:PROFILE_WEEKDAYS,
+  calculateProfileAge,
+  readableDate,
+  getActivityLevel,
+  formatActivityFactor,
+  locale:localeTags(),
+  escapeHtml
+ });
  document.getElementById('edit-profile').onclick=()=>openProfileModal();
  document.getElementById('profile-edit-measures').onclick=()=>openMeasureModal();
 }
@@ -3142,25 +3239,7 @@ function renderSettings(){
  }
  document.getElementById('page-title').textContent='Настройки';
  document.getElementById('page-subtitle').textContent='Настройки приложения';
- page.innerHTML=`
-  <section class="card">
-   <div class="card-head"><div><div class="card-title">Внешний вид</div><div class="card-desc">Оформление приложения</div></div></div>
-   <div class="settings-list">
-    <div class="setting"><div><strong>Тёмная тема</strong><small>Переключение светлого и тёмного оформления</small></div><input class="switch" type="checkbox" id="settings-theme" ${document.documentElement.dataset.theme==='dark'?'checked':''}></div>
-    <div class="setting"><div><strong>Единицы измерения</strong><small>Вес, продукты и замеры тела</small></div><span class="tag">кг · г · см</span></div>
-   </div>
-  </section>
-  <section class="card">
-   <div class="card-head"><div><div class="card-title">Данные приложения</div><div class="card-desc">Локальный каталог продуктов и рецептов</div></div><span class="tag">В разработке</span></div>
-   <div class="setting"><div><strong>Формат каталога</strong><small>В перспективе — импорт и экспорт данных в JSON</small></div><span class="tag">JSON</span></div>
-  </section>
-  <section class="card settings-theory-entry-card">
-   <button type="button" class="settings-theory-entry" id="settings-open-theory">
-    <span class="settings-theory-entry-icon" aria-hidden="true">▤</span>
-    <span class="settings-theory-entry-copy"><strong>Теория</strong><small>Документация формул, норм и принципов, используемых в Планировании</small></span>
-    <span class="settings-theory-entry-action">Открыть <span aria-hidden="true">→</span></span>
-   </button>
-  </section>`;
+ page.innerHTML=NutriMealUI.renderSettingsScreen({theme:document.documentElement.dataset.theme});
  document.getElementById('settings-theme').onchange=e=>{
   const next=e.target.checked?'dark':'light';
   document.documentElement.dataset.theme=next;
@@ -3173,6 +3252,9 @@ function renderTheorySettings(){
  document.getElementById('page-subtitle').textContent='Документация расчётов и принципов питания';
  const weeklyReferenceRows=WEEKLY_FOOD_GROUPS.map(group=>`<tr><td>${escapeHtml(group.label)}</td><td>${escapeHtml(group.reference)}</td></tr>`).join('');
  const rdaMarkup=renderRdaTable();
+ page.innerHTML=NutriMealUI.renderTheoryScreen({weeklyReferenceRows,rdaMarkup});
+ document.getElementById('settings-theory-back').onclick=()=>{settingsView='home';renderSettings()};
+ return;
  page.innerHTML=`
   <div class="theory-page-toolbar"><button class="btn-quiet" id="settings-theory-back">← Настройки</button><span class="theory-document-label">СПРАВОЧНИК ПРИЛОЖЕНИЯ</span></div>
   <section class="theory-document-intro"><div class="theory-document-eyebrow">ДОКУМЕНТАЦИЯ</div><h2>Теория</h2><p>Здесь описаны методы расчёта и справочные принципы, которые используются в Планировании. Планирование показывает персональные результаты; этот раздел объясняет, откуда они берутся.</p></section>
@@ -4538,37 +4620,53 @@ function openSetupModal(){
 function openWeightModal(editDate=null){
  const today=dateKey(todayLocalDate()),record=editDate?weightHistory.find(x=>x.date===editDate):null;
  const editing=!!record;
- const body=editing?`<div class="form-grid"><div class="field"><label for="weight-value">Вес, кг</label><input id="weight-value" type="number" min="1" max="500" step="0.1" value="${record.weight}"></div><div class="field"><label for="weight-date">Дата измерения</label><input id="weight-date" type="date" max="${today}" value="${record.date}"></div></div><div class="field-help" style="margin-top:12px">Изменение обновит только эту запись истории.</div>`:`<div class="form-grid"><div class="field"><label for="weight-value">Текущий вес, кг</label><input id="weight-value" type="number" min="1" max="500" step="0.1" value="${weightHistory.length?weightHistory[0].weight:''}"></div><div class="field"><label for="weight-date">Дата измерения</label><input id="weight-date" type="date" max="${today}" value="${today}"></div></div><div class="field-help" style="margin-top:12px">Здесь фиксируется фактический вес. Цель и целевой вес задаются в разделе «Планирование».</div>`;
+ const body=NutriMealUI.renderWeightModalBody({editing,record,history:weightHistory,today});
  openModal(editing?'Изменить измерение веса':'Добавить измерение веса',body,`${editing?'<button class="btn" id="weight-history-from-edit">История</button>':''}<div style="display:flex;gap:8px;margin-left:auto"><button class="btn" id="weight-cancel">Отмена</button><button class="btn-primary" id="weight-save">Сохранить</button></div>`);
  document.getElementById('weight-cancel').onclick=closeModal;
  if(editing)document.getElementById('weight-history-from-edit').onclick=openWeightHistoryModal;
- document.getElementById('weight-save').onclick=()=>{
+ document.getElementById('weight-save').onclick=async()=>{
   const value=Number(document.getElementById('weight-value').value),date=document.getElementById('weight-date').value;
   if(!Number.isFinite(value)||value<=0||value>500){toast('Укажи корректный вес');return}
   if(!date||date>today){toast('Выбери сегодняшнюю или прошедшую дату');return}
   if(editing){
    const duplicate=weightHistory.find(x=>x.date===date&&x.date!==editDate);
    if(duplicate){toast('На эту дату уже есть измерение. Выбери другую дату.');return}
-   const idx=weightHistory.findIndex(x=>x.date===editDate);
-   if(idx>=0){weightHistory[idx]={date,weight:value};weightHistory.sort((a,b)=>b.date.localeCompare(a.date));if(weightHistory.length)profile.currentWeight=weightHistory[0].weight;saveWeightHistory();saveProfileData();}
-   closeModal();render();toast('Измерение обновлено');
+   try{
+    const result=await saveWeightRecordThroughUseCase(value,date,editDate);
+    weightHistory=result.history;profile=result.profile;
+    closeModal();render();toast('Измерение обновлено');
+   }catch(error){console.error('Не удалось обновить измерение веса',error);toast(error instanceof Error?error.message:'Не удалось обновить измерение веса')}
   }else{
-   upsertWeightRecord(value,date);closeModal();render();toast('Вес сохранён в истории');
+   try{
+    const result=await saveWeightRecordThroughUseCase(value,date);
+    weightHistory=result.history;profile=result.profile;
+    closeModal();render();toast('Вес сохранён в истории');
+   }catch(error){console.error('Не удалось сохранить измерение веса',error);toast(error instanceof Error?error.message:'Не удалось сохранить измерение веса')}
   }
  };
 }
 function openWeightHistoryModal(){
  const rows=[...weightHistory].sort((a,b)=>b.date.localeCompare(a.date));
- const body=rows.length?`<div class="history-list">${rows.map((r,i)=>`<div class="history-row"><div><strong>${readableDate(r.date)}</strong><small>${i===0?'Последняя запись':'Измерение'}</small></div><div class="history-row-actions"><div class="history-value">${Number(r.weight).toFixed(1).replace('.',',')} кг</div><button class="entry-action" data-edit-weight="${r.date}" aria-label="Изменить вес за ${readableDate(r.date)}" title="Изменить">✎</button><button class="entry-action" data-delete-weight="${r.date}" aria-label="Удалить вес за ${readableDate(r.date)}" title="Удалить" ${rows.length===1?'disabled':''}>×</button></div></div>`).join('')}</div>`:'<div class="history-empty">История пока пуста</div>';
+ const body=NutriMealUI.renderWeightHistoryBody({history:rows,readableDate});
  openModal('История веса',`<div class="field-help" style="margin-bottom:12px">Записи фактического веса по датам. Изменение целевого веса здесь не отображается.</div>${body}`,`<button class="btn" id="weight-history-close">Закрыть</button><button class="btn-primary" id="weight-history-add">Добавить измерение</button>`);
  document.getElementById('weight-history-close').onclick=closeModal;
  document.getElementById('weight-history-add').onclick=()=>openWeightModal();
  document.querySelectorAll('[data-edit-weight]').forEach(b=>b.onclick=()=>openWeightModal(b.dataset.editWeight));
- document.querySelectorAll('[data-delete-weight]').forEach(b=>b.onclick=()=>{
+ document.querySelectorAll('[data-delete-weight]').forEach(b=>b.onclick=async()=>{
   const date=b.dataset.deleteWeight;if(weightHistory.length<=1)return;
-  const index=weightHistory.findIndex(x=>x.date===date);if(index<0)return;
-  const removed=weightHistory[index];weightHistory.splice(index,1);weightHistory.sort((a,b)=>b.date.localeCompare(a.date));if(weightHistory.length)profile.currentWeight=weightHistory[0].weight;saveWeightHistory();saveProfileData();
-  closeModal();render();toast('Измерение удалено','Отменить',()=>{weightHistory.push(removed);weightHistory.sort((a,b)=>b.date.localeCompare(a.date));profile.currentWeight=weightHistory[0].weight;saveWeightHistory();saveProfileData();render();toast('Измерение восстановлено')});
+  try{
+   const result=await deleteWeightRecordThroughUseCase(date);if(!result.removed)return;
+   weightHistory=result.history;profile=result.profile;
+   closeModal();render();
+   toast('Измерение удалено','Отменить',async()=>{
+    try{
+     const restored=await restoreWeightRecordThroughUseCase(result.removed);
+     weightHistory=restored.history;profile=restored.profile;
+     render();toast('Измерение восстановлено');
+    }
+    catch(error){console.error('Не удалось восстановить измерение веса',error);toast(error instanceof Error?error.message:'Не удалось восстановить измерение веса')}
+   });
+  }catch(error){console.error('Не удалось удалить измерение веса',error);toast(error instanceof Error?error.message:'Не удалось удалить измерение веса')}
  });
 }
 function buildMeasurementRatios(values){
@@ -4602,51 +4700,41 @@ function measurementCardSummary(){
  const shortLabels={'Бицепс / предплечье':'Бицепс / предпл.'};
  return `<div class="measure-ratio-summary"><div class="measure-ratio-item"><span>Рост</span><b>${height}</b></div>${rows.map(r=>`<div class="measure-ratio-item"><span>${shortLabels[r.label]||r.label}</span><b>${r.value}</b></div>`).join('')}</div>`;
 }
-function measurementInputMarkup(m,values,label,index){
- const id=`measure-input-${index}`;
- return `<input class="measurement-value-input" id="${id}" type="number" min="0" max="300" step="0.1" inputmode="decimal" aria-label="${m.name} — ${label}" placeholder="—" data-measure-name="${m.name}" value="${values[m.name]??''}">`;
-}
-function renderMeasurementGroup(group,values){
- const items=measurements.filter(m=>m.group===group);
- if(group==='Руки'||group==='Ноги'){
-  const labels=group==='Руки'?['Бицепс','Предплечье']:['Бедро','Икра'];
-  const side=group==='Руки'?'рука':'нога';
-  return `<div class="measurement-table">
-   <div class="measurement-table-row measurement-table-head"><span></span><span>Левая</span><span>Правая</span></div>
-   ${labels.map(label=>{
-    const left=items.find(m=>m.name===`${label} — левая ${side}`);
-    const right=items.find(m=>m.name===`${label} — правая ${side}`);
-    if(!left||!right)return '';
-    return `<div class="measurement-table-row"><div class="measurement-table-name">${label}</div>${measurementInputMarkup(left,values,'левая '+side,measurements.indexOf(left))}${measurementInputMarkup(right,values,'правая '+side,measurements.indexOf(right))}</div>`;
-   }).join('')}
-  </div>`;
- }
- return `<div class="measurement-table">${items.map(m=>`<div class="measurement-table-row"><div class="measurement-table-name">${m.name}</div>${measurementInputMarkup(m,values,m.name,measurements.indexOf(m))}<span></span></div>`).join('')}</div>`;
-}
 function openMeasureModal(editDate=null){
  const snapshot=editDate?measurementHistory.find(x=>x.date===editDate):null;
  const latestMeasurementDate=measurementHistory.length?[...measurementHistory].sort((a,b)=>b.date.localeCompare(a.date))[0].date:null;const values=snapshot?{...snapshot.values,height:snapshot.date===latestMeasurementDate?profile.height:(Number(snapshot.values?.height)||profile.height)}:{...Object.fromEntries(measurements.map(m=>[m.name,m.value])),height:profile.height};
  const date=snapshot?snapshot.date:dateKey(todayLocalDate());
- const groups=['Верхняя часть тела','Талия и таз','Руки','Ноги'];
- const body=`<div class="measurement-form-wrap"><div class="field measurement-date-field"><label for="measure-date">Дата измерения</label><input id="measure-date" type="date" max="${dateKey(todayLocalDate())}" value="${date}"></div><div class="field measurement-height-field"><label for="measure-height">Рост, см</label><input class="measurement-value-input" id="measure-height" type="number" min=80 max=250 step=0.1 inputmode="decimal" value="${values.height??profile.height}"></div><div class="measurement-unit-note">Все остальные значения в см</div>${groups.map(group=>`<section class="detail-section measurement-section"><div class="detail-section-head"><div class="detail-section-title">${group.toUpperCase()}</div></div>${renderMeasurementGroup(group,values)}</section>`).join('')}</div><section class="detail-section"><div class="detail-section-head"><div class="detail-section-title">Соотношения</div><div class="detail-section-note">Рассчитываются автоматически</div></div><div class="ratio-grid" id="measure-ratios">${buildMeasurementRatios(values).map(r=>`<div class="ratio-card"><strong>${r.label}</strong><b>${r.value}</b><small>${r.detail}</small></div>`).join('')||'<div class="history-empty">Пока недостаточно данных для расчётов</div>'}</div></section><div class="field-help" style="margin-top:12px">Показываются только показатели, для которых заполнены необходимые замеры. Проценты описывают пропорции и динамику, а не являются диагнозом.</div>`;
+ const ratioMarkup=buildMeasurementRatios(values).map(r=>`<div class="ratio-card"><strong>${r.label}</strong><b>${r.value}</b><small>${r.detail}</small></div>`).join('')||'<div class="history-empty">Пока недостаточно данных для расчётов</div>';
+ const body=NutriMealUI.renderMeasurementModalBody({
+  today:dateKey(todayLocalDate()),
+  date,
+  profileHeight:profile.height,
+  values,
+  measurements,
+  ratioMarkup
+ });
  openModal(snapshot?'Изменить замеры':'Замеры тела',body,`<button class="btn" id="measure-history">История замеров</button><div style="display:flex;gap:8px;margin-left:auto"><button class="btn" id="measure-cancel">Отмена</button><button class="btn-primary" id="measure-save">Сохранить</button></div>`);
  document.querySelector('.modal').classList.add('measurements-modal');
  const updateRatios=()=>{const current=Object.fromEntries(measurements.map(m=>[m.name,Number(document.querySelector(`[data-measure-name="${m.name}"]`)?.value)||null]));current.height=Number(document.getElementById('measure-height')?.value)||null;const ratios=buildMeasurementRatios(current);document.getElementById('measure-ratios').innerHTML=ratios.length?ratios.map(r=>`<div class="ratio-card"><strong>${r.label}</strong><b>${r.value}</b><small>${r.detail}</small></div>`).join(''):'<div class="history-empty">Пока недостаточно данных для расчётов</div>'};
  document.querySelectorAll('[data-measure-name]').forEach(input=>input.addEventListener('input',updateRatios));document.getElementById('measure-height').addEventListener('input',updateRatios);
  document.getElementById('measure-cancel').onclick=closeModal;document.getElementById('measure-history').onclick=openMeasurementHistoryModal;
- document.getElementById('measure-save').onclick=()=>{
+ document.getElementById('measure-save').onclick=async()=>{
   const chosenDate=document.getElementById('measure-date').value;if(!chosenDate||chosenDate>dateKey(todayLocalDate())){toast('Выбери сегодняшнюю или прошедшую дату');return}
   const next={};let invalid=false,filled=0;
   const heightRaw=document.getElementById('measure-height').value.trim(),heightValue=Number(heightRaw);if(!heightRaw||!Number.isFinite(heightValue)||heightValue<80||heightValue>250){toast('Укажи корректный рост от 80 до 250 см');return}next.height=heightValue;filled++;
   measurements.forEach(m=>{const input=document.querySelector(`[data-measure-name="${m.name}"]`),raw=input.value.trim(),n=Number(raw);if(raw===''){next[m.name]=null}else if(!Number.isFinite(n)||n<=0||n>300){invalid=true}else{next[m.name]=n;filled++}});
   if(invalid){toast('Проверь значения замеров: допустимы числа от 0 до 300 см');return}
   if(!filled){toast('Введи хотя бы один замер');return}
-  saveMeasurementSnapshot(chosenDate,next);closeModal();render();toast('Замеры сохранены');
+  try{
+   const result=await saveMeasurementSnapshot(chosenDate,next);
+   measurementHistory=result.history;measurements=result.measurements;profile=result.profile;
+   closeModal();render();toast('Замеры сохранены');
+  }catch(error){console.error('Не удалось сохранить замеры',error);toast(error instanceof Error?error.message:'Не удалось сохранить замеры')}
  };
 }
 function openMeasurementHistoryModal(){
  const rows=[...measurementHistory].sort((a,b)=>b.date.localeCompare(a.date));
- const body=rows.length?`<div class="history-list">${rows.map((r,i)=>`<div class="history-row"><div><strong>${readableDate(r.date)}</strong><small>${Object.values(r.values).filter(v=>Number(v)>0).length} показателей · ${i===0?'Последняя запись':'Измерение'}</small></div><div class="history-row-actions"><button class="btn-quiet" data-edit-measure-date="${r.date}">Открыть</button><button class="entry-action" data-delete-measure-date="${r.date}" aria-label="Удалить замер за ${readableDate(r.date)}" title="Удалить">×</button></div></div>`).join('')}</div>`:'<div class="history-empty">История пока пуста</div>';
+ const body=NutriMealUI.renderMeasurementHistoryBody({history:rows,readableDate});
  openModal('История замеров',`<div class="field-help" style="margin-bottom:12px">Выбери дату, чтобы открыть и при необходимости отредактировать сохранённые значения.</div>${body}`,`<button class="btn" id="measure-history-close">Закрыть</button><button class="btn-primary" id="measure-history-add">Добавить замер</button>`);
  document.getElementById('measure-history-close').onclick=closeModal;document.getElementById('measure-history-add').onclick=()=>openMeasureModal();document.querySelectorAll('[data-edit-measure-date]').forEach(b=>b.onclick=()=>openMeasureModal(b.dataset.editMeasureDate));document.querySelectorAll('[data-delete-measure-date]').forEach(b=>b.onclick=()=>deleteMeasurementSnapshot(b.dataset.deleteMeasureDate));
 }
@@ -4654,35 +4742,19 @@ function openProfileModal(){
  const draft={...profile,trainingDays:[...(profile.trainingDays||[])],allergies:[...(profile.allergies||[])],foodRestrictions:[...(profile.foodRestrictions||[])]};
  const activityOptions=PROFILE_ACTIVITY_LEVELS;
  const trainingOptions=['Нет регулярных тренировок','1–2 раза в неделю','3–4 раза в неделю','5–6 раз в неделю','Каждый день'];
- const body=`
- <section class="profile-form-section">
-  <div class="profile-form-section-title">Личные данные</div>
-  <div class="form-grid">
-   <div class="field"><label for="profile-sex">Пол</label><select id="profile-sex"><option value="">Не указан</option><option value="Мужской" ${draft.sex==='Мужской'?'selected':''}>Мужской</option><option value="Женский" ${draft.sex==='Женский'?'selected':''}>Женский</option></select></div>
-   <div class="field"><label for="profile-birth-date">Дата рождения</label><input id="profile-birth-date" type="date" max="${dateKey(todayLocalDate())}" value="${escapeHtml(draft.birthDate||'')}"></div>
-   <div class="field"><label>Возраст · рассчитывается автоматически</label><div class="profile-age-preview" id="profile-age-preview"><strong>${calculateProfileAge(draft.birthDate)??'—'}</strong><span>${calculateProfileAge(draft.birthDate)===null?'Укажи дату рождения':'лет'}</span></div></div>
-   <div class="field"><label for="profile-height">Рост, см</label><input type="number" min="80" max="250" step="0.1" id="profile-height" value="${draft.height}"></div>
-   <div class="field"><label for="profile-weight">Текущий вес, кг</label><input type="number" min="1" max="500" step="0.1" id="profile-weight" value="${draft.currentWeight}"></div>
-   <div class="field"><label for="profile-meal-count">Стандартных приёмов пищи в день</label><input type="number" min="1" max="6" step="1" id="profile-meal-count" value="${draft.mealCount}"></div>
-  </div>
-  <div class="field-help" style="margin-top:9px">Возраст определяется по дате рождения. Количество стандартных приёмов пищи автоматически используется в Дневнике и Планировании; перекусы добавляются отдельно.</div>
- </section>
- <section class="profile-form-section">
-  <div class="profile-form-section-title">Аллергии и пищевые ограничения</div>
-  <div class="form-grid">
-   ${profileTokenEditorMarkup('allergies','Аллергии и непереносимости','Начни вводить аллерген…','Можно выбрать значение из списка или добавить собственное.')}
-   ${profileTokenEditorMarkup('foodRestrictions','Другие пищевые ограничения','Например, безлактозное питание…','Свободный ввод: добавляй ограничения, которые важно учитывать.')}
-  </div>
- </section>
- <section class="profile-form-section">
-  <div class="profile-form-section-title">Активность и тренировки</div>
-  <div class="form-grid">
-   <div class="field"><label for="profile-activity-factor">Активность</label><select id="profile-activity-factor">${activityOptions.map(x=>`<option value="${x.factor}" ${Math.abs(Number(draft.activityFactor)-x.factor)<0.001?'selected':''}>${x.label} · ×${formatActivityFactor(x.factor)}</option>`).join('')}</select><div class="field-help">Выбирай коэффициент с учётом привычной активности и регулярных тренировок. Тренировки не прибавляются к расходу отдельно.</div></div>
-   <div class="field"><label for="profile-training-frequency">Частота тренировок</label><select id="profile-training-frequency">${trainingOptions.map(x=>`<option value="${x}" ${draft.trainingFrequency===x?'selected':''}>${x}</option>`).join('')}</select></div>
-  </div>
-  <div style="margin-top:14px"><div class="field"><label>Обычные дни тренировок</label><div class="profile-training-days" id="profile-training-days">${PROFILE_WEEKDAYS.map(day=>`<button type="button" class="profile-day-toggle ${draft.trainingDays.includes(day)?'selected':''}" data-training-day="${day}" aria-pressed="${draft.trainingDays.includes(day)?'true':'false'}">${day}</button>`).join('')}</div><div class="field-help" id="profile-training-days-help" style="margin-top:7px">Выбери дни недели, в которые обычно тренируешься. Это расписание профиля, не учёт отдельных тренировок.</div></div></div>
- </section>
- <div class="field-help">Цель и целевой вес задаются отдельно в разделе «Планирование». Замеры тела редактируются в отдельном блоке Профиля.</div>`;
+ const profileAge=calculateProfileAge(draft.birthDate);
+ draft.today=dateKey(todayLocalDate());
+ const body=NutriMealUI.renderProfileModalBody({
+  draft,
+  activityOptions,
+  trainingOptions,
+  weekdays:PROFILE_WEEKDAYS,
+  age:profileAge,
+  ageNote:profileAge===null?'Укажи дату рождения':'лет',
+  formatActivityFactor,
+  escapeHtml,
+  tokenEditorMarkup:profileTokenEditorMarkup
+ });
  openModal('Персональные параметры',body,`<button class="btn" id="profile-cancel">Отмена</button><button class="btn-primary" id="profile-save">Сохранить</button>`);
  document.querySelector('.modal').classList.add('profile-edit-modal');
  const updateAgePreview=()=>{const age=calculateProfileAge(document.getElementById('profile-birth-date').value);document.getElementById('profile-age-preview').innerHTML=`<strong>${age===null?'—':age}</strong><span>${age===null?'Укажи корректную дату рождения':'лет'}</span>`};
@@ -4729,7 +4801,7 @@ function openProfileModal(){
  };
  paintTrainingDays();
  document.getElementById('profile-cancel').onclick=closeModal;
- document.getElementById('profile-save').onclick=()=>{
+ document.getElementById('profile-save').onclick=async()=>{
   const birthDate=document.getElementById('profile-birth-date').value;
   const age=calculateProfileAge(birthDate);
   const height=Number(document.getElementById('profile-height').value),weight=Number(document.getElementById('profile-weight').value),mealCount=Number(document.getElementById('profile-meal-count').value);
@@ -4737,20 +4809,35 @@ function openProfileModal(){
   if(!Number.isFinite(height)||height<80||height>250){toast('Укажи рост от 80 до 250 см');return}
   if(!Number.isFinite(weight)||weight<=0||weight>500){toast('Проверь текущий вес');return}
   if(!Number.isInteger(mealCount)||mealCount<1||mealCount>6){toast('Укажи от 1 до 6 стандартных приёмов пищи');return}
-  const heightChanged=height!==profile.height;
-  profile.sex=document.getElementById('profile-sex').value;
-  profile.birthDate=birthDate;
-  profile.height=height;
-  if(weight!==profile.currentWeight)upsertWeightRecord(weight,dateKey(todayLocalDate()));
-  profile.currentWeight=weight;
-  profile.activityFactor=Number(document.getElementById('profile-activity-factor').value)||1.20;
-  profile.trainingFrequency=document.getElementById('profile-training-frequency').value;
-  profile.trainingDays=profile.trainingFrequency==='Нет регулярных тренировок'?[]:PROFILE_WEEKDAYS.filter(day=>draft.trainingDays.includes(day));
-  profile.allergies=uniqueProductValues(draft.allergies);
-  profile.foodRestrictions=uniqueProductValues(draft.foodRestrictions);
-  profile.mealCount=mealCount;
-  if(heightChanged&&measurementHistory.length){const latest=[...measurementHistory].sort((a,b)=>b.date.localeCompare(a.date))[0];if(latest){latest.values={...latest.values,height};saveMeasurementHistory();}}
-  saveProfileData();syncPlanCalculations(true);closeModal();renderProfile();toast('Персональные параметры обновлены');
+  const previousProfile=profile,heightChanged=height!==profile.height;
+  let nextProfile={
+   ...profile,
+   sex:document.getElementById('profile-sex').value,
+   birthDate,
+   height,
+   currentWeight:weight,
+   activityFactor:Number(document.getElementById('profile-activity-factor').value)||1.20,
+   trainingFrequency:document.getElementById('profile-training-frequency').value,
+   trainingDays:document.getElementById('profile-training-frequency').value==='Нет регулярных тренировок'?[]:PROFILE_WEEKDAYS.filter(day=>draft.trainingDays.includes(day)),
+   allergies:uniqueProductValues(draft.allergies),
+   foodRestrictions:uniqueProductValues(draft.foodRestrictions),
+   mealCount
+  };
+  try{
+   if(weight!==previousProfile.currentWeight){
+    const result=await saveWeightRecordThroughUseCase(weight,dateKey(todayLocalDate()),null,nextProfile);
+    weightHistory=result.history;nextProfile={...result.profile,currentWeight:weight};profile=nextProfile;
+   }
+   if(heightChanged&&measurementHistory.length){
+    const latest=[...measurementHistory].sort((a,b)=>b.date.localeCompare(a.date))[0];
+    if(latest){
+     const result=await saveMeasurementSnapshot(latest.date,{...latest.values,height},nextProfile);
+     measurementHistory=result.history;measurements=result.measurements;nextProfile=result.profile;profile=nextProfile;
+    }
+   }
+   profile=nextProfile;
+   saveProfileData();syncPlanCalculations(true);closeModal();renderProfile();toast('Персональные параметры обновлены');
+  }catch(error){console.error('Не удалось сохранить персональные параметры',error);toast(error instanceof Error?error.message:'Не удалось сохранить персональные параметры')}
  };
 }
 // #endregion JS / Профиль, вес и замеры тела

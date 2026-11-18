@@ -1,25 +1,16 @@
-export function defaultRecipeCardDisplaySettings(customCategories = []) {
-  const defaults = {
-    time: true,
-    mealTypes: true,
-    cuisines: false,
-    dishTypes: false,
-    allergens: false,
-    categories: false,
-    composition: true,
-    products: false,
-    customTags: true
-  };
+const DEFAULT_RECIPE_CARD_SETTINGS = Object.freeze({
+  time: true,
+  mealTypes: true,
+  cuisines: false,
+  dishTypes: false,
+  allergens: false,
+  categories: false,
+  composition: true,
+  products: false,
+  customTags: true
+});
 
-  for (const category of Array.isArray(customCategories) ? customCategories : []) {
-    const id = String(category?.id ?? '');
-    if (id && !(id in defaults)) defaults[id] = false;
-  }
-
-  return defaults;
-}
-
-export const DEFAULT_PRODUCT_CARD_DISPLAY_SETTINGS = Object.freeze({
+const DEFAULT_PRODUCT_CARD_SETTINGS = Object.freeze({
   brand: true,
   energy: true,
   macros: true,
@@ -30,40 +21,54 @@ export const DEFAULT_PRODUCT_CARD_DISPLAY_SETTINGS = Object.freeze({
   tags: false
 });
 
-export function defaultCatalogCardSettings(customRecipeCategories = []) {
-  return {
-    recipes: defaultRecipeCardDisplaySettings(customRecipeCategories),
-    products: { ...DEFAULT_PRODUCT_CARD_DISPLAY_SETTINGS }
-  };
+function isRecord(value) {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
-export function normalizeCatalogCardSettings(saved, customRecipeCategories = []) {
-  const source = saved && typeof saved === 'object' && !Array.isArray(saved) ? saved : {};
-  const savedRecipes = source.recipes && typeof source.recipes === 'object' && !Array.isArray(source.recipes)
-    ? source.recipes
-    : {};
-  const savedProducts = source.products && typeof source.products === 'object' && !Array.isArray(source.products)
-    ? source.products
-    : {};
+function categoryIds(categories) {
+  if (!Array.isArray(categories)) throw new TypeError('Card setting categories must be an array.');
+  return categories.map((category) => category?.id).filter((id) => typeof id === 'string' && id);
+}
 
-  const recipeSettings = {
-    ...defaultRecipeCardDisplaySettings(customRecipeCategories),
-    ...savedRecipes
-  };
+export function createDefaultCatalogCardSettings({
+  recipeCustomCategories = [],
+  productCustomCategories = []
+} = {}) {
+  const recipes = { ...DEFAULT_RECIPE_CARD_SETTINGS };
+  const products = { ...DEFAULT_PRODUCT_CARD_SETTINGS };
+  for (const id of categoryIds(recipeCustomCategories)) {
+    if (!(id in recipes)) recipes[id] = false;
+  }
+  for (const id of categoryIds(productCustomCategories)) {
+    if (!(id in products)) products[id] = false;
+  }
+  return { recipes, products };
+}
 
-  // Preferences saved by v35's narrower card-settings panel.
-  if (!('mealTypes' in savedRecipes) && 'mealType' in savedRecipes) {
+export function normalizeCatalogCardSettings(saved = {}, options = {}) {
+  if (!isRecord(saved)) throw new TypeError('Catalog card settings must be an object.');
+  const defaults = createDefaultCatalogCardSettings(options);
+  const savedRecipes = isRecord(saved.recipes) ? saved.recipes : {};
+  const recipeSettings = { ...defaults.recipes, ...savedRecipes };
+
+  if (!Object.prototype.hasOwnProperty.call(savedRecipes, 'mealTypes')
+    && Object.prototype.hasOwnProperty.call(savedRecipes, 'mealType')) {
     recipeSettings.mealTypes = savedRecipes.mealType;
   }
-  if (!('composition' in savedRecipes) && ('energy' in savedRecipes || 'macros' in savedRecipes)) {
+  if (!Object.prototype.hasOwnProperty.call(savedRecipes, 'composition')
+    && ('energy' in savedRecipes || 'macros' in savedRecipes)) {
     recipeSettings.composition = Boolean(savedRecipes.energy || savedRecipes.macros);
   }
-  if (!('customTags' in savedRecipes) && 'tags' in savedRecipes) {
+  if (!Object.prototype.hasOwnProperty.call(savedRecipes, 'customTags')
+    && Object.prototype.hasOwnProperty.call(savedRecipes, 'tags')) {
     recipeSettings.customTags = savedRecipes.tags;
   }
 
   return {
     recipes: recipeSettings,
-    products: { ...DEFAULT_PRODUCT_CARD_DISPLAY_SETTINGS, ...savedProducts }
+    products: {
+      ...defaults.products,
+      ...(isRecord(saved.products) ? saved.products : {})
+    }
   };
 }
