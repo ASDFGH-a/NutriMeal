@@ -84,6 +84,7 @@ export function updateFoodEntry({
     ...existing,
     date,
     meal,
+    recipeId: changes.recipeId ?? existing.recipeId ?? null,
     grams,
     kcal: per100.kcal * grams / 100,
     p: per100.p * grams / 100,

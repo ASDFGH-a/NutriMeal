@@ -87,11 +87,13 @@ test('nutrition set repositories preserve existing keys, seed defaults, and vali
   const storage = createMemoryStorage();
   const setsRepository = createNutritionSetsRepository(storage, products);
   const activeRepository = createActiveNutritionSetRepository(storage);
+  assert.equal(setsRepository.hasStoredValue(), false);
   const sets = setsRepository.load();
 
   assert.equal(sets.length, 3);
   assert.equal(sets[0].weeks.length, 4);
   setsRepository.save(sets);
+  assert.equal(setsRepository.hasStoredValue(), true);
   assert.equal(JSON.parse(storage.getItem(NUTRITION_SETS_STORAGE_KEY)).length, 3);
   activeRepository.save(sets[1].id);
   assert.equal(activeRepository.load(), sets[1].id);

@@ -933,7 +933,11 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 <script src="./src/ui/screens/planning/planning-analytics.js"></script>
 <script src="./src/ui/screens/catalog/catalog-screen.js"></script>
 <script src="./src/ui/components/catalog/catalog-cards.js"></script>
+<script src="./src/ui/components/catalog/catalog-filters.js"></script>
 <script src="./src/ui/modals/catalog-modals.js"></script>
+<script src="./src/ui/modals/catalog-editors.js"></script>
+<script src="./src/ui/modals/diary-modals.js"></script>
+<script src="./src/ui/modals/planning-modals.js"></script>
 <script>
 // #region JAVASCRIPT — Логика приложения
 // Примечание: большая часть динамической HTML-разметки создаётся внутри render/open-функций ниже.
@@ -1001,22 +1005,81 @@ const WEIGHT_HISTORY_STORAGE_KEY='nutrition-weight-history-v1';
 const MEASUREMENT_HISTORY_STORAGE_KEY='nutrition-measurement-history-v1';
 function readStoredArray(key){try{const value=JSON.parse(localStorage.getItem(key)||'null');return Array.isArray(value)?value:[]}catch(error){return []}}
 function saveDiaryData(){try{localStorage.setItem(DIARY_STORAGE_KEY,JSON.stringify(diaryEntries))}catch(error){console.warn('Не удалось сохранить дневник питания',error)}}
-function saveWaterData(){try{localStorage.setItem(WATER_STORAGE_KEY,JSON.stringify(waterEntries))}catch(error){console.warn('Не удалось сохранить записи воды',error)}}
+let diaryServices=null,diaryServicesError=null;
+const diaryServicesPromise=import('./src/application/services/diary-services.js').then(({createDiaryServices})=>{
+ diaryServices=createDiaryServices(localStorage);
+}).catch(error=>{diaryServicesError=error;console.error('Не удалось загрузить сценарии записей дневника',error)});
+async function getDiaryServices(){
+ await diaryServicesPromise;
+ if(diaryServicesError)throw diaryServicesError;
+ return diaryServices;
+}
+let catalogServices=null,catalogServicesError=null;
+const catalogServicesPromise=import('./src/application/services/catalog-services.js').then(({createCatalogServices})=>{
+ catalogServices=createCatalogServices();
+}).catch(error=>{catalogServicesError=error;console.error('Не удалось загрузить сценарии каталога',error)});
+async function getCatalogServices(){
+ await catalogServicesPromise;
+ if(catalogServicesError)throw catalogServicesError;
+ return catalogServices;
+}
+let planningServices=null,planningServicesError=null;
+const planningServicesPromise=import('./src/application/services/planning-services.js').then(({createPlanningServices})=>{
+ planningServices=createPlanningServices(localStorage,productDB);
+}).catch(error=>{planningServicesError=error;console.error('Не удалось загрузить сценарии планирования',error)});
+async function getPlanningServices(){
+ await planningServicesPromise;
+ if(planningServicesError)throw planningServicesError;
+ return planningServices;
+}
+function replaceCatalogArray(target,source){
+ target.length=0;
+ source.forEach(item=>target.push(item));
+}
+function reportCatalogOperationError(action,error){
+ console.error(action,error);
+ toast(error instanceof Error?error.message:'Не удалось выполнить операцию каталога');
+}
+function reportPlanningOperationError(action,error){
+ console.error(action,error);
+ toast(error instanceof Error?error.message:'Не удалось выполнить операцию планирования');
+}
+async function toggleCatalogFavoriteIn(items,id){
+ const index=items.findIndex(item=>String(item.id)===String(id));
+ if(index<0)return null;
+ items[index]=(await getCatalogServices()).toggleFavorite(items[index]);
+ return items[index];
+}
+async function removeDiaryRecord(id){
+ const result=(await getDiaryServices()).removeEntry({entries:diaryEntries,id});
+ diaryEntries=result.entries;
+ return result;
+}
+async function restoreDiaryRecord(entry,index){
+ diaryEntries=(await getDiaryServices()).restoreEntry({entries:diaryEntries,entry,index});
+ return diaryEntries;
+}
+let waterServices=null,waterServicesError=null;
+const waterServicesPromise=import('./src/application/services/water-services.js').then(({createWaterServices})=>{
+ waterServices=createWaterServices(localStorage);
+}).catch(error=>{waterServicesError=error;console.error('Не удалось загрузить сценарии записей воды',error)});
+async function getWaterServices(){
+ await waterServicesPromise;
+ if(waterServicesError)throw waterServicesError;
+ return waterServices;
+}
+async function removeWaterRecord(id){
+ const result=(await getWaterServices()).removeEntry({entries:waterEntries,id});
+ waterEntries=result.entries;
+ return result;
+}
+async function restoreWaterRecord(entry,index){
+ waterEntries=(await getWaterServices()).restoreEntry({entries:waterEntries,entry,index});
+ return waterEntries;
+}
 let bodyHistoryServices=null,bodyHistoryServicesError=null;
-const bodyHistoryServicesPromise=Promise.all([
- import('./src/application/usecases/weight/weight-history.js'),
- import('./src/application/usecases/measurement/measurement-history.js'),
- import('./src/infrastructure/persistence/repositories/weight.repository.js'),
- import('./src/infrastructure/persistence/repositories/measurement.repository.js'),
- import('./src/infrastructure/persistence/repositories/profile.repository.js')
-]).then(([weightUseCases,measurementUseCases,weightRepositories,measurementRepositories,profileRepositories])=>{
- bodyHistoryServices={
-  weightUseCases,
-  measurementUseCases,
-  weightRepository:weightRepositories.createWeightHistoryRepository(localStorage),
-  measurementRepository:measurementRepositories.createMeasurementHistoryRepository(localStorage),
-  profileRepository:profileRepositories.createProfileRepository(localStorage)
- };
+const bodyHistoryServicesPromise=import('./src/application/services/body-history-services.js').then(({createBodyHistoryServices})=>{
+ bodyHistoryServices=createBodyHistoryServices(localStorage);
 }).catch(error=>{bodyHistoryServicesError=error;console.error('Не удалось загрузить сценарии истории веса и замеров',error)});
 async function getBodyHistoryServices(){
  await bodyHistoryServicesPromise;
@@ -1105,10 +1168,18 @@ function normalizePlanData(data={}){
  return normalized;
 }
 try{const savedPlan=JSON.parse(localStorage.getItem(PLAN_STORAGE_KEY)||'null');if(savedPlan&&typeof savedPlan==='object')Object.assign(plan,normalizePlanData(savedPlan));}catch(error){}
-function savePlanData(){try{localStorage.setItem(PLAN_STORAGE_KEY,JSON.stringify(plan))}catch(error){}}
+async function savePlanData(){
+ const saved=(await getPlanningServices()).savePlan({plan});
+ Object.assign(plan,saved);
+ return plan;
+}
+async function applyPlanPresetToState(presetId){
+ const result=(await getPlanningServices()).applyPlanPreset({presets:planPresets,presetId,profile,plan});
+ Object.assign(plan,result.plan);
+ return result;
+}
 let planPresets=[];
 try{const savedPresets=JSON.parse(localStorage.getItem(PLAN_PRESETS_STORAGE_KEY)||'[]');if(Array.isArray(savedPresets))planPresets=savedPresets.filter(item=>item&&item.id&&item.name&&item.plan).map(item=>({...item,plan:normalizePlanData(item.plan)}));}catch(error){}
-function savePlanPresets(){try{localStorage.setItem(PLAN_PRESETS_STORAGE_KEY,JSON.stringify(planPresets))}catch(error){}}
 
 // Four-week nutrition sets: the planner stores recipe and product references, not copies.
 const NUTRITION_SETS_STORAGE_KEY='nutrition-sets-v1';
@@ -1148,15 +1219,27 @@ function defaultNutritionSets(){
 }
 let nutritionSets=[];
 try{const savedSets=JSON.parse(localStorage.getItem(NUTRITION_SETS_STORAGE_KEY)||'null');nutritionSets=Array.isArray(savedSets)?savedSets.map(normalizeNutritionSet):defaultNutritionSets()}catch(error){nutritionSets=defaultNutritionSets()}
-function saveNutritionSets(){try{localStorage.setItem(NUTRITION_SETS_STORAGE_KEY,JSON.stringify(nutritionSets))}catch(error){}}
 let activeNutritionSetId='';
 try{activeNutritionSetId=localStorage.getItem(ACTIVE_NUTRITION_SET_KEY)||''}catch(error){}
 if(!nutritionSets.some(item=>item.id===activeNutritionSetId))activeNutritionSetId=nutritionSets[0]?.id||'';
 function getActiveNutritionSet(){return nutritionSets.find(item=>item.id===activeNutritionSetId)||nutritionSets[0]||null}
-const activeSetForGoalMigration=getActiveNutritionSet(); if(activeSetForGoalMigration&&plan.personalWeeklyGoals&&Object.values(plan.personalWeeklyGoals).some(group=>group&&Object.keys(group).length)&&!Object.values(activeSetForGoalMigration.personalWeeklyGoals||{}).some(group=>group&&Object.keys(group).length)){activeSetForGoalMigration.personalWeeklyGoals={completeness:{...(plan.personalWeeklyGoals.completeness||{})},frequency:{...(plan.personalWeeklyGoals.frequency||{})},diversity:{...(plan.personalWeeklyGoals.diversity||{})}};saveNutritionSets()}
-function setActiveNutritionSet(id){if(!nutritionSets.some(item=>item.id===id))return;activeNutritionSetId=id;try{localStorage.setItem(ACTIVE_NUTRITION_SET_KEY,id)}catch(error){}}
-if(!localStorage.getItem(NUTRITION_SETS_STORAGE_KEY))saveNutritionSets();
-if(activeNutritionSetId)try{localStorage.setItem(ACTIVE_NUTRITION_SET_KEY,activeNutritionSetId)}catch(error){}
+const activeSetForGoalMigration=getActiveNutritionSet();
+const legacyWeeklyGoals=plan.personalWeeklyGoals&&Object.values(plan.personalWeeklyGoals).some(group=>group&&Object.keys(group).length)
+ &&activeSetForGoalMigration&&!Object.values(activeSetForGoalMigration.personalWeeklyGoals||{}).some(group=>group&&Object.keys(group).length)
+ ?{completeness:{...(plan.personalWeeklyGoals.completeness||{})},frequency:{...(plan.personalWeeklyGoals.frequency||{})},diversity:{...(plan.personalWeeklyGoals.diversity||{})}}
+ :null;
+const planningInitializationPromise=getPlanningServices().then(services=>{
+ if(localStorage.getItem(NUTRITION_SETS_STORAGE_KEY)===null)services.saveNutritionSets(nutritionSets);
+ if(legacyWeeklyGoals){
+  const result=services.updateNutritionSet({sets:nutritionSets,id:activeSetForGoalMigration.id,changes:{personalWeeklyGoals:legacyWeeklyGoals},products:productDB});
+  nutritionSets=result.sets;
+ }
+ if(activeNutritionSetId)activeNutritionSetId=services.selectActiveNutritionSet({sets:nutritionSets,id:activeNutritionSetId});
+}).catch(error=>reportPlanningOperationError('Не удалось инициализировать сохранённое состояние планирования',error));
+async function setActiveNutritionSet(id){
+ if(!nutritionSets.some(item=>String(item.id)===String(id)))return;
+ activeNutritionSetId=(await getPlanningServices()).selectActiveNutritionSet({sets:nutritionSets,id});
+}
 function getPlannerWeekCompletion(week){return [...(week.mainDishes||[]),...(week.snacks||[])].filter(dish=>dish.recipeId).length}
 function getPlannerItemFoodCategories(name,product=null){
  const categories=[...recipeArray(product?.categories)];
@@ -1613,11 +1696,9 @@ function dateLabel(d){return d.toLocaleDateString(localeTags(),{day:'numeric',mo
 function readableDate(key){const [y,m,d]=String(key).split('-').map(Number);if(!y||!m||!d)return key;return new Date(y,m-1,d).toLocaleDateString(localeTags(),{day:'numeric',month:'long',year:'numeric'})}
 async function saveWeightRecordThroughUseCase(weight,date,previousDate=null,profileData=profile){
  const services=await getBodyHistoryServices();
- return services.weightUseCases.saveWeightRecord({
+ return services.weight.saveRecord({
   history:weightHistory,
-  historyRepository:services.weightRepository,
   profile:profileData,
-  profileRepository:services.profileRepository,
   weight,
   date,
   previousDate,
@@ -1626,33 +1707,27 @@ async function saveWeightRecordThroughUseCase(weight,date,previousDate=null,prof
 }
 async function deleteWeightRecordThroughUseCase(date,profileData=profile){
  const services=await getBodyHistoryServices();
- return services.weightUseCases.deleteWeightRecord({
+ return services.weight.deleteRecord({
   history:weightHistory,
-  historyRepository:services.weightRepository,
   profile:profileData,
-  profileRepository:services.profileRepository,
   date,
   today:dateKey(todayLocalDate())
  });
 }
 async function restoreWeightRecordThroughUseCase(record,profileData=profile){
  const services=await getBodyHistoryServices();
- return services.weightUseCases.restoreWeightRecord({
+ return services.weight.restoreRecord({
   history:weightHistory,
-  historyRepository:services.weightRepository,
   profile:profileData,
-  profileRepository:services.profileRepository,
   record,
   today:dateKey(todayLocalDate())
  });
 }
 async function saveMeasurementSnapshot(date,values,profileData=profile){
  const services=await getBodyHistoryServices();
- return services.measurementUseCases.saveMeasurementSnapshot({
+ return services.measurements.saveSnapshot({
   history:measurementHistory,
-  historyRepository:services.measurementRepository,
   profile:profileData,
-  profileRepository:services.profileRepository,
   date,
   values,
   today:dateKey(todayLocalDate())
@@ -1660,11 +1735,9 @@ async function saveMeasurementSnapshot(date,values,profileData=profile){
 }
 async function restoreMeasurementSnapshotThroughUseCase(snapshot,profileData=profile){
  const services=await getBodyHistoryServices();
- return services.measurementUseCases.restoreMeasurementSnapshot({
+ return services.measurements.restoreSnapshot({
   history:measurementHistory,
-  historyRepository:services.measurementRepository,
   profile:profileData,
-  profileRepository:services.profileRepository,
   snapshot,
   today:dateKey(todayLocalDate())
  });
@@ -1678,11 +1751,9 @@ function syncCurrentBodyParameters(savedDate=null){
 async function deleteMeasurementSnapshot(date){
  try{
   const services=await getBodyHistoryServices();
-  const result=await services.measurementUseCases.deleteMeasurementSnapshot({
+  const result=await services.measurements.deleteSnapshot({
    history:measurementHistory,
-   historyRepository:services.measurementRepository,
    profile,
-   profileRepository:services.profileRepository,
    date,
    today:dateKey(todayLocalDate())
   });
@@ -1785,13 +1856,30 @@ function renderDiary(){
  document.getElementById('toggle-snack').onclick=()=>{if(expandedMeals.has('Перекус'))expandedMeals.delete('Перекус');else expandedMeals.add('Перекус');renderDiary()};
  page.querySelectorAll('[data-edit-entry]').forEach(b=>b.onclick=()=>openEntryModal('Завтрак',Number(b.dataset.editEntry)));
  page.querySelectorAll('[data-replace-entry]').forEach(b=>b.onclick=()=>openReplaceEntryFlow(Number(b.dataset.replaceEntry)));
- page.querySelectorAll('[data-remove-entry]').forEach(b=>b.onclick=()=>{
-   const id=Number(b.dataset.removeEntry),index=diaryEntries.findIndex(x=>x.id===id);if(index<0)return;
-   const removed=diaryEntries[index];diaryEntries.splice(index,1);saveDiaryData();renderDiary();
-   toast('Запись удалена','Отменить',()=>{diaryEntries.splice(Math.min(index,diaryEntries.length),0,removed);saveDiaryData();expandedMeals.add(removed.meal);if(activePage==='diary')renderDiary();else render();toast('Запись восстановлена')});
+ page.querySelectorAll('[data-remove-entry]').forEach(b=>b.onclick=async()=>{
+  b.disabled=true;
+  try{
+   const result=await removeDiaryRecord(Number(b.dataset.removeEntry));
+   if(!result.removed){b.disabled=false;return}
+   renderDiary();
+   toast('Запись удалена','Отменить',async()=>{
+    try{await restoreDiaryRecord(result.removed,result.index);expandedMeals.add(result.removed.meal);if(activePage==='diary')renderDiary();else render();toast('Запись восстановлена')}
+    catch(error){console.error('Не удалось восстановить запись дневника',error);toast('Не удалось восстановить запись')}
+   });
+  }catch(error){b.disabled=false;console.error('Не удалось удалить запись дневника',error);toast('Не удалось удалить запись')}
  });
  page.querySelectorAll('[data-water-quick]').forEach(b=>b.onclick=()=>addWaterRecord(250,selectedDate));
- page.querySelectorAll('[data-water-remove]').forEach(b=>b.onclick=()=>{const id=String(b.dataset.waterRemove),index=waterEntries.findIndex(entry=>String(entry.id)===id);if(index<0)return;const removed=waterEntries[index];waterEntries.splice(index,1);saveWaterData();renderDiary();toast('Запись воды удалена','Отменить',()=>{waterEntries.splice(Math.min(index,waterEntries.length),0,removed);saveWaterData();if(activePage==='diary')renderDiary();toast('Запись воды восстановлена')})});
+ page.querySelectorAll('[data-water-remove]').forEach(b=>b.onclick=async()=>{
+  try{
+   const result=await removeWaterRecord(String(b.dataset.waterRemove));
+   if(!result.removed)return;
+   renderDiary();
+   toast('Запись воды удалена','Отменить',async()=>{
+    try{await restoreWaterRecord(result.removed,result.index);if(activePage==='diary')renderDiary();toast('Запись воды восстановлена')}
+    catch(error){console.error('Не удалось восстановить запись воды',error);toast('Не удалось восстановить запись воды')}
+   });
+  }catch(error){console.error('Не удалось удалить запись воды',error);toast('Не удалось удалить запись воды')}
+ });
  document.getElementById('open-weight').onclick=()=>openWeightModal();
  document.getElementById('open-weight-history').onclick=()=>openWeightHistoryModal();
  document.getElementById('open-measures').onclick=()=>openMeasureModal();
@@ -1871,15 +1959,23 @@ function renderRecipes(){
  };
  const productCustomTagsMarkup=`<div class="filter-user-toolbar"><div><div class="filter-user-title">${escapeHtml(customProductFilterTitle)}</div><div class="filter-panel-note">Теги, добавленные в карточках продуктов, автоматически появляются здесь.</div></div><div class="filter-user-actions"><button type="button" class="btn-quiet" id="manage-product-tags">Управлять тегами</button></div></div><div class="filter-tag-create"><input type="text" id="new-product-filter-tag" maxlength="48" placeholder="Название нового тега"><button type="button" class="btn" id="add-product-filter-tag">＋ Создать тег</button></div>${productFilterChips('customTags',getProductFilterCategoryValues(getProductFilterCategory('customTags')))}`;
  const activeProductFilterCount=productFilterCount();
- const productFiltersPanel=showProductFilters?`<div class="filter-panel ${productFiltersOpen||activeProductFilterCount?'open':''}" id="product-filter-panel"><div class="filter-panel-head"><div><div class="filter-panel-title">Фильтры продуктов</div><div class="filter-panel-note">Стандартные характеристики и собственные теги продуктов.</div></div><button type="button" class="btn-quiet" id="reset-product-filters">Сбросить всё</button></div><div class="filter-mode-switch" role="tablist" aria-label="Группа фильтров продуктов"><button type="button" role="tab" aria-selected="${productFilterMode==='standard'}" class="${productFilterMode==='standard'?'active':''}" data-product-filter-mode="standard">Стандартные</button><button type="button" role="tab" aria-selected="${productFilterMode==='custom'}" class="${productFilterMode==='custom'?'active':''}" data-product-filter-mode="custom">Пользовательские</button></div>${productFilterMode==='standard'?`<div class="filter-mode-content"><div class="filter-mode-intro"><span>Стандартные категории</span><button type="button" class="btn" id="add-standard-product-filter-category">＋ Добавить категорию</button></div><div class="filter-standard-grid">${[...productStandardFilters,...productCustomFilterCategories].map(productStandardCategoryMarkup).join('')||'<div class="filter-empty-note">Категории удалены. Добавь новую категорию.</div>'}</div></div>`:`<div class="filter-mode-content">${productCustomTagsMarkup}</div>`}</div>`:'';
+ const productFiltersPanel=showProductFilters?NutriMealUI.renderProductFilterPanel({
+  open:productFiltersOpen,
+  count:activeProductFilterCount,
+  mode:productFilterMode,
+  standardCategoriesMarkup:[...productStandardFilters,...productCustomFilterCategories].map(productStandardCategoryMarkup).join(''),
+  customTagsMarkup:productCustomTagsMarkup
+ }):'';
  const filterButton=showFilters?`<button class="btn" id="toggle-filters">☷ Фильтры${activeFilterCount?` · ${activeFilterCount}`:''}</button>`:showProductFilters?`<button class="btn" id="toggle-product-filters">☷ Фильтры${activeProductFilterCount?` · ${activeProductFilterCount}`:''}</button>`:'';
  const standardFiltersMarkup=[...recipeStandardFilters,...recipeCustomFilterCategories].map(standardCategoryMarkup).join('');
  const customTagsMarkup=`<div class="filter-user-toolbar"><div><div class="filter-user-title">${escapeHtml(customRecipeFilterTitle)}</div><div class="filter-panel-note">Теги, добавленные в карточках рецептов, автоматически появляются здесь.</div></div><div class="filter-user-actions"><button type="button" class="btn-quiet" id="manage-recipe-tags">Управлять тегами</button></div></div><div class="filter-tag-create"><input type="text" id="new-recipe-filter-tag" maxlength="48" placeholder="Название нового тега"><button type="button" class="btn" id="add-recipe-filter-tag">＋ Создать тег</button></div>${filterChips('customTags',tags)}`;
- const filtersPanel=showFilters?`<div class="filter-panel ${recipeFiltersOpen||activeFilterCount?'open':''}" id="filter-panel">
-  <div class="filter-panel-head"><div><div class="filter-panel-title">Фильтры рецептов</div><div class="filter-panel-note">Выбери режим. Настройка категорий и значений доступна прямо в панели.</div></div><button type="button" class="btn-quiet" id="reset-recipe-filters">Сбросить всё</button></div>
-  <div class="filter-mode-switch" role="tablist" aria-label="Группа фильтров"><button type="button" role="tab" aria-selected="${recipeFilterMode==='standard'}" class="${recipeFilterMode==='standard'?'active':''}" data-filter-mode="standard">Стандартные</button><button type="button" role="tab" aria-selected="${recipeFilterMode==='custom'}" class="${recipeFilterMode==='custom'?'active':''}" data-filter-mode="custom">Пользовательские</button></div>
-  ${recipeFilterMode==='standard'?`<div class="filter-mode-content"><div class="filter-mode-intro"><span>Стандартные категории</span><button type="button" class="btn" id="add-standard-filter-category">＋ Добавить категорию</button></div><div class="filter-standard-grid">${standardFiltersMarkup||'<div class="filter-empty-note">Категории удалены. Добавь новую категорию.</div>'}</div></div>`:`<div class="filter-mode-content">${customTagsMarkup}</div>`}
- </div>`:'';
+ const filtersPanel=showFilters?NutriMealUI.renderRecipeFilterPanel({
+  open:recipeFiltersOpen,
+  count:activeFilterCount,
+  mode:recipeFilterMode,
+  standardCategoriesMarkup:standardFiltersMarkup,
+  customTagsMarkup
+ }):'';
  const combinedFiltersPanel=showProductFilters?productFiltersPanel:filtersPanel;
  const makeRecipeCard=(r,opts={})=>{
   const cardNutrition=recipeNutrition(r).per100;
@@ -2035,11 +2131,17 @@ function renderRecipes(){
  if(collectionDetail){
   document.getElementById('collection-back').onclick=()=>{activeCollectionId=null;collectionSearch='';renderRecipes()};
   if(!pickMode){
-   document.getElementById('collection-rename').onclick=()=>openCollectionModal(collection.id);
-   document.getElementById('collection-delete').onclick=()=>deleteCollection(collection.id);
+    document.getElementById('collection-rename').onclick=()=>openCollectionModal(collection.id);
+    document.getElementById('collection-delete').onclick=()=>deleteCollection(collection.id);
    document.getElementById('collection-add-items').onclick=()=>openCollectionSelectionPage(collection.id);
   }
-  page.querySelectorAll('[data-remove-collection-kind]').forEach(b=>b.onclick=e=>{e.stopPropagation();collection.items=collection.items.filter(x=>!(x.kind===b.dataset.removeCollectionKind&&String(x.id)===String(b.dataset.removeCollectionId)));renderRecipes();toast('Убрано из подборки')});
+   page.querySelectorAll('[data-remove-collection-kind]').forEach(b=>b.onclick=async e=>{
+    e.stopPropagation();
+    try{
+     collections=(await getCatalogServices()).removeItemFromCollection(collections,collection.id,b.dataset.removeCollectionKind,b.dataset.removeCollectionId);
+     renderRecipes();toast('Убрано из подборки');
+    }catch(error){reportCatalogOperationError('Не удалось убрать позицию из подборки',error)}
+   });
  }
  // Product cards open their detail view; their inner controls remain independent.
  page.querySelectorAll('[data-product]').forEach(card=>{
@@ -2048,8 +2150,8 @@ function renderRecipes(){
   card.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();openDetails(event)}});
  });
  page.querySelectorAll('[data-recipe]').forEach(card=>card.onclick=e=>{if(e.target.closest('[data-heart],[data-pick-recipe],[data-remove-collection-kind]'))return;openRecipeDetail(Number(card.dataset.recipe))});
- page.querySelectorAll('[data-heart]').forEach(b=>b.onclick=e=>{e.stopPropagation();const r=recipes.find(x=>x.id===Number(b.dataset.heart));if(r)r.favorite=!r.favorite;renderRecipes()});
- page.querySelectorAll('[data-product-heart]').forEach(b=>b.onclick=e=>{e.stopPropagation();const p=productDB.find(x=>String(x.id)===String(b.dataset.productHeart));if(p)p.favorite=!p.favorite;renderRecipes()});
+ page.querySelectorAll('[data-heart]').forEach(b=>b.onclick=async e=>{e.stopPropagation();try{await toggleCatalogFavoriteIn(recipes,b.dataset.heart);renderRecipes()}catch(error){reportCatalogOperationError('Не удалось изменить избранное рецепта',error)}});
+ page.querySelectorAll('[data-product-heart]').forEach(b=>b.onclick=async e=>{e.stopPropagation();try{await toggleCatalogFavoriteIn(productDB,b.dataset.productHeart);renderRecipes()}catch(error){reportCatalogOperationError('Не удалось изменить избранное продукта',error)}});
  if(showFilters){
   document.getElementById('toggle-filters').onclick=()=>{recipeFiltersOpen=!recipeFiltersOpen;renderRecipes()};
   document.getElementById('reset-recipe-filters').onclick=()=>{recipeFilters=recipeFilterDefaults();recipeFiltersOpen=true;renderRecipes()};
@@ -2088,10 +2190,17 @@ function renderRecipes(){
  if(!pickMode&&productView){
   document.getElementById('new-product').onclick=()=>openProductModal();
   page.querySelectorAll('[data-edit-product]').forEach(button=>button.onclick=()=>openProductModal(button.dataset.editProduct));
-  page.querySelectorAll('[data-delete-product]').forEach(button=>button.onclick=()=>{
-   const index=productDB.findIndex(x=>String(x.id)===button.dataset.deleteProduct);if(index<0)return;
-   const removed=productDB[index];recipes.forEach(recipe=>recipeArray(recipe.ingredientItems).forEach(row=>{if(String(row.productId)===String(removed.id)){row.productName=row.productName||removed.name;row.productAllergens=uniqueAllergens([...(row.productAllergens||[]),...(removed.allergens||[])]);}}));productDB.splice(index,1);renderRecipes();
-   toast('Продукт удалён','Отменить',()=>{productDB.splice(Math.min(index,productDB.length),0,removed);renderRecipes();toast('Продукт восстановлен')});
+  page.querySelectorAll('[data-delete-product]').forEach(button=>button.onclick=async()=>{
+   try{
+    const services=await getCatalogServices(),result=services.deleteProduct({products:productDB,recipes,productId:button.dataset.deleteProduct});
+    replaceCatalogArray(productDB,result.products);replaceCatalogArray(recipes,result.recipes);renderRecipes();
+    toast('Продукт удалён','Отменить',()=>{
+     try{
+      const restored=services.restoreProduct({products:productDB,recipes,product:result.removed,index:result.index});
+      replaceCatalogArray(productDB,restored.products);replaceCatalogArray(recipes,restored.recipes);renderRecipes();toast('Продукт восстановлен');
+     }catch(error){reportCatalogOperationError('Не удалось восстановить продукт',error)}
+    });
+   }catch(error){reportCatalogOperationError('Не удалось удалить продукт',error)}
   });
  }
  if(!pickMode&&view==='recipes'){
@@ -2115,16 +2224,26 @@ function openCollectionModal(collectionId=null){
  const modalConfig=NutriMealUI.renderCollectionModal({existing,escapeHtml});
  openModal(modalConfig.title,modalConfig.body,modalConfig.actions);
  document.getElementById('collection-cancel').onclick=closeModal;
- document.getElementById('collection-save').onclick=()=>{
+ document.getElementById('collection-save').onclick=async()=>{
   const name=document.getElementById('collection-name').value.trim();if(!name){toast('Укажи название подборки');return}
-  if(existing)existing.name=name;else{const id=`collection-${Date.now()}`;collections.push({id,name,items:[]});activeCollectionId=id}
-  recipeTab='collections';collectionSearch='';closeModal();setPage('recipes');toast(existing?'Название подборки изменено':'Подборка создана');
+  if(name.length>60){toast('Название подборки не должно превышать 60 символов');return}
+  try{
+   const services=await getCatalogServices();
+   if(existing)collections=services.renameCollection(collections,existing.id,name);
+   else{const id=`collection-${Date.now()}`;collections=services.createCollection(collections,name,id);activeCollectionId=id}
+   recipeTab='collections';collectionSearch='';closeModal();setPage('recipes');toast(existing?'Название подборки изменено':'Подборка создана');
+  }catch(error){reportCatalogOperationError('Не удалось сохранить подборку',error)}
  };
 }
-function deleteCollection(collectionId){
- const index=collections.findIndex(x=>String(x.id)===String(collectionId));if(index<0)return;
- const removed=collections.splice(index,1)[0];activeCollectionId=null;renderRecipes();
- toast('Подборка удалена','Отменить',()=>{collections.splice(Math.min(index,collections.length),0,removed);renderRecipes();toast('Подборка восстановлена')});
+async function deleteCollection(collectionId){
+ try{
+  const services=await getCatalogServices(),result=services.deleteCollection(collections,collectionId);if(!result.removed)return;
+  collections=result.collections;activeCollectionId=null;renderRecipes();
+  toast('Подборка удалена','Отменить',()=>{
+   try{collections=services.restoreCollection(collections,result.removed,result.index);renderRecipes();toast('Подборка восстановлена')}
+   catch(error){reportCatalogOperationError('Не удалось восстановить подборку',error)}
+  });
+ }catch(error){reportCatalogOperationError('Не удалось удалить подборку',error)}
 }
 function openCollectionItemsModal(collectionId){
  const collection=collections.find(x=>String(x.id)===String(collectionId));if(!collection)return;
@@ -2134,15 +2253,18 @@ function openCollectionItemsModal(collectionId){
  const list=document.getElementById('collection-source-list');
  const paint=()=>{
   const isProducts=collectionAddTab==='products';
+  const currentCollection=collections.find(x=>String(x.id)===String(collectionId));if(!currentCollection)return;
   const source=(isProducts?productDB:recipes).filter(x=>x.name.toLocaleLowerCase('ru-RU').includes(collectionSearch.toLocaleLowerCase('ru-RU')));
   list.innerHTML=source.length?source.map(item=>{
-   const key=collectionItemKey(isProducts?'product':'recipe',item.id),added=collection.items.some(x=>collectionItemKey(x.kind,x.id)===key);
+   const key=collectionItemKey(isProducts?'product':'recipe',item.id),added=currentCollection.items.some(x=>collectionItemKey(x.kind,x.id)===key);
    return `<div class="collection-source-row"><div><strong>${item.name}</strong><small>${fmt(item.kcal)} ккал / 100 ${isProducts?(item.basisUnit||'г'):'г'} · Б ${item.p} · Ж ${item.f} · У ${item.c}</small></div><button type="button" class="btn ${added?'':'btn-primary'}" data-collection-source-add="${item.id}" ${added?'disabled':''}>${added?'Добавлено':'＋ Добавить'}</button></div>`;
   }).join(''):`<div class="empty">Ничего не найдено.</div>`;
-  list.querySelectorAll('[data-collection-source-add]').forEach(b=>b.onclick=()=>{
-   const kind=isProducts?'product':'recipe',id=b.dataset.collectionSourceAdd,key=collectionItemKey(kind,id);
-   if(!collection.items.some(x=>collectionItemKey(x.kind,x.id)===key))collection.items.push({kind,id:isProducts?id:Number(id)});
-   paint();
+  list.querySelectorAll('[data-collection-source-add]').forEach(b=>b.onclick=async()=>{
+   try{
+    const kind=isProducts?'product':'recipe',id=b.dataset.collectionSourceAdd;
+    collections=(await getCatalogServices()).addItemsToCollection(collections,collectionId,[{kind,id:isProducts?id:Number(id)}]);
+    paint();
+   }catch(error){reportCatalogOperationError('Не удалось добавить позицию в подборку',error)}
   });
  };
  document.querySelectorAll('[data-collection-source-tab]').forEach(b=>b.onclick=()=>{collectionAddTab=b.dataset.collectionSourceTab;document.querySelectorAll('[data-collection-source-tab]').forEach(x=>x.classList.toggle('active',x===b));paint()});
@@ -2216,7 +2338,7 @@ function calculatePlanTargets(){
 function syncPlanCalculations(persist=false){
  const result=calculatePlanTargets();if(!result)return null;
  plan.goal=result.goal;plan.energyAdjustment=result.adjustment;plan.kcal=result.kcal;plan.p=result.protein;plan.f=result.fat;plan.c=result.carbs;
- if(persist)savePlanData();
+ if(persist)savePlanData().catch(error=>reportPlanningOperationError('Не удалось сохранить план',error));
  return result;
 }
 const WEEKLY_FOOD_GROUPS=[
@@ -2288,37 +2410,58 @@ function openWeeklyGoalsModal(setId=activeNutritionSetId,returnMode=null){
  const goalSet=nutritionSets.find(item=>String(item.id)===String(setId));if(!goalSet){toast('Набор не найден');return}
  const completenessRows=WEEKLY_FOOD_GROUPS.map(group=>`<div class="weekly-goal-edit-row"><div><strong>${group.label}</strong><small>Справочный ориентир: ${group.reference}</small></div><div class="field"><label>Моя цель, блюд в неделю</label><input type="number" min="1" max="21" step="1" data-weekly-completeness="${group.id}" value="${getPersonalWeeklyGoal(group.id,'completeness',goalSet)||''}" placeholder="Не задана"></div></div>`).join('');
  const diversityRows=WEEKLY_FOOD_GROUPS.map(group=>`<div class="weekly-goal-edit-row"><div><strong>${group.label}</strong><small>Количество разных продуктов за неделю</small></div><div class="field"><label>Моя цель, разных продуктов</label><input type="number" min="1" max="50" step="1" data-weekly-diversity="${group.id}" value="${getPersonalWeeklyGoal(group.id,'diversity',goalSet)||''}" placeholder="Не задана"></div></div>`).join('');
- openModal('Мои ориентиры питания',`<div class="field-help" style="margin-bottom:12px">Личные цели применяются ко всем неделям выбранного набора и показываются отдельно от справочных ориентиров. Если цель полноты не задана, используется справочный минимум; если не задана цель разнообразия, отображается только фактическое количество продуктов.</div><h3 class="subsection-title">Полнота</h3><div class="weekly-goal-edit-list">${completenessRows}</div><h3 class="subsection-title" style="margin-top:18px">Разнообразие</h3><div class="weekly-goal-edit-list">${diversityRows}</div>`,`<button class="btn" id="weekly-goals-cancel">Отмена</button><button class="btn-primary" id="weekly-goals-save">Сохранить ориентиры</button>`);
+ const dialog=NutriMealUI.renderWeeklyGoalsModal({completenessRows,diversityRows});
+ openModal(dialog.title,dialog.body,dialog.actions);
  if(returnMode==='create'||returnMode==='edit')setNutritionSetCreateModalStage(returnMode==='edit'?'edit-orientations':'orientations');
  document.getElementById('weekly-goals-cancel').onclick=()=>returnMode==='edit'?openNutritionSetOrientationsModal('edit'):returnMode==='create'?openNutritionSetOrientationsModal('create'):closeModal();
- document.getElementById('weekly-goals-save').onclick=()=>{
+ document.getElementById('weekly-goals-save').onclick=async()=>{
   const targetSet=nutritionSets.find(item=>String(item.id)===String(setId));if(!targetSet){toast('Набор не найден');return}
   const previous=targetSet.personalWeeklyGoals||{};const next={completeness:{},frequency:{...(previous.frequency||{})},diversity:{}};
   document.querySelectorAll('[data-weekly-completeness]').forEach(input=>{const value=Number(input.value);if(input.value!==''&&Number.isFinite(value)&&value>0)next.completeness[input.dataset.weeklyCompleteness]=Math.round(value)});
   document.querySelectorAll('[data-weekly-diversity]').forEach(input=>{const value=Number(input.value);if(input.value!==''&&Number.isFinite(value)&&value>0)next.diversity[input.dataset.weeklyDiversity]=Math.round(value)});
-  targetSet.personalWeeklyGoals=next;if(!returnMode)saveNutritionSets();closeModal();if(returnMode==='create')openNutritionSetOrientationsModal('create');else if(returnMode==='edit')openNutritionSetOrientationsModal('edit');else renderPlanning();toast('Личные ориентиры набора сохранены');
+  if(returnMode)targetSet.personalWeeklyGoals=next;
+  else try{
+   const result=(await getPlanningServices()).updateNutritionSetWeeklyGoals({sets:nutritionSets,setId,completeness:next.completeness,diversity:next.diversity,products:productDB});
+   nutritionSets=result.sets;
+  }catch(error){reportPlanningOperationError('Не удалось сохранить личные ориентиры набора',error);return}
+  closeModal();if(returnMode==='create')openNutritionSetOrientationsModal('create');else if(returnMode==='edit')openNutritionSetOrientationsModal('edit');else renderPlanning();toast('Личные ориентиры набора сохранены');
  };
 }
 function clonePlanForPreset(){return JSON.parse(JSON.stringify({goal:plan.goal,targetWeight:plan.targetWeight,energyAdjustment:plan.energyAdjustment,proteinPerKg:plan.proteinPerKg,fatPercent:plan.fatPercent,personalWeeklyGoals:plan.personalWeeklyGoals||{completeness:{},frequency:{},diversity:{}}}))}
 function openPlanPresetSaveModal(){
- openModal('Сохранить план как пресет',`<div class="field"><label for="plan-preset-name">Название пресета</label><input id="plan-preset-name" type="text" maxlength="48" placeholder="Например, Поддержание веса"></div><div class="field-help">Сохраняются цель, целевой вес, настройки КБЖУ и личные недельные ориентиры.</div>`,`<button class="btn" id="plan-preset-cancel">Отмена</button><button class="btn-primary" id="plan-preset-save">Сохранить</button>`);
+ const dialog=NutriMealUI.renderPlanPresetSaveModal();
+ openModal(dialog.title,dialog.body,dialog.actions);
  document.getElementById('plan-preset-cancel').onclick=closeModal;
- document.getElementById('plan-preset-save').onclick=()=>{const name=document.getElementById('plan-preset-name').value.trim();if(!name){toast('Укажи название пресета');return}const existing=planPresets.find(item=>item.name.toLocaleLowerCase('ru-RU')===name.toLocaleLowerCase('ru-RU'));const record={id:existing?.id||`preset-${Date.now()}`,name,plan:clonePlanForPreset(),updatedAt:new Date().toISOString()};if(existing)planPresets=planPresets.map(item=>item.id===existing.id?record:item);else planPresets.push(record);savePlanPresets();closeModal();renderPlanning();toast(existing?'Пресет обновлён':'Пресет сохранён')};
+ document.getElementById('plan-preset-save').onclick=async()=>{
+  const name=document.getElementById('plan-preset-name').value.trim();if(!name){toast('Укажи название пресета');return}
+  const existing=planPresets.find(item=>item.name.toLocaleLowerCase('ru-RU')===name.toLocaleLowerCase('ru-RU'));
+  try{
+   const result=(await getPlanningServices()).savePlanPreset({presets:planPresets,name,plan:clonePlanForPreset(),id:existing?.id||`preset-${Date.now()}`,updatedAt:new Date().toISOString()});
+   planPresets=result.presets;closeModal();renderPlanning();toast(existing?'Пресет обновлён':'Пресет сохранён');
+  }catch(error){reportPlanningOperationError('Не удалось сохранить пресет плана',error)}
+ };
 }
 function openPlanPresetEditModal(id){
  const preset=planPresets.find(item=>item.id===id);if(!preset)return;
- openModal('Переименовать пресет',`<div class="field"><label for="plan-preset-rename">Название</label><input id="plan-preset-rename" type="text" maxlength="48" value="${escapeHtml(preset.name)}"></div>`,`<button class="btn" id="preset-rename-cancel">Отмена</button><button class="btn-primary" id="preset-rename-save">Сохранить</button>`);
+ const dialog=NutriMealUI.renderPlanPresetEditModal({name:preset.name,escapeHtml});
+ openModal(dialog.title,dialog.body,dialog.actions);
  document.getElementById('preset-rename-cancel').onclick=closeModal;
- document.getElementById('preset-rename-save').onclick=()=>{const name=document.getElementById('plan-preset-rename').value.trim();if(!name){toast('Укажи название пресета');return}preset.name=name;preset.updatedAt=new Date().toISOString();savePlanPresets();openPlanPresetsModal()};
+ document.getElementById('preset-rename-save').onclick=async()=>{
+  const name=document.getElementById('plan-preset-rename').value.trim();if(!name){toast('Укажи название пресета');return}
+  try{
+   const result=(await getPlanningServices()).renamePlanPreset(planPresets,preset.id,name,new Date().toISOString());
+   planPresets=result.presets;openPlanPresetsModal();
+  }catch(error){reportPlanningOperationError('Не удалось переименовать пресет плана',error)}
+ };
 }
 function openPlanPresetsModal(){
- const list=planPresets.length?`<div class="plan-preset-list">${planPresets.map(item=>`<div class="plan-preset-row"><div><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(item.plan.goal)} · цель ${fmt(item.plan.targetWeight)} кг</small></div><div class="plan-preset-actions"><button class="btn" data-preset-apply="${item.id}">Применить</button><button class="btn-quiet" data-preset-edit="${item.id}" title="Переименовать">✎</button><button class="btn-quiet danger" data-preset-delete="${item.id}" title="Удалить">×</button></div></div>`).join('')}</div>`:'<div class="empty-state">Сохранённых пресетов пока нет.</div>';
- openModal('Сохранённые пресеты',list,`<button class="btn" id="plan-presets-close">Закрыть</button>`);
+ const dialog=NutriMealUI.renderPlanPresetsModal({presets:planPresets,fmt,escapeHtml});
+ openModal(dialog.title,dialog.body,dialog.actions);
  document.getElementById('plan-presets-close').onclick=closeModal;
- document.getElementById('modal-body').onclick=event=>{
-  const apply=event.target.closest('[data-preset-apply]');if(apply){const item=planPresets.find(preset=>preset.id===apply.dataset.presetApply);if(item){Object.assign(plan,normalizePlanData(item.plan));syncPlanCalculations(false);savePlanData();closeModal();renderPlanning();toast('Пресет применён')}return}
+ document.getElementById('modal-body').onclick=async event=>{
+  const apply=event.target.closest('[data-preset-apply]');if(apply){const item=planPresets.find(preset=>preset.id===apply.dataset.presetApply);if(item){try{await applyPlanPresetToState(item.id);closeModal();renderPlanning();toast('Пресет применён')}catch(error){reportPlanningOperationError('Не удалось применить пресет плана',error)}}return}
   const edit=event.target.closest('[data-preset-edit]');if(edit){openPlanPresetEditModal(edit.dataset.presetEdit);return}
-  const remove=event.target.closest('[data-preset-delete]');if(remove){planPresets=planPresets.filter(preset=>preset.id!==remove.dataset.presetDelete);savePlanPresets();openPlanPresetsModal()}
+  const remove=event.target.closest('[data-preset-delete]');if(remove){try{const result=(await getPlanningServices()).deletePlanPreset(planPresets,remove.dataset.presetDelete);planPresets=result.presets;openPlanPresetsModal()}catch(error){reportPlanningOperationError('Не удалось удалить пресет плана',error)}}
  };
 }
 function renderRdaTable(){
@@ -2551,9 +2694,16 @@ function renderPlanning(){
  document.getElementById('edit-setup').onclick=()=>openSetupModal();
  document.getElementById('plan-preset-save-open').onclick=()=>openPlanPresetSaveModal();
  document.getElementById('plan-presets-manage').onclick=()=>openPlanPresetsModal();
- document.getElementById('plan-preset-select').onchange=event=>{const item=planPresets.find(preset=>preset.id===event.target.value);if(item){Object.assign(plan,normalizePlanData(item.plan));syncPlanCalculations(false);savePlanData();renderPlanning();toast('Пресет применён')}};
+ document.getElementById('plan-preset-select').onchange=async event=>{
+  const item=planPresets.find(preset=>preset.id===event.target.value);if(!item)return;
+  try{await applyPlanPresetToState(item.id);renderPlanning();toast('Пресет применён')}
+  catch(error){reportPlanningOperationError('Не удалось применить пресет плана',error)}
+ };
  const profileOpen=document.getElementById('planning-open-profile');if(profileOpen)profileOpen.onclick=()=>{setPage('profile');openProfileModal()};
- page.querySelectorAll('[data-nutrition-set-select]').forEach(button=>button.onclick=()=>{setActiveNutritionSet(button.dataset.nutritionSetSelect);renderPlanning()});
+ page.querySelectorAll('[data-nutrition-set-select]').forEach(button=>button.onclick=async()=>{
+  try{await setActiveNutritionSet(button.dataset.nutritionSetSelect);renderPlanning()}
+  catch(error){reportPlanningOperationError('Не удалось выбрать набор питания',error)}
+ });
  page.querySelectorAll('[data-nutrition-set-delete]').forEach(button=>button.onclick=event=>{event.stopPropagation();openDeleteNutritionSetModal(button.dataset.nutritionSetDelete)});
  page.querySelectorAll('[data-nutrition-set-edit]').forEach(button=>button.onclick=event=>{event.stopPropagation();startEditNutritionSetFlow(null,button.dataset.nutritionSetEdit)});
  document.getElementById('planner-create-set').onclick=()=>openCreateNutritionSetModal();
@@ -2568,7 +2718,8 @@ function openCreateNutritionSetModal(){
  nutritionSetCreateDraft=null;
  nutritionSetCreateSkippedWeeks=[false,false,false,false];
  nutritionSetCreatePreviousActiveId=activeNutritionSetId;
- openModal('Создать набор · Название',`<div class="nutrition-set-wizard"><div class="nutrition-set-wizard-step"><span>ШАГ 1 ИЗ 2</span><b>Назови набор</b><small>Добавь пояснение, чтобы позже помнить назначение этого набора.</small></div><div class="field"><label for="nutrition-set-name">Название набора</label><input id="nutrition-set-name" maxlength="48" placeholder="Например, Набор D"></div><div class="field"><label for="nutrition-set-comment">Комментарий к набору</label><textarea id="nutrition-set-comment" rows="3" maxlength="300" placeholder="Например, меню на период набора массы или рацион на рабочие смены"></textarea></div></div>`,`<button class="btn" id="nutrition-set-cancel">Отмена</button><button class="btn-primary" id="nutrition-set-next">Далее ↗</button>`);
+ const dialog=NutriMealUI.renderCreateNutritionSetModal();
+ openModal(dialog.title,dialog.body,dialog.actions);
  setNutritionSetCreateModalStage('name');
  document.getElementById('nutrition-set-cancel').onclick=cancelNutritionSetCreateFlow;
  document.getElementById('nutrition-set-next').onclick=()=>{
@@ -2595,20 +2746,22 @@ function cancelNutritionSetCreateFlow(){
  if(nutritionSetCreateDraft){nutritionSets=nutritionSets.filter(item=>item.id!==nutritionSetCreateDraft.id)}
  nutritionSetCreateDraft=null;nutritionSetCreateSkippedWeeks=[false,false,false,false];
  activeNutritionSetId=nutritionSets.some(item=>item.id===nutritionSetCreatePreviousActiveId)?nutritionSetCreatePreviousActiveId:(nutritionSets[0]?.id||'');
- try{if(activeNutritionSetId)localStorage.setItem(ACTIVE_NUTRITION_SET_KEY,activeNutritionSetId);else localStorage.removeItem(ACTIVE_NUTRITION_SET_KEY)}catch(error){}
  plannerWeekEditDraft=null;plannerWeekEditIndex=null;closeModal();renderPlanning();
 }
 function openCreateNutritionSetWeeksModal(){
  const draft=nutritionSetCreateDraft;if(!draft)return;
- const weeksMarkup=draft.weeks.map((week,index)=>{
-  const filled=getPlannerWeekCompletion(week),skipped=!!nutritionSetCreateSkippedWeeks[index];
-  const status=filled?`${filled} ${filled===1?'блюдо':'блюд'} добавлено`:skipped?'Пропущена · останется пустой':'Пока пустая';
-  return `<div class="nutrition-set-week-option"><div class="nutrition-set-week-copy"><strong>Неделя ${index+1}</strong><span>${status}</span></div><div class="nutrition-set-week-actions"><button type="button" class="btn" data-create-set-week-open="${index}">＋ Добавить</button>${filled?'':`<button type="button" class="btn-quiet" data-create-set-week-skip="${index}">${skipped?'Вернуть':'Пропустить'}</button>`}</div></div>`;
- }).join('');
- const hasAnyContent=draft.weeks.some(week=>getPlannerWeekCompletion(week)>0);
- const body=`<div class="nutrition-set-wizard"><div class="nutrition-set-wizard-step"><span>ШАГ 2 ИЗ 3</span><b>Наполни недели</b><small>Добавь блюда в нужные недели. Любую неделю можно оставить пустой и заполнить позже.</small></div><div class="nutrition-set-week-list">${weeksMarkup}</div><div class="nutrition-set-wizard-note">${hasAnyContent?'После наполнения проверь ориентиры питания для каждой недели.':'Можно пропустить все недели — дальше всё равно можно посмотреть ориентиры и создать пустой набор.'}</div></div>`;
- const actions=`<button class="btn" id="nutrition-set-wizard-cancel">Отмена</button>${!hasAnyContent?'<button class="btn-quiet" id="nutrition-set-create-empty">Пропустить всё</button>':''}<button class="btn-primary" id="nutrition-set-to-orientations">Далее · Ориентиры ↗</button>`;
- openModal(`Новый набор · ${escapeHtml(draft.name)}`,body,actions);
+ const weekRows=draft.weeks.map((week,index)=>({
+  index,
+  completionCount:getPlannerWeekCompletion(week),
+  skipped:!!nutritionSetCreateSkippedWeeks[index]
+ }));
+ const hasAnyContent=weekRows.some(week=>week.completionCount>0);
+ const dialog=NutriMealUI.renderCreateNutritionSetWeeksModal({
+  name:draft.name,
+  weekRows,
+  escapeHtml
+ });
+ openModal(dialog.title,dialog.body,dialog.actions);
  setNutritionSetCreateModalStage('weeks');
  document.getElementById('nutrition-set-wizard-cancel').onclick=cancelNutritionSetCreateFlow;
  const createEmpty=document.getElementById('nutrition-set-create-empty');if(createEmpty)createEmpty.onclick=()=>{nutritionSetCreateSkippedWeeks=[true,true,true,true];openNutritionSetOrientationsModal('create')};
@@ -2616,11 +2769,12 @@ function openCreateNutritionSetWeeksModal(){
  document.querySelectorAll('[data-create-set-week-open]').forEach(button=>button.onclick=()=>openNutritionWeekEditModal(Number(button.dataset.createSetWeekOpen)));
  document.querySelectorAll('[data-create-set-week-skip]').forEach(button=>button.onclick=()=>{const index=Number(button.dataset.createSetWeekSkip);nutritionSetCreateSkippedWeeks[index]=!nutritionSetCreateSkippedWeeks[index];openCreateNutritionSetWeeksModal()});
 }
-function startEditNutritionSetFlow(initialWeekIndex=null,setId=null){
+async function startEditNutritionSetFlow(initialWeekIndex=null,setId=null){
  const current=setId?nutritionSets.find(item=>String(item.id)===String(setId)):getActiveNutritionSet();if(!current){toast('Сначала создай набор');return}
  const index=nutritionSets.findIndex(item=>item.id===current.id);if(index<0)return;
  nutritionSetEditPreviousActiveId=activeNutritionSetId;
- setActiveNutritionSet(current.id);
+ try{await setActiveNutritionSet(current.id)}
+ catch(error){reportPlanningOperationError('Не удалось выбрать набор для редактирования',error);return}
  nutritionSetEditOriginal=JSON.parse(JSON.stringify(current));
  nutritionSetEditDraft=normalizeNutritionSet(JSON.parse(JSON.stringify(current)),index);
  nutritionSets[index]=nutritionSetEditDraft;
@@ -2631,13 +2785,16 @@ function startEditNutritionSetFlow(initialWeekIndex=null,setId=null){
 }
 function openEditNutritionSetWeeksModal(){
  const draft=nutritionSetEditDraft;if(!draft)return;
- const weeksMarkup=draft.weeks.map((week,index)=>{
-  const filled=getPlannerWeekCompletion(week);
-  const status=filled?`${filled} ${filled===1?'блюдо':'блюд'} в меню`:'Пока пустая';
-  return `<div class="nutrition-set-week-option"><div class="nutrition-set-week-copy"><strong>Неделя ${index+1}</strong><span>${status}</span></div><div class="nutrition-set-week-actions"><button type="button" class="btn" data-edit-set-week-open="${index}">Изменить ↗</button></div></div>`;
- }).join('');
- const body=`<div class="nutrition-set-wizard"><div class="nutrition-set-wizard-step"><span>ШАГ 1 ИЗ 2</span><b>Редактирование набора</b><small>Измени название, пояснение или состав недель. После этого проверь ориентиры всего набора.</small></div><div class="field"><label for="nutrition-set-edit-name">Название набора</label><input id="nutrition-set-edit-name" maxlength="48" value="${escapeHtml(draft.name)}"></div><div class="field"><label for="nutrition-set-edit-comment">Комментарий к набору</label><textarea id="nutrition-set-edit-comment" rows="3" maxlength="300" placeholder="Для чего нужен этот набор?">${escapeHtml(draft.comment||'')}</textarea></div><div class="nutrition-set-week-list">${weeksMarkup}</div><div class="nutrition-set-wizard-note">Изменения пока хранятся как черновик. Они сохранятся после проверки ориентиров.</div></div>`;
- openModal(`Редактировать набор · ${escapeHtml(draft.name)}`,body,'<button class="btn" id="nutrition-set-edit-cancel">Отмена</button><button class="btn-primary" id="nutrition-set-edit-next">Далее · Ориентиры ↗</button>');
+ const weekRows=draft.weeks.map((week,index)=>({
+  index,
+  completionCount:getPlannerWeekCompletion(week)
+ }));
+ const dialog=NutriMealUI.renderEditNutritionSetWeeksModal({
+  draft,
+  weekRows,
+  escapeHtml
+ });
+ openModal(dialog.title,dialog.body,dialog.actions);
  setNutritionSetCreateModalStage('edit-weeks');
  document.getElementById('nutrition-set-edit-cancel').onclick=cancelNutritionSetEditFlow;
  document.getElementById('nutrition-set-edit-name').oninput=event=>{draft.name=event.target.value};
@@ -2651,10 +2808,16 @@ function openNutritionSetOrientationsModal(mode='create'){
  const currentWeek=draft.weeks[weekIndex]||emptyNutritionWeek();
  const tabs=[1,2,3,4].map(week=>`<button type="button" class="nutrition-review-week-tab ${week===weekIndex+1?'active':''}" data-nutrition-review-week="${week}" aria-pressed="${week===weekIndex+1}"><b>0${week}</b><span>Неделя ${week}</span><small>${getPlannerWeekCompletion(draft.weeks[week-1])} блюд</small></button>`).join('');
  const categories=renderPlannerCategoryRows(currentWeek,weekIndex+1,draft);
- const body=`<div class="nutrition-set-wizard nutrition-review-wizard"><div class="nutrition-set-wizard-step"><span>ШАГ ${mode==='edit'?'2 ИЗ 2':'3 ИЗ 3'}</span><b>Проверь ориентиры питания</b><small>Посмотри, сколько блюд каждой недели содержат овощи, фрукты, зерновые и другие группы. При нехватке нажми плюс — после выбора рецептов вернёшься сюда, а показатели обновятся.</small></div><div class="nutrition-review-week-tabs" role="group" aria-label="Неделя для проверки">${tabs}</div><div class="nutrition-review-current"><div><strong>Неделя ${weekIndex+1}</strong><span>Ориентиры рассчитываются по рецептам и их ингредиентам в этой неделе.</span></div><span class="tag active">${getPlannerWeekCompletion(currentWeek)} блюд</span></div><div class="planner48-category-legend"><span>КАТЕГОРИЯ И ЦЕЛЬ</span><span>БЛЮДА В МЕНЮ</span><span>РАЗНООБРАЗИЕ</span></div><div class="planner48-category-list nutrition-review-category-list">${categories}</div><div style="display:flex;justify-content:flex-end;margin-top:12px"><button type="button" class="btn" id="weekly-goals-open">Настроить ориентиры этого набора</button></div><div class="nutrition-set-wizard-note">Можно завершить создание или сохранение и с недостающими категориями. Ориентиры помогают оценить меню, но не блокируют дальнейшую работу.</div></div>`;
- const title=mode==='edit'?`Ориентиры · ${escapeHtml(draft.name)}`:`Ориентиры · ${escapeHtml(draft.name)}`;
- const finishLabel=mode==='edit'?'Сохранить изменения':'Готово · Создать набор';
- openModal(title,body,`<button type="button" class="btn" id="nutrition-review-back">← К неделям</button><button type="button" class="btn-primary" id="nutrition-review-finish">${finishLabel}</button>`);
+ const dialog=NutriMealUI.renderNutritionSetOrientationsModal({
+  mode,
+  setName:draft.name,
+  weekIndex,
+  weekCount:getPlannerWeekCompletion(currentWeek),
+  tabsMarkup:tabs,
+  categoriesMarkup:categories,
+  escapeHtml
+ });
+ openModal(dialog.title,dialog.body,dialog.actions);
  document.querySelector('.modal')?.classList.add('nutrition-review-modal');
  setNutritionSetCreateModalStage(mode==='edit'?'edit-orientations':'orientations');
  document.getElementById('weekly-goals-open').onclick=()=>openWeeklyGoalsModal(draft.id,mode);
@@ -2663,65 +2826,80 @@ function openNutritionSetOrientationsModal(mode='create'){
  document.querySelectorAll('[data-nutrition-review-week]').forEach(button=>button.onclick=()=>{nutritionSetReviewWeek=Number(button.dataset.nutritionReviewWeek)||1;openNutritionSetOrientationsModal(mode)});
  document.querySelectorAll('[data-planner-category-add]').forEach(button=>button.onclick=()=>startPlannerCategoryRecipePick(button.dataset.plannerCategoryAdd,Number(button.dataset.plannerCategoryWeek)||nutritionSetReviewWeek));
 }
-function finalizeNutritionSetEditFlow(){
+async function finalizeNutritionSetEditFlow(){
  const draft=nutritionSetEditDraft;if(!draft)return;
  if(nutritionSets.some(item=>item.id!==draft.id&&item.name.toLocaleLowerCase('ru-RU')===draft.name.toLocaleLowerCase('ru-RU'))){toast('Набор с таким названием уже существует');return}
- saveNutritionSets();setActiveNutritionSet(draft.id);plannerAnalysisWeek=nutritionSetReviewWeek;plannerWeeksOpen=false;
- nutritionSetEditDraft=null;nutritionSetEditOriginal=null;nutritionSetEditPreviousActiveId='';closeModal();renderPlanning();toast('Изменения набора сохранены');
+ try{
+  const result=(await getPlanningServices()).updateNutritionSet({sets:nutritionSets,id:draft.id,changes:draft,products:productDB});
+  nutritionSets=result.sets;
+  plannerAnalysisWeek=nutritionSetReviewWeek;plannerWeeksOpen=false;
+  nutritionSetEditDraft=null;nutritionSetEditOriginal=null;nutritionSetEditPreviousActiveId='';closeModal();renderPlanning();toast('Изменения набора сохранены');
+ }catch(error){reportPlanningOperationError('Не удалось сохранить изменения набора',error)}
 }
-function cancelNutritionSetEditFlow(){
+async function cancelNutritionSetEditFlow(){
  if(nutritionSetEditDraft&&nutritionSetEditOriginal){const index=nutritionSets.findIndex(item=>item.id===nutritionSetEditDraft.id);if(index>=0)nutritionSets[index]=normalizeNutritionSet(nutritionSetEditOriginal,index)}
  nutritionSetEditDraft=null;nutritionSetEditOriginal=null;activeNutritionSetId=nutritionSets.some(item=>item.id===nutritionSetEditPreviousActiveId)?nutritionSetEditPreviousActiveId:(nutritionSets[0]?.id||'');
- try{if(activeNutritionSetId)localStorage.setItem(ACTIVE_NUTRITION_SET_KEY,activeNutritionSetId)}catch(error){}
+ try{if(activeNutritionSetId)await setActiveNutritionSet(activeNutritionSetId)}
+ catch(error){reportPlanningOperationError('Не удалось восстановить активный набор',error)}
  plannerWeekEditDraft=null;plannerWeekEditIndex=null;closeModal();renderPlanning();
 }
-function finalizeNutritionSetCreateFlow(){
+async function finalizeNutritionSetCreateFlow(){
  const draft=nutritionSetCreateDraft;if(!draft)return;
  if(nutritionSets.some(item=>item.id!==draft.id&&item.name.toLocaleLowerCase('ru-RU')===draft.name.toLocaleLowerCase('ru-RU'))){toast('Набор с таким названием уже существует');return}
- saveNutritionSets();setActiveNutritionSet(draft.id);plannerAnalysisWeek=1;plannerWeeksOpen=false;
+ try{
+  const sets=nutritionSets.filter(item=>String(item.id)!==String(draft.id));
+  const result=(await getPlanningServices()).createNutritionSet({sets,name:draft.name,comment:draft.comment,id:draft.id,products:productDB,weeks:draft.weeks,personalWeeklyGoals:draft.personalWeeklyGoals});
+  nutritionSets=result.sets;
+ }catch(error){reportPlanningOperationError('Не удалось создать набор',error);return}
+ const previousActiveId=nutritionSetCreatePreviousActiveId;
  nutritionSetCreateDraft=null;nutritionSetCreateSkippedWeeks=[false,false,false,false];nutritionSetCreatePreviousActiveId='';
+ try{await setActiveNutritionSet(draft.id)}
+ catch(error){
+  activeNutritionSetId=nutritionSets.some(item=>String(item.id)===String(previousActiveId))?previousActiveId:(nutritionSets[0]?.id||'');
+  plannerAnalysisWeek=1;plannerWeeksOpen=false;closeModal();renderPlanning();
+  reportPlanningOperationError('Набор создан, но не удалось сделать его активным',error);return;
+ }
+ plannerAnalysisWeek=1;plannerWeeksOpen=false;
  closeModal();renderPlanning();toast('Набор создан');
 }
 function openDeleteNutritionSetModal(setId){
  const target=nutritionSets.find(item=>String(item.id)===String(setId));if(!target)return;
  if(nutritionSetCreateDraft?.id===target.id){toast('Сначала заверши создание набора');return}
- openModal('Удалить набор?',`<div class="nutrition-set-delete-confirm"><strong>${escapeHtml(target.name)}</strong><p>Набор и все четыре недели будут удалены из библиотеки. Это действие нельзя отменить.</p></div>`,`<button class="btn" id="nutrition-set-delete-cancel">Отмена</button><button class="btn-danger" id="nutrition-set-delete-confirm">Удалить набор</button>`);
+ const dialog=NutriMealUI.renderDeleteNutritionSetModal({name:target.name,escapeHtml});
+ openModal(dialog.title,dialog.body,dialog.actions);
  document.getElementById('nutrition-set-delete-cancel').onclick=closeModal;
- document.getElementById('nutrition-set-delete-confirm').onclick=()=>{
-  const wasActive=activeNutritionSetId===target.id;
-  nutritionSets=nutritionSets.filter(item=>item.id!==target.id);
-  if(wasActive)activeNutritionSetId=nutritionSets[0]?.id||'';
-  saveNutritionSets();
-  try{if(activeNutritionSetId)localStorage.setItem(ACTIVE_NUTRITION_SET_KEY,activeNutritionSetId);else localStorage.removeItem(ACTIVE_NUTRITION_SET_KEY)}catch(error){}
-  plannerAnalysisWeek=1;plannerWeeksOpen=false;closeModal();renderPlanning();toast(`Набор «${target.name}» удалён`);
+ document.getElementById('nutrition-set-delete-confirm').onclick=async()=>{
+  try{
+   const result=(await getPlanningServices()).deleteNutritionSet({sets:nutritionSets,id:target.id,activeId:activeNutritionSetId});
+   if(!result.removed)return;
+   nutritionSets=result.sets;activeNutritionSetId=result.activeId;
+   plannerAnalysisWeek=1;plannerWeeksOpen=false;closeModal();renderPlanning();toast(`Набор «${target.name}» удалён`);
+  }catch(error){reportPlanningOperationError('Не удалось удалить набор',error)}
  };
 }
 function plannerDishId(group){plannerDishCounter++;return `planner-${group}-${Date.now()}-${plannerDishCounter}`}
-function plannerDishPositionLabel(group,index){
- if(group==='snacks')return `Закуска ${index+1}`;
- const words=['Первое','Второе','Третье','Четвёртое','Пятое','Шестое','Седьмое','Восьмое','Девятое','Десятое'];
- return `${words[index]||`${index+1}-е`} блюдо`;
-}
-function plannerWeekEditGroupMarkup(group,title){
- const dishes=plannerWeekEditDraft?.[group]||[];
- const rows=dishes.map((dish,index)=>{
-  const recipe=recipes.find(item=>String(item.id)===String(dish.recipeId));
-  const position=plannerDishPositionLabel(group,index);
-  return `<div class="planner-week-edit-row"><button type="button" class="planner-week-edit-pick" data-week-dish-pick data-week-dish-group="${group}" data-week-dish-id="${escapeHtml(dish.id)}"><span class="planner-week-edit-number">${group==='snacks'?'З':index+1}</span><span class="planner-week-edit-copy"><small>${escapeHtml(position)}</small><strong>${escapeHtml(recipe?.name||'Выбрать рецепт')}</strong></span><span class="planner-week-edit-action">${recipe?'Изменить':'＋ Выбрать'} ↗</span></button><button type="button" class="planner-week-edit-remove" data-week-dish-remove data-week-dish-group="${group}" data-week-dish-id="${escapeHtml(dish.id)}" aria-label="Удалить позицию ${escapeHtml(position)}">×</button></div>`;
- }).join('');
- return `<section class="planner-week-edit-group"><div class="planner-week-edit-group-head"><div><strong>${title}</strong><span>${dishes.length} ${group==='snacks'?'позиций':'позиций'}</span></div><button type="button" class="btn" data-week-dish-add="${group}">＋ ${group==='snacks'?'Добавить закуску':'Добавить блюдо'}</button></div>${rows||`<div class="planner-week-edit-empty">Пока нет ${group==='snacks'?'закусок':'основных блюд'}.</div>`}</section>`;
-}
 function renderNutritionWeekEditModal(index){
  const set=getActiveNutritionSet();if(!set||index<0||index>3||!plannerWeekEditDraft)return;
- const body=`<div class="planner-week-editor"><p class="planner-week-edit-intro">Нажми на позицию, чтобы выбрать для неё рецепт из библиотеки. Количество позиций можно менять отдельно в каждой группе.</p>${plannerWeekEditGroupMarkup('mainDishes','Основные блюда')}${plannerWeekEditGroupMarkup('snacks','Закуски')}</div>`;
- openModal(`Неделя ${index+1} · ${escapeHtml(set.name)}`,body,`<button class="btn" id="week-edit-cancel">Отмена</button><button class="btn-primary" id="week-edit-save">Сохранить</button>`);
+ const dialog=NutriMealUI.renderNutritionWeekEditModal({
+  setName:set.name,
+  index,
+  mainDishes:plannerWeekEditDraft.mainDishes||[],
+  snackDishes:plannerWeekEditDraft.snacks||[],
+  recipes,
+  escapeHtml
+ });
+ openModal(dialog.title,dialog.body,dialog.actions);
  if(nutritionSetCreateDraft?.id===set.id)setNutritionSetCreateModalStage('week-editor');else if(nutritionSetEditDraft?.id===set.id)setNutritionSetCreateModalStage('edit-week-editor');
  document.getElementById('week-edit-cancel').onclick=()=>{const current=getActiveNutritionSet(),isCreate=nutritionSetCreateDraft?.id===current?.id,isEdit=nutritionSetEditDraft?.id===current?.id;plannerWeekEditDraft=null;plannerWeekEditIndex=null;closeModal();if(isCreate)openCreateNutritionSetWeeksModal();else if(isEdit)openEditNutritionSetWeeksModal()};
- document.getElementById('week-edit-save').onclick=()=>{
+ document.getElementById('week-edit-save').onclick=async()=>{
   const current=getActiveNutritionSet();if(!current)return;
-  current.weeks[index]=normalizeNutritionWeek(plannerWeekEditDraft,index);
   const isCreateDraft=nutritionSetCreateDraft?.id===current.id,isEditDraft=nutritionSetEditDraft?.id===current.id;
-  if(!isCreateDraft&&!isEditDraft)saveNutritionSets();
+  const week=normalizeNutritionWeek(plannerWeekEditDraft,index);
+  if(isCreateDraft||isEditDraft)current.weeks[index]=week;
+  else try{
+   const result=(await getPlanningServices()).updateNutritionSetWeek({sets:nutritionSets,setId:current.id,weekIndex:index,week,products:productDB});
+   nutritionSets=result.sets;
+  }catch(error){reportPlanningOperationError('Не удалось сохранить неделю набора',error);return}
   plannerWeeksOpen=true;plannerWeekEditDraft=null;plannerWeekEditIndex=null;closeModal();
   if(isCreateDraft){nutritionSetCreateSkippedWeeks[index]=false;renderPlanning();openCreateNutritionSetWeeksModal();toast(`Неделя ${index+1} добавлена в новый набор`)}
   else if(isEditDraft){renderPlanning();openEditNutritionSetWeeksModal();toast(`Неделя ${index+1} обновлена`)}
@@ -2777,22 +2955,28 @@ function openPlannerCategoryPlacementModal(context,chosenItems){
  if(!set){toast('Набор больше не найден');renderPlanning();return}
  let selectedGroup='mainDishes';
  const selectedWeek=Math.max(1,Math.min(4,Number(context.defaultWeek)||1));
- const selectedNames=chosenItems.map(item=>`<span class="planner-category-picked-chip">${escapeHtml(item.name)}</span>`).join('');
- const body=`<div class="planner-category-placement"><div class="planner-category-placement-context"><span>Категория</span><strong>${escapeHtml(context.categoryLabel)}</strong></div><div class="field"><label for="planner-category-target-week">В какую неделю добавить?</label><select id="planner-category-target-week">${[1,2,3,4].map(week=>`<option value="${week}" ${week===selectedWeek?'selected':''}>Неделя ${week}</option>`).join('')}</select></div><div class="planner-category-placement-group"><div class="field-label">В какую группу добавить?</div><div class="planner-category-placement-options"><button type="button" class="planner-category-place-option is-selected" data-planner-place-group="mainDishes"><strong>Основные блюда</strong><span>Добавить в конец списка</span></button><button type="button" class="planner-category-place-option" data-planner-place-group="snacks"><strong>Закуски</strong><span>Добавить в конец списка</span></button></div></div><div class="planner-category-picked-list"><div class="field-label">Выбранные рецепты · ${chosenItems.length}</div><div>${selectedNames}</div></div><p class="field-help">${chosenItems.length} ${chosenItems.length===1?'рецепт будет добавлен':chosenItems.length>=2&&chosenItems.length<=4?'рецепта будут добавлены':'рецептов будут добавлены'} последовательно в выбранную группу.</p></div>`;
- openModal('Куда добавить рецепты?',body,'<button type="button" class="btn" id="planner-category-place-cancel">Отмена</button><button type="button" class="btn-primary" id="planner-category-place-confirm">Добавить</button>');
+ const dialog=NutriMealUI.renderPlannerCategoryPlacementModal({
+  categoryLabel:context.categoryLabel,chosenItems,selectedWeek,escapeHtml
+ });
+ openModal(dialog.title,dialog.body,dialog.actions);
  document.getElementById('planner-category-place-cancel').onclick=()=>{
   closeModal();
   if(context.workflowMode==='create')openNutritionSetOrientationsModal('create');
   else if(context.workflowMode==='edit')openNutritionSetOrientationsModal('edit');
  };
  document.querySelectorAll('[data-planner-place-group]').forEach(button=>button.onclick=()=>{selectedGroup=button.dataset.plannerPlaceGroup;document.querySelectorAll('[data-planner-place-group]').forEach(option=>option.classList.toggle('is-selected',option===button))});
- document.getElementById('planner-category-place-confirm').onclick=()=>{
+ document.getElementById('planner-category-place-confirm').onclick=async()=>{
   const targetSet=nutritionSets.find(item=>String(item.id)===String(context.setId));if(!targetSet){closeModal();toast('Набор больше не найден');renderPlanning();return}
   const weekIndex=Math.max(0,Math.min(3,(Number(document.getElementById('planner-category-target-week').value)||1)-1));
   const week=normalizeNutritionWeek(targetSet.weeks[weekIndex]||emptyNutritionWeek(),weekIndex);
   chosenItems.forEach(item=>week[selectedGroup].push({id:plannerDishId(selectedGroup),recipeId:String(item.id)}));
-  targetSet.weeks[weekIndex]=normalizeNutritionWeek(week,weekIndex);plannerAnalysisWeek=weekIndex+1;nutritionSetReviewWeek=weekIndex+1;
-  if(!context.workflowMode)saveNutritionSets();
+  const updatedWeek=normalizeNutritionWeek(week,weekIndex);
+  if(context.workflowMode)targetSet.weeks[weekIndex]=updatedWeek;
+  else try{
+   const result=(await getPlanningServices()).updateNutritionSetWeek({sets:nutritionSets,setId:targetSet.id,weekIndex,week:updatedWeek,products:productDB});
+   nutritionSets=result.sets;
+  }catch(error){reportPlanningOperationError('Не удалось добавить рецепты в набор',error);return}
+  plannerAnalysisWeek=weekIndex+1;nutritionSetReviewWeek=weekIndex+1;
   closeModal();
   if(context.workflowMode==='create')openNutritionSetOrientationsModal('create');
   else if(context.workflowMode==='edit')openNutritionSetOrientationsModal('edit');
@@ -3414,9 +3598,13 @@ function openCatalogCardSettings(group='recipes'){
   ...standardCategories.map(category=>[category.id,category.label,recipeDescriptions[category.id]||'Значения дополнительной стандартной категории.']),
   ['customTags',customRecipeFilterTitle,'Теги, добавленные к рецепту пользователем.']
  ];
- const optionMarkup=options.map(([key,label,description])=>`<label class="card-display-option"><span><strong>${escapeHtml(label)}</strong><small>${escapeHtml(description)}</small></span><input type="checkbox" data-card-display-key="${escapeHtml(key)}" ${catalogCardSettings[group][key]?'checked':''}></label>`).join('');
- const body=`<div class="card-display-settings"><p class="filter-admin-note">${isProducts?'Выбери, какие характеристики продуктов показывать на карточках. Используются только параметры раздела «Мои продукты».':'Выбери, какие характеристики рецептов показывать на карточках. Используются параметры раздела «Рецепты».'}</p><section class="card-display-group"><div class="card-display-group-head"><strong>${isProducts?'Карточки продуктов':'Карточки рецептов'}</strong><span>${isProducts?'Мои продукты · Избранное · Подборки':'Рецепты · Избранное · Подборки'}</span></div>${optionMarkup}</section></div>`;
- openModal('Настройки отображения карточек',body,'<button type="button" class="btn" id="card-display-cancel">Отмена</button><button type="button" class="btn-primary" id="card-display-save">Сохранить</button>');
+ const dialog=NutriMealUI.renderCatalogCardSettingsModal({
+  isProducts,
+  options,
+  settings:catalogCardSettings[group],
+  escapeHtml
+ });
+ openModal(dialog.title,dialog.body,dialog.actions);
  document.getElementById('card-display-cancel').onclick=closeModal;
  document.getElementById('card-display-save').onclick=()=>{
   const next={recipes:{...catalogCardSettings.recipes},products:{...catalogCardSettings.products}};
@@ -3515,17 +3703,16 @@ function openCalendarModal(){
   const selectedKey=dateKey(currentDate),todayKey=dateKey(todayLocalDate());
   const filledDates=new Set(diaryEntries.map(entry=>entry.date));
   document.getElementById('calendar-month-title').textContent=monthLabel(calendarMonth);
-  const blanks=Array.from({length:firstWeekday},()=>'<span class="calendar-empty" aria-hidden="true"></span>').join('');
   const days=Array.from({length:daysInMonth},(_,index)=>{
    const day=index+1,date=new Date(year,month,day),key=dateKey(date);
-   const classes=['calendar-day'];
-   if(key===todayKey)classes.push('today');
-   if(key===selectedKey)classes.push('selected');
-   if(filledDates.has(key))classes.push('has-entries');
-   const state=[key===todayKey?'сегодня':'',key===selectedKey?'выбрана':'',filledDates.has(key)?'есть записи':''].filter(Boolean).join(', ');
-   return `<button type="button" class="${classes.join(' ')}" data-calendar-day="${key}" aria-label="${day} ${date.toLocaleDateString(localeTags(),{month:'long',year:'numeric'})}${state?`, ${state}`:''}" aria-pressed="${key===selectedKey}"><span class="calendar-number">${day}</span><span class="calendar-dot" aria-hidden="true"></span></button>`;
-  }).join('');
-  document.getElementById('calendar-content').innerHTML=`<div class="calendar-weekdays">${['ПН','ВТ','СР','ЧТ','ПТ','СБ','ВС'].map(d=>`<span class="calendar-weekday">${d}</span>`).join('')}</div><div class="calendar-days">${blanks}${days}</div><div class="calendar-legend"><div class="calendar-legend-info"><span class="calendar-legend-dot"></span><span>В этот день есть записи</span></div><button type="button" class="calendar-jump-toggle" id="calendar-jump-toggle" aria-expanded="false" aria-controls="calendar-jump-menu">Перейти к дате</button></div><div class="calendar-jump-menu" id="calendar-jump-menu" hidden><div class="calendar-jump-fields"><div class="calendar-jump-field"><label for="calendar-jump-year">Год</label><input id="calendar-jump-year" type="number" min="1900" max="9999" step="1" inputmode="numeric"></div><div class="calendar-jump-field"><label for="calendar-jump-month">Месяц</label><select id="calendar-jump-month">${['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'].map((name,index)=>`<option value="${index}">${name}</option>`).join('')}</select></div><div class="calendar-jump-field"><label for="calendar-jump-day">Число</label><select id="calendar-jump-day"></select></div></div><div class="calendar-jump-actions"><button type="button" class="calendar-jump-go" id="calendar-jump-go">Перейти</button></div></div>`;
+   return {
+    day,key,isToday:key===todayKey,isSelected:key===selectedKey,hasEntries:filledDates.has(key),
+    monthYearLabel:date.toLocaleDateString(localeTags(),{month:'long',year:'numeric'})
+   };
+  });
+  document.getElementById('calendar-content').innerHTML=NutriMealUI.renderCalendarMonthContent({
+   blankCount:firstWeekday,days,escapeHtml
+  });
   document.querySelectorAll('[data-calendar-day]').forEach(button=>button.addEventListener('click',()=>{
    const [y,m,d]=button.dataset.calendarDay.split('-').map(Number);
    currentDate=new Date(y,m-1,d);
@@ -3541,21 +3728,27 @@ function openCalendarModal(){
 }
 // #endregion JS / Общие модальные окна и календарь
 // #region JS / Дневник: вода и добавление записей
-function addWaterRecord(ml,date=dateKey(currentDate)){
- const amount=Number(ml);if(!Number.isFinite(amount)||amount<=0||amount>5000){toast('Укажи объём воды от 1 до 5000 мл');return}
- waterEntries.push({id:Date.now()+Math.floor(Math.random()*10000),date,ml:amount});saveWaterData();
+async function addWaterRecord(ml,date=dateKey(currentDate)){
+ const amount=Number(ml);if(!Number.isInteger(amount)||amount<1||amount>5000){toast('Укажи объём воды от 1 до 5000 мл');return}
+ if(date>dateKey(todayLocalDate())){toast('Нельзя добавлять записи на будущую дату');return}
+ try{
+  waterEntries=(await getWaterServices()).addEntry({entries:waterEntries,date,today:dateKey(todayLocalDate()),ml:amount});
+ }catch(error){console.error('Не удалось добавить запись воды',error);toast('Не удалось сохранить запись воды');return}
  if(activePage==='diary')renderDiary();
  toast(`Добавлено воды: ${fmt(amount)} мл`);
 }
 function openWaterEntryModal(entryDate=dateKey(currentDate)){
  if(entryDate>dateKey(todayLocalDate())){toast('Нельзя добавлять записи на будущую дату');return}
- openModal('Добавить воду',`<div class="food-picker-context">Обычная питьевая вода · ${readableDate(entryDate)}</div><div class="field"><label for="water-amount">Количество, мл</label><input id="water-amount" type="number" min="1" max="5000" step="1" value="250" inputmode="numeric"></div>`,`<button class="btn" id="water-cancel">Отмена</button><button class="btn-primary" id="water-save">Добавить</button>`);
+ const dialog=NutriMealUI.renderWaterEntryModal({dateLabel:readableDate(entryDate)});
+ openModal(dialog.title,dialog.body,dialog.actions);
  document.getElementById('water-cancel').onclick=closeModal;
  document.getElementById('water-save').onclick=()=>{const amount=Number(document.getElementById('water-amount').value);if(!Number.isInteger(amount)||amount<1||amount>5000){toast('Укажи объём от 1 до 5000 мл');return}closeModal();addWaterRecord(amount,entryDate)};
 }
-function addFoodToMeal(item,meal,entryDate,grams=100){
+async function addFoodToMeal(item,meal,entryDate,grams=100){
  const id=Date.now()+Math.floor(Math.random()*10000);
- diaryEntries.push({id,date:entryDate,meal,name:item.name,grams,kcal:item.kcal*grams/100,p:item.p*grams/100,f:item.f*grams/100,c:item.c*grams/100,recipeId:item.kind==='recipe'?item.id:null,productId:item.kind==='product'?item.id:null,...createDiaryFoodEntrySnapshot(item)});saveDiaryData();
+ try{
+  diaryEntries=(await getDiaryServices()).addEntry({entries:diaryEntries,id,date:entryDate,today:dateKey(todayLocalDate()),meal,item,kind:item.kind,grams,...createDiaryFoodEntrySnapshot(item)});
+ }catch(error){console.error('Не удалось добавить запись дневника',error);toast('Не удалось сохранить запись');return null}
  expandedMeals.add(meal);
  const [y,m,d]=entryDate.split('-').map(Number);currentDate=new Date(y,m-1,d);
  if(activePage==='diary')renderDiary();
@@ -3571,7 +3764,8 @@ function cancelMassEntryFlow(){
  if(activePage==='recipes')setPage('diary');
 }
 function openQuickAddMenu(){
- openModal('Быстрая запись',`<div class="mass-entry-stack"><div class="mass-entry-intro">Выбери обычное добавление еды или заполни дневник сразу за несколько дней.</div><div class="mass-entry-choice-list"><button type="button" class="mass-entry-choice" id="quick-add-single"><span class="mass-entry-choice-icon">＋</span><span class="mass-entry-choice-copy"><strong>Обычная запись</strong><small>Добавить продукт или рецепт в один приём пищи</small></span><b aria-hidden="true">›</b></button><button type="button" class="mass-entry-choice" id="quick-add-mass"><span class="mass-entry-choice-icon">▦</span><span class="mass-entry-choice-copy"><strong>Массовая запись</strong><small>Заполнить один или несколько дней за один раз</small></span><b aria-hidden="true">›</b></button></div></div>`,`<button class="btn" id="quick-add-menu-close">Отмена</button>`);
+ const dialog=NutriMealUI.renderQuickAddMenuModal();
+ openModal(dialog.title,dialog.body,dialog.actions);
  document.getElementById('quick-add-menu-close').onclick=closeModal;
  document.getElementById('quick-add-single').onclick=()=>{closeModal();openQuickMealChooser()};
  document.getElementById('quick-add-mass').onclick=()=>{
@@ -3617,8 +3811,8 @@ function renderMassDateCalendar(){
 }
 function openMassDatePicker(){
  if(!massEntryState)return;
- const body=`<div class="mass-entry-stack"><div class="mass-entry-intro">Выбери период целиком или отметь отдельные дни. Будущие даты недоступны.</div><div class="mass-entry-toggle"><button type="button" data-mass-mode="range" class="${massEntryState.mode==='range'?'active':''}">Период</button><button type="button" data-mass-mode="days" class="${massEntryState.mode==='days'?'active':''}">Отдельные дни</button></div><div class="mass-entry-calendar"><div class="mass-entry-calendar-head"><button type="button" id="mass-calendar-prev" aria-label="Предыдущий месяц">‹</button><strong id="mass-calendar-title"></strong><button type="button" id="mass-calendar-next" aria-label="Следующий месяц">›</button></div><div class="mass-entry-calendar-grid" id="mass-calendar-grid"></div></div><div class="mass-entry-summary" id="mass-date-summary"></div></div>`;
- openModal('Выбор дат',body,'<button type="button" class="btn" id="mass-date-cancel">Отмена</button><button type="button" class="btn-primary" id="mass-date-continue" disabled>Далее</button>');
+ const dialog=NutriMealUI.renderMassDatePickerModal({mode:massEntryState.mode});
+ openModal(dialog.title,dialog.body,dialog.actions);
  document.querySelector('.modal').classList.add('mass-entry-modal');document.getElementById('modal-close').onclick=cancelMassEntryFlow;
  document.getElementById('mass-date-cancel').onclick=cancelMassEntryFlow;
  document.querySelectorAll('[data-mass-mode]').forEach(button=>button.onclick=()=>{
@@ -3636,8 +3830,8 @@ function openMassSourceStep(){
  if(!massEntryState)return;
  const dates=massSelectedDates();massEntryState.dates=dates;
  const count=dates.length;
- const body=`<div class="mass-entry-stack"><div class="mass-entry-summary"><span>Выбранный период</span><strong>${count} ${count===1?'день':count<5?'дня':'дней'}</strong></div><div class="mass-entry-intro">Как заполнить питание на каждый выбранный день?</div><div class="mass-entry-choice-list"><button type="button" class="mass-entry-choice" data-mass-source="calories"><span class="mass-entry-choice-icon">♨</span><span class="mass-entry-choice-copy"><strong>Только калории</strong><small>Ввести общую калорийность периода или значение за один день</small></span><b aria-hidden="true">›</b></button><button type="button" class="mass-entry-choice" data-mass-source="library"><span class="mass-entry-choice-icon">▤</span><span class="mass-entry-choice-copy"><strong>Из библиотеки питания</strong><small>Рецепты, продукты, избранное, подборки и другие доступные позиции</small></span><b aria-hidden="true">›</b></button><button type="button" class="mass-entry-choice" data-mass-source="set"><span class="mass-entry-choice-icon">▦</span><span class="mass-entry-choice-copy"><strong>Питание по набору</strong><small>Выбрать набор из раздела «Планирование»</small></span><b aria-hidden="true">›</b></button></div></div>`;
- openModal('Способ заполнения',body,'<button type="button" class="btn" id="mass-source-back">Назад</button><button type="button" class="btn" id="mass-source-cancel">Отмена</button>');
+ const dialog=NutriMealUI.renderMassSourceModal({count});
+ openModal(dialog.title,dialog.body,dialog.actions);
  document.querySelector('.modal').classList.add('mass-entry-modal');document.getElementById('modal-close').onclick=cancelMassEntryFlow;
  document.getElementById('mass-source-back').onclick=openMassDatePicker;document.getElementById('mass-source-cancel').onclick=cancelMassEntryFlow;
  document.querySelectorAll('[data-mass-source]').forEach(button=>button.onclick=()=>{
@@ -3650,8 +3844,13 @@ function openMassSourceStep(){
 function openMassCaloriesConfig(){
  if(!massEntryState)return;
  const mode=massEntryState.calorieMode||'daily',value=massEntryState.calorieInput||'';
- const body=`<div class="mass-entry-stack"><div class="mass-entry-intro">Калории будут записаны как дневной итог. Распределять их по завтраку, обеду и ужину приложение не будет, поскольку состав питания неизвестен.</div><div class="mass-entry-toggle"><button type="button" data-mass-calorie-mode="daily" class="${mode==='daily'?'active':''}">На день</button><button type="button" data-mass-calorie-mode="period" class="${mode==='period'?'active':''}">За весь период</button></div><div class="mass-entry-field"><label for="mass-calorie-value">${mode==='daily'?'Ккал в день':'Всего ккал за выбранный период'}</label><input id="mass-calorie-value" type="number" min="1" max="1000000" step="1" inputmode="numeric" value="${escapeHtml(value)}" placeholder="Например, 2000"></div><div class="mass-entry-warning">${mode==='daily'?`Значение будет записано на каждый из ${massEntryState.dates.length} выбранных дней.`:`Общее значение будет равномерно разделено на ${massEntryState.dates.length} выбранных дней.`} Белки, жиры, углеводы и микронутриенты останутся неизвестными, а не нулевыми.</div></div>`;
- openModal('Только калории',body,'<button type="button" class="btn" id="mass-calorie-back">Назад</button><button type="button" class="btn-primary" id="mass-calorie-preview">Предпросмотр</button>');
+ const dialog=NutriMealUI.renderMassCaloriesModal({
+  mode,
+  value,
+  dateCount:massEntryState.dates.length,
+  escapeHtml
+ });
+ openModal(dialog.title,dialog.body,dialog.actions);
  document.querySelector('.modal').classList.add('mass-entry-modal');document.getElementById('modal-close').onclick=cancelMassEntryFlow;
  document.getElementById('mass-calorie-back').onclick=openMassSourceStep;
  document.querySelectorAll('[data-mass-calorie-mode]').forEach(button=>button.onclick=()=>{massEntryState.calorieInput=document.getElementById('mass-calorie-value').value;massEntryState.calorieMode=button.dataset.massCalorieMode;openMassCaloriesConfig()});
@@ -3668,8 +3867,8 @@ function openMassSetConfig(){
   return `<button type="button" class="mass-entry-choice ${selected?'is-selected':''}" data-mass-set="${escapeHtml(set.id)}" ${disabled?'disabled':''}><span class="mass-entry-choice-icon">▦</span><span class="mass-entry-choice-copy"><strong>${escapeHtml(set.name)}</strong><small>${disabled?'Нет рецептов для расчёта':`${fmt(daily.totals.kcal)} ккал в день · Б ${nutritionNumber(daily.totals.p)} · Ж ${nutritionNumber(daily.totals.f)} · У ${nutritionNumber(daily.totals.c)}`}${set.comment?` · ${escapeHtml(set.comment)}`:''}</small></span><b aria-hidden="true">${selected?'✓':'›'}</b></button>`;
  }).join('');
  const hasAny=nutritionSets.some(set=>getMassSetDailyData(set).aggregate.recipeCount>0);
- const body=`<div class="mass-entry-stack"><div class="mass-entry-intro">Выбери набор, созданный в разделе «Планирование». Его суточные показатели будут записаны на каждый выбранный день.</div><div class="mass-entry-choice-list">${rows||''}</div>${hasAny?'':'<div class="mass-entry-empty">Пока нет наборов с рецептами, по которым можно рассчитать дневную пищевую ценность.</div>'}</div>`;
- openModal('Выбор набора',body,'<button type="button" class="btn" id="mass-set-back">Назад</button><button type="button" class="btn-primary" id="mass-set-preview" disabled>Предпросмотр</button>');
+ const dialog=NutriMealUI.renderMassSetModal({rows,hasAny});
+ openModal(dialog.title,dialog.body,dialog.actions);
  document.querySelector('.modal').classList.add('mass-entry-modal');document.getElementById('modal-close').onclick=cancelMassEntryFlow;
  document.getElementById('mass-set-back').onclick=openMassSourceStep;
  document.querySelectorAll('[data-mass-set]').forEach(button=>button.onclick=()=>{massEntryState.selectedSetId=button.dataset.massSet;openMassSetConfig()});
@@ -3683,71 +3882,100 @@ function startMassLibrarySelection(){
  mealAddContext={meal:firstMeal,date:firstDate,originPage:'diary',searchQuery:'',massEntry:true};mealAddDraft=[];recipeSelectionMode=false;mealPickerCatalogTab='recipes';activeCollectionId=null;collectionSearch='';mealProductSearch='';
  openRecipeSelectionPage();
 }
-function massEntryDailyTotals(){
- const state=massEntryState;if(!state)return null;
+function getMassEntryRequest(state){
+ const request={
+  entries:diaryEntries,dates:state.dates||[],source:state.source,
+  collisionMode:state.collisionMode||'skip',today:dateKey(todayLocalDate())
+ };
  if(state.source==='calories'){
-  const entered=Number(state.calorieInput)||0,perDay=state.calorieMode==='period'?entered/state.dates.length:entered;
-  return {kcal:perDay,p:null,f:null,c:null,description:state.calorieMode==='period'?`${fmt(entered)} ккал за период`:`${fmt(entered)} ккал в день`};
+  return {...request,calorieMode:state.calorieMode||'daily',calories:Number(state.calorieInput)};
  }
  if(state.source==='library'){
-  return mealAddDraft.reduce((total,item)=>{const grams=Number(item.grams)||0;total.kcal+=(Number(item.kcal)||0)*grams/100;total.p+=(Number(item.p)||0)*grams/100;total.f+=(Number(item.f)||0)*grams/100;total.c+=(Number(item.c)||0)*grams/100;return total},{kcal:0,p:0,f:0,c:0});
+  return {
+   ...request,
+   items:mealAddDraft.map(item=>({...item,quantityUnit:'г',...createDiaryFoodEntrySnapshot(item)})),
+   recipes,
+   products:productDB
+  };
  }
- if(state.source==='set'&&state.selectedSet)return getMassSetDailyData(state.selectedSet).totals;
- return null;
+ if(state.source==='set'){
+  return {
+   ...request,set:state.selectedSet,setId:state.selectedSetId,sets:nutritionSets,
+   recipes,products:productDB
+  };
+ }
+ return request;
 }
-function openMassEntryPreview(){
+async function openMassEntryPreview(){
  if(!massEntryState)return;
- const state=massEntryState,dates=state.dates||[],filled=dates.filter(massDateIsFilled),collision=state.collisionMode||'skip',toWrite=collision==='skip'?dates.length-filled.length:dates.length;
- const daily=massEntryDailyTotals();if(!daily){toast('Не удалось рассчитать дневные значения');return}
+ const state=massEntryState;
+ if(!state.dates?.length){toast('Выбери хотя бы одну дату');return}
+ if(state.source==='library'&&!mealAddDraft.length){toast('Добавь хотя бы один продукт или рецепт');return}
+ let preview;
+ try{
+  const services=await getDiaryServices();
+  if(massEntryState!==state)return;
+  preview=services.massEntry.preview(getMassEntryRequest(state));
+ }
+ catch(error){console.error('Не удалось подготовить массовую запись',error);toast('Не удалось рассчитать предпросмотр');return}
+ const dates=preview.dates,filled=preview.filledDates,collision=state.collisionMode||'skip',toWrite=preview.daysToWrite,daily=preview.dailyTotals;
  let sourceTitle=state.source==='calories'?'Только калории':state.source==='library'?'Библиотека питания':`Набор: ${state.selectedSet?.name||'не выбран'}`;
  let content='';
  if(state.source==='library'){
-  if(!mealAddDraft.length){toast('Добавь хотя бы один продукт или рецепт');return}
   const meals=[...new Set(mealAddDraft.map(item=>item.meal||getStandardMeals()[0]||'Завтрак'))];
   content=`<div class="mass-entry-warning">Ежедневный рацион будет повторён на все выбранные даты. Количество каждой позиции указано на один день.</div><div class="mass-entry-preview-row"><span>Позиции рациона</span><strong>${mealAddDraft.length}</strong></div><div class="mass-entry-preview-row"><span>Приёмы пищи</span><strong>${meals.length}</strong></div><div class="mass-entry-preview-row"><span>Калорийность в день</span><strong>${fmt(daily.kcal)} ккал</strong></div><div class="mass-entry-preview-row"><span>Б / Ж / У в день</span><strong>${nutritionNumber(daily.p)} / ${nutritionNumber(daily.f)} / ${nutritionNumber(daily.c)} г</strong></div>`;
  }else if(state.source==='calories'){
-  content=`<div class="mass-entry-preview-row"><span>Калорийность в день</span><strong>${fmt(daily.kcal)} ккал</strong></div><div class="mass-entry-preview-row"><span>Всего за выбранные даты</span><strong>${fmt(daily.kcal*dates.length)} ккал</strong></div><div class="mass-entry-warning">БЖУ и микронутриенты не определены. Эта запись будет участвовать в калорийной статистике, но не будет учитываться как нулевое содержание нутриентов.</div>`;
+  content=`<div class="mass-entry-preview-row"><span>Калорийность в день</span><strong>${fmt(daily.kcal)} ккал</strong></div><div class="mass-entry-preview-row"><span>Всего за выбранные даты</span><strong>${fmt(preview.totalKcal)} ккал</strong></div><div class="mass-entry-warning">БЖУ и микронутриенты не определены. Эта запись будет участвовать в калорийной статистике, но не будет учитываться как нулевое содержание нутриентов.</div>`;
  }else{
   const aggregate=getMassSetDailyData(state.selectedSet);
   content=`<div class="mass-entry-preview-row"><span>Калорийность в день</span><strong>${fmt(daily.kcal)} ккал</strong></div><div class="mass-entry-preview-row"><span>Б / Ж / У в день</span><strong>${nutritionNumber(daily.p)} / ${nutritionNumber(daily.f)} / ${nutritionNumber(daily.c)} г</strong></div><div class="mass-entry-preview-row"><span>Рецептов в исходном наборе</span><strong>${aggregate.aggregate.recipeCount}</strong></div><div class="mass-entry-warning">В текущей модели планирования показатели набора агрегируются по четырём неделям и делятся на 28 дней. В дневник будет внесено рассчитанное суточное значение, а не выдуманное распределение блюд по отдельным приёмам пищи.</div>`;
  }
  const conflictOptions=[['skip',`Пропустить заполненные дни (${filled.length})`],['append','Дополнить существующие записи'],['replace','Заменить питание за эти дни']].map(([value,label])=>`<option value="${value}" ${collision===value?'selected':''}>${label}</option>`).join('');
- const body=`<div class="mass-entry-stack"><div class="mass-entry-summary"><span>${readableDate(dates[0])}${dates.length>1?` — ${readableDate(dates[dates.length-1])}`:''}</span><strong>${dates.length} дн.</strong></div><div class="mass-entry-preview"><div class="mass-entry-preview-row"><span>Способ</span><strong>${escapeHtml(sourceTitle)}</strong></div>${content}</div><div class="mass-entry-field"><label for="mass-collision-mode">Если в выбранный день уже есть записи</label><select id="mass-collision-mode">${conflictOptions}</select></div><div class="mass-entry-summary"><span>${collision==='skip'?'Будет пропущено заполненных дней':collision==='replace'?'Питание будет заменено за дни':'Будут добавлены новые записи'}</span><strong>${toWrite} дн.</strong></div></div>`;
- openModal('Предпросмотр массовой записи',body,`<button type="button" class="btn" id="mass-preview-back">Назад</button><button type="button" class="btn-primary" id="mass-entry-apply" ${toWrite?'':'disabled'}>${collision==='replace'?'Заменить питание':`Записать на ${toWrite} дн.`}</button>`);
+ const dialog=NutriMealUI.renderMassEntryPreviewModal({
+  periodLabel:`${readableDate(dates[0])}${dates.length>1?` — ${readableDate(dates[dates.length-1])}`:''}`,
+  dateCount:dates.length,
+  sourceTitle,
+  content,
+  conflictOptionsMarkup:conflictOptions,
+  collision,
+  toWrite,
+  escapeHtml
+ });
+ openModal(dialog.title,dialog.body,dialog.actions);
  document.querySelector('.modal').classList.add('mass-entry-modal');document.getElementById('modal-close').onclick=cancelMassEntryFlow;
  document.getElementById('mass-preview-back').onclick=()=>state.source==='calories'?openMassCaloriesConfig():state.source==='set'?openMassSetConfig():showMealAddPlate();
  document.getElementById('mass-collision-mode').onchange=event=>{state.collisionMode=event.target.value;openMassEntryPreview()};
  document.getElementById('mass-entry-apply').onclick=applyMassEntry;
 }
-function applyMassEntry(){
+async function applyMassEntry(){
  const state=massEntryState;if(!state)return;
- const dates=state.dates||[],mode=state.collisionMode||'skip',filled=dates.filter(massDateIsFilled);
- const targetDates=mode==='skip'?dates.filter(key=>!massDateIsFilled(key)):dates;
- if(!targetDates.length){toast('Все выбранные дни уже заполнены. Измени способ обработки или выбери другие даты.');return}
- const created=[];
- const makeId=index=>Date.now()+Math.floor(Math.random()*100000)+index;
- if(state.source==='calories'){
-  const entered=Number(state.calorieInput)||0,perDay=state.calorieMode==='period'?entered/dates.length:entered;
-  targetDates.forEach((date,index)=>created.push({id:makeId(index),date,meal:'Калории за день',name:'Калорийность за день',grams:0,kcal:perDay,p:null,f:null,c:null,calorieOnly:true,quantityMode:'calorie-only',quantityUnit:'ккал',quantityValue:perDay,foodMetadataSnapshot:{categories:[],items:[]}}));
- }else if(state.source==='library'){
-  const valid=mealAddDraft.filter(item=>Number.isFinite(Number(item.grams))&&Number(item.grams)>0&&Number(item.grams)<=30000);
-  if(!valid.length||valid.length!==mealAddDraft.length){toast('Проверь количество выбранных продуктов и рецептов');return}
-  targetDates.forEach(date=>valid.forEach(item=>{
-   const grams=Number(item.grams),meal=item.meal||getStandardMeals()[0]||'Завтрак';
-   created.push({id:makeId(created.length),date,meal,name:item.name,grams,kcal:item.kcal*grams/100,p:item.p*grams/100,f:item.f*grams/100,c:item.c*grams/100,recipeId:item.kind==='recipe'?item.id:null,productId:item.kind==='product'?item.id:null,quantityMode:item.quantityMode||'grams',quantityValue:Number(item.quantityValue)||grams,portionGrams:item.portionGrams||null,quantityUnit:'г',...createDiaryFoodEntrySnapshot(item)});
-   expandedMeals.add(meal);
-  }));
- }else if(state.source==='set'){
-  const set=state.selectedSet||nutritionSets.find(item=>String(item.id)===String(state.selectedSetId));if(!set){toast('Выбранный набор не найден');return}
-  const daily=getMassSetDailyData(set);
-  if(!daily.aggregate.recipeCount){toast('В наборе нет рецептов для расчёта');return}
-  targetDates.forEach((date,index)=>created.push({id:makeId(index),date,meal:'Набор питания',name:`${set.name} · суточное значение`,grams:100,kcal:daily.totals.kcal,p:daily.totals.p,f:daily.totals.f,c:daily.totals.c,isNutritionSetAverage:true,quantityMode:'set-average',quantityUnit:'день',quantityValue:1,sourceNutritionSetId:set.id,foodMetadataSnapshot:{categories:[],items:[]},nutritionSnapshot:{kcal:daily.totals.kcal,p:daily.totals.p,f:daily.totals.f,c:daily.totals.c,components:daily.components}}));
+ const applyButton=document.getElementById('mass-entry-apply');
+ if(applyButton)applyButton.disabled=true;
+ let result;
+ try{
+  const services=await getDiaryServices();
+  if(massEntryState!==state)return;
+  const request=getMassEntryRequest(state);
+  const preview=services.massEntry.preview(request);
+  if(!preview.targetDates.length){
+   if(applyButton)applyButton.disabled=false;
+   toast('Все выбранные дни уже заполнены. Измени способ обработки или выбери другие даты.');
+   return;
+  }
+  let nextId=Date.now()+Math.floor(Math.random()*100000);
+  result=services.massEntry.apply({...request,idFactory:()=>nextId++});
+  diaryEntries=result.entries;
+ }catch(error){
+  if(applyButton)applyButton.disabled=false;
+  console.error('Не удалось применить массовую запись',error);
+  toast('Не удалось сохранить массовую запись');
+  return;
  }
- if(mode==='replace')diaryEntries=diaryEntries.filter(entry=>!targetDates.includes(entry.date));
- diaryEntries.push(...created);saveDiaryData();
+ const targetDates=result.dates,created=result.created,mode=state.collisionMode||'skip';
+ if(state.source==='library')created.forEach(entry=>expandedMeals.add(entry.meal));
  const latest=[...targetDates].sort().at(-1),[y,m,d]=latest.split('-').map(Number);currentDate=new Date(y,m-1,d);
  massEntryState=null;mealAddContext=null;mealAddDraft=[];recipeSelectionMode=false;mealAddDrafts={};closeModal();setPage('diary');
- toast(`Создано записей: ${created.length} · дней: ${targetDates.length}${mode==='skip'&&filled.length?` · пропущено: ${filled.length}`:''}`);
+ toast(`Создано записей: ${created.length} · дней: ${targetDates.length}${mode==='skip'&&result.skippedDates.length?` · пропущено: ${result.skippedDates.length}`:''}`);
 }
 
 // #endregion JS / Массовая запись
@@ -3757,7 +3985,11 @@ function openQuickMealChooser(){
  if(dateKeyForEntry>todayKey){toast('Нельзя добавлять записи на будущую дату');return}
  quickAddOriginPage=activePage;
  const options=getDiaryMealOptions().map(meal=>`<button type="button" class="history-row" data-quick-meal="${meal}" style="width:100%;text-align:left;color:var(--text)"><strong>${meal}</strong><span class="muted" aria-hidden="true">›</span></button>`).join('');
- openModal('Куда добавить?',`<div class="food-picker-context">Выбери приём пищи для записи за ${readableDate(dateKeyForEntry)}.</div><div class="recipe-picker-list">${options}</div>`,`<button class="btn" id="quick-meal-cancel">Отмена</button>`);
+ const dialog=NutriMealUI.renderQuickMealChooserModal({
+  dateLabel:readableDate(dateKeyForEntry),
+  optionsMarkup:options
+ });
+ openModal(dialog.title,dialog.body,dialog.actions);
  document.getElementById('quick-meal-cancel').onclick=closeModal;
  document.querySelectorAll('[data-quick-meal]').forEach(b=>b.onclick=()=>{
   const meal=b.dataset.quickMeal,origin=quickAddOriginPage;
@@ -3838,11 +4070,16 @@ function openCollectionSelectionPage(collectionId){
  collectionAddContext={collectionId:String(collection.id),originPage:'recipes'};collectionAddDraft=[];recipeSelectionMode=true;mealPickerCatalogTab='recipes';activeCollectionId=null;collectionSearch='';mealProductSearch='';recipeSearch='';
  setPage('recipes');
 }
-function commitCollectionAddDraft(){
+async function commitCollectionAddDraft(){
  if(!collectionAddContext)return;
  const context=collectionAddContext,collection=collections.find(x=>String(x.id)===String(context.collectionId));if(!collection){collectionAddContext=null;collectionAddDraft=[];recipeSelectionMode=false;render();return}
- let added=0;collectionAddDraft.forEach(item=>{const key=collectionItemKey(item.kind,String(item.id));if(!collection.items.some(x=>collectionItemKey(x.kind,String(x.id))===key)){collection.items.push({kind:item.kind,id:item.kind==='recipe'?Number(item.id):String(item.id)});added++}});
- collectionAddContext=null;collectionAddDraft=[];recipeSelectionMode=false;recipeTab='collections';activeCollectionId=String(collection.id);collectionSearch='';mealPickerCatalogTab='recipes';setPage('recipes');toast(added?`Добавлено в подборку: ${added}`:'Новых позиций не добавлено');
+ try{
+  const references=collectionAddDraft.map(item=>({kind:item.kind,id:item.kind==='recipe'?Number(item.id):String(item.id)}));
+  const nextCollections=(await getCatalogServices()).addItemsToCollection(collections,collection.id,references);
+  const updated=nextCollections.find(item=>String(item.id)===String(collection.id));
+  const added=updated.items.length-collection.items.length;
+  collections=nextCollections;collectionAddContext=null;collectionAddDraft=[];recipeSelectionMode=false;recipeTab='collections';activeCollectionId=String(collection.id);collectionSearch='';mealPickerCatalogTab='recipes';setPage('recipes');toast(added?`Добавлено в подборку: ${added}`:'Новых позиций не добавлено');
+ }catch(error){reportCatalogOperationError('Не удалось заполнить подборку',error)}
 }
 function beginRecipeIngredientPick(context){
  const {draft,existingId,readRows,readField}=context;
@@ -3877,26 +4114,28 @@ function cancelMealAddFlow(){
  const destination=mealAddContext.originPage||'diary';delete mealAddDrafts[mealAddDraftStorageKey(mealAddContext)];mealAddContext=null;mealAddDraft=[];recipeSelectionMode=false;massEntryState=null;
  closeModal();if(activePage!==destination)setPage(destination);else render();
 }
-function mealDraftMarkup(){
- if(!mealAddDraft.length)return '';
- return `<div class="meal-draft-block"><div class="meal-draft-heading"><strong>${mealAddContext?.replaceEntryId?'Новое блюдо':'Добавлено'}</strong><span>${mealAddDraft.length} поз.</span></div><div class="meal-draft-list">${mealAddDraft.map((item,index)=>{const g=Number(item.grams)||0,hasPortion=item.kind==='recipe'&&Number(item.portionGrams)>0,mode=item.quantityMode||'grams',value=mode==='portions'?(Number(item.quantityValue)||g/(Number(item.portionGrams)||1)):g;return `<div class="meal-draft-row" data-draft-row="${index}"><div class="meal-draft-info"><strong>${item.name}</strong><small>${fmt(item.kcal*g/100)} ккал · Б ${(item.p*g/100).toFixed(1)} · Ж ${(item.f*g/100).toFixed(1)} · У ${(item.c*g/100).toFixed(1)}</small></div><div class="meal-draft-quantity">${massEntryState?.source==='library'?`<select class="mass-entry-item-meal" data-draft-meal="${index}" aria-label="Приём пищи: ${escapeHtml(item.name)}">${[...getStandardMeals(),'Перекус'].map(meal=>`<option value="${escapeHtml(meal)}" ${meal===(item.meal||getStandardMeals()[0])?'selected':''}>${escapeHtml(meal)}</option>`).join('')}</select>`:''}${hasPortion?`<div class="entry-unit-switch meal-draft-unit-switch"><button type="button" data-draft-unit="grams" data-draft-index="${index}" class="${mode==='grams'?'active':''}">г</button><button type="button" data-draft-unit="portions" data-draft-index="${index}" class="${mode==='portions'?'active':''}">порции</button></div>`:''}<label class="meal-draft-grams"><input type="number" min="0.1" max="30000" step="${mode==='portions'?'0.1':'1'}" value="${mealAddContext?.replaceEntryId&&!value?'':Number(value.toFixed(2))}" data-draft-quantity="${index}" aria-label="Количество: ${item.name}"><span>${mode==='portions'?'порц.':'г'}</span></label>${hasPortion?`<small class="meal-draft-quantity-note">1 порция = ${nutritionNumber(item.portionGrams)} г · всего ${fmt(g)} г</small>`:''}</div><button type="button" class="meal-draft-remove" data-remove-draft="${index}" aria-label="Убрать ${item.name}">×</button></div>`}).join('')}</div></div>`;
-}
 function showMealAddPlate(){
  if(!mealAddContext)return;
- const {meal,date,searchQuery='',replaceEntryId}=mealAddContext,replaceTarget=replaceEntryId?diaryEntries.find(e=>e.id===replaceEntryId):null,context=replaceTarget?`Замена «${replaceTarget.name}» · ${readableDate(date)}`:`${meal} · ${readableDate(date)}`;
- const body=`<div class="food-picker-context">${context}</div><div class="food-picker-search"><span aria-hidden="true">⌕</span><input id="meal-food-search" type="search" placeholder="Поиск продуктов" autocomplete="off" aria-label="Поиск продуктов"></div><div class="food-picker-results" id="meal-food-results" aria-live="polite"></div><button type="button" class="btn meal-open-catalog" id="open-meal-recipe-catalog">Открыть рецепты <span aria-hidden="true">›</span></button><div id="meal-draft-container">${mealDraftMarkup()}</div>`;
- const primaryLabel=replaceEntryId?'Заменить запись':massEntryState?.source==='library'?'Предпросмотр массовой записи':`Добавить в ${meal}`;
- const actions=`<button type="button" class="btn" id="meal-picker-cancel">Отмена</button><button type="button" class="btn-primary" id="meal-picker-save" ${mealAddDraft.length?'':'disabled'}>${primaryLabel}</button>`;
- openModal(replaceEntryId?'Заменить еду':massEntryState?.source==='library'?'Массовое питание · один день':'Добавить еду',body,actions);document.querySelector('.modal').classList.add('meal-picker-modal');
+ const {meal,date,searchQuery='',replaceEntryId}=mealAddContext,replaceTarget=replaceEntryId?diaryEntries.find(e=>e.id===replaceEntryId):null;
+ const isLibrarySource=massEntryState?.source==='library';
+ const draftMarkup=NutriMealUI.renderMealDraftMarkup({
+  draftItems:mealAddDraft,standardMeals:getStandardMeals(),isLibrarySource,replaceEntry:Boolean(replaceEntryId),fmt,nutritionNumber,escapeHtml
+ });
+ const dialog=NutriMealUI.renderMealAddPlateModal({
+  meal,dateLabel:readableDate(date),replaceEntry:Boolean(replaceEntryId),replaceName:replaceTarget?.name,
+  isLibrarySource,libraryDateCount:massEntryState?.dates.length||0,draftMarkup,hasDraft:mealAddDraft.length>0,escapeHtml
+ });
+ openModal(dialog.title,dialog.body,dialog.actions);document.querySelector('.modal').classList.add('meal-picker-modal');
  // Closing this plate cancels the temporary selection.
  document.getElementById('modal-close').onclick=cancelMealAddFlow;
  const input=document.getElementById('meal-food-search'),results=document.getElementById('meal-food-results');input.value=searchQuery;
- if(massEntryState?.source==='library'){const context=document.querySelector('.food-picker-context');if(context)context.textContent=`Один дневной рацион · повторится на ${massEntryState.dates.length} выбранных датах`;}
  const paintResults=()=>{
   const q=input.value.trim().toLocaleLowerCase('ru-RU');
   if(!q){results.innerHTML='';return}
   const found=productDB.filter(item=>item.name.toLocaleLowerCase('ru-RU').includes(q));
-  results.innerHTML=found.length?found.map(item=>{const key='p-'+item.id,chosen=mealAddDraft.some(x=>x.key===key);return `<div class="food-picker-row"><div class="food-picker-info"><strong>${item.name}</strong><small>${fmt(item.kcal)} ккал · Б ${item.p} · Ж ${item.f} · У ${item.c} на 100 ${item.basisUnit||'г'}</small></div><button type="button" class="food-picker-plus ${chosen?'selected':''}" data-add-product="${item.id}" ${chosen?'disabled':''} aria-label="${chosen?'Уже добавлено':'Добавить '+item.name}">${chosen?'✓':'＋'}</button></div>`}).join(''):'<div class="empty">Ничего не найдено</div>';
+  results.innerHTML=NutriMealUI.renderMealProductSearchResults({
+   products:found,chosenKeys:mealAddDraft.map(item=>item.key),fmt,escapeHtml
+  });
   results.querySelectorAll('[data-add-product]').forEach(button=>button.onclick=()=>{
    const item=productDB.find(x=>String(x.id)===button.dataset.addProduct);if(!item||!addMealDraftItem(item,'product'))return;
    mealAddContext.searchQuery=input.value;showMealAddPlate();
@@ -3912,21 +4151,45 @@ function showMealAddPlate(){
  document.querySelectorAll('[data-draft-meal]').forEach(control=>control.onchange=()=>{const item=mealAddDraft[Number(control.dataset.draftMeal)];if(item)item.meal=control.value});
  document.querySelectorAll('[data-remove-draft]').forEach(button=>button.onclick=()=>{mealAddDraft.splice(Number(button.dataset.removeDraft),1);showMealAddPlate()});
 }
-function commitMealAddDraft(){
+async function commitMealAddDraft(){
  if(!mealAddContext||!mealAddDraft.length)return;
  if(massEntryState?.source==='library'){const valid=mealAddDraft.filter(item=>Number.isFinite(Number(item.grams))&&Number(item.grams)>0&&Number(item.grams)<=30000);if(valid.length!==mealAddDraft.length){toast('Проверь граммовку выбранных позиций');return}openMassEntryPreview();return}
  const {meal,date,originPage,replaceEntryId}=mealAddContext;
  const valid=mealAddDraft.filter(item=>Number.isFinite(Number(item.grams))&&Number(item.grams)>0&&Number(item.grams)<=30000);
  if(valid.length!==mealAddDraft.length){toast('Проверь граммовку выбранных позиций');return}
- if(replaceEntryId){
-  if(valid.length!==1){toast('Для замены выбери одно блюдо');return}
-  const index=diaryEntries.findIndex(e=>e.id===replaceEntryId);if(index<0){toast('Исходная запись не найдена');return}
-  const item=valid[0],g=Number(item.grams);
-  diaryEntries[index]={id:replaceEntryId,date,meal,name:item.name,grams:g,kcal:item.kcal*g/100,p:item.p*g/100,f:item.f*g/100,c:item.c*g/100,recipeId:item.kind==='recipe'?item.id:null,productId:item.kind==='product'?item.id:null,quantityMode:item.quantityMode||'grams',quantityValue:Number(item.quantityValue)||g,portionGrams:item.portionGrams||null,...createDiaryFoodEntrySnapshot(item)};
- }else{
-  valid.forEach(item=>{const id=Date.now()+Math.floor(Math.random()*10000);const g=Number(item.grams);diaryEntries.push({id,date,meal,name:item.name,grams:g,kcal:item.kcal*g/100,p:item.p*g/100,f:item.f*g/100,c:item.c*g/100,recipeId:item.kind==='recipe'?item.id:null,productId:item.kind==='product'?item.id:null,quantityMode:item.quantityMode||'grams',quantityValue:Number(item.quantityValue)||g,portionGrams:item.portionGrams||null,...createDiaryFoodEntrySnapshot(item)})});
+ if(replaceEntryId&&valid.length!==1){toast('Для замены выбери одно блюдо');return}
+ const today=dateKey(todayLocalDate());
+ const saveButton=document.getElementById('meal-picker-save');
+ if(saveButton)saveButton.disabled=true;
+ try{
+  const services=await getDiaryServices();
+  if(replaceEntryId){
+   const item=valid[0],grams=Number(item.grams),snapshots=createDiaryFoodEntrySnapshot(item);
+   const result=services.replaceEntry({
+    entries:diaryEntries,id:replaceEntryId,date,meal,today,item,kind:item.kind,grams,
+    quantityMode:item.quantityMode||'grams',quantityValue:Number(item.quantityValue)||grams,
+    portionGrams:item.portionGrams||null,...snapshots
+   });
+   diaryEntries=result.entries;
+  }else{
+   diaryEntries=services.addEntries({
+    entries:diaryEntries,today,
+    items:valid.map(item=>{
+     const grams=Number(item.grams);
+     return {
+      id:Date.now()+Math.floor(Math.random()*10000),date,meal,item,kind:item.kind,grams,
+      quantityMode:item.quantityMode||'grams',quantityValue:Number(item.quantityValue)||grams,
+      portionGrams:item.portionGrams||null,...createDiaryFoodEntrySnapshot(item)
+     };
+    })
+   });
+  }
+ }catch(error){
+  if(saveButton)saveButton.disabled=false;
+  console.error(replaceEntryId?'Не удалось заменить запись дневника':'Не удалось добавить записи дневника',error);
+  toast(replaceEntryId?'Не удалось заменить запись':'Не удалось сохранить записи');
+  return;
  }
- saveDiaryData();
  expandedMeals.add(meal);const [y,m,d]=date.split('-').map(Number);currentDate=new Date(y,m-1,d);
  delete mealAddDrafts[mealAddDraftStorageKey({date,meal,replaceEntryId:replaceEntryId||null})];mealAddContext=null;mealAddDraft=[];recipeSelectionMode=false;closeModal();setPage(originPage||'diary');toast(replaceEntryId?'Запись заменена':`Добавлено позиций: ${valid.length} · ${meal}`);
 }
@@ -3947,26 +4210,20 @@ function openDiaryEntryEditModal(existing){
  let quantityMode=supportsPortions&&existing.quantityMode==='portions'?'portions':'grams';
  const storedGrams=Math.max(0,Number(existing.grams)||0);
  let initialQuantity=quantityMode==='portions'?(Number(existing.quantityValue)||storedGrams/portionGrams):storedGrams;
- const safeName=String(existing.name||'Запись').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
  const mealOptions=availableMeals.map(meal=>`<option value="${meal}" ${meal===existing.meal?'selected':''}>${meal}</option>`).join('');
  const contextDate=readableDate(existing.date);
- const body=`
-  <div class="diary-entry-edit-context"><span>${contextDate}</span><strong>${safeName}</strong></div>
-  <div class="diary-entry-edit-fields">
-   <section class="diary-entry-edit-field">
-    <div class="diary-entry-edit-heading"><span class="diary-entry-edit-icon" aria-hidden="true">↔</span><div class="diary-entry-edit-copy"><label for="entry-meal">Замена приёма пищи</label><small>Измени, к какому приёму пищи относится эта запись.</small></div></div>
-    <select id="entry-meal" class="diary-entry-edit-select">${mealOptions}</select>
-   </section>
-   <section class="diary-entry-edit-field">
-    <div class="diary-entry-edit-heading"><span class="diary-entry-edit-icon" aria-hidden="true">⚖</span><div class="diary-entry-edit-copy"><label for="entry-quantity">Количество</label><small>Укажи количество для этой записи.</small></div></div>
-    <div class="diary-entry-edit-quantity-row">
-     <div class="entry-unit-switch" id="entry-quantity-switch" ${supportsPortions?'':'hidden'}><button type="button" data-entry-unit="grams" class="${quantityMode==='grams'?'active':''}">Граммы</button><button type="button" data-entry-unit="portions" class="${quantityMode==='portions'?'active':''}">Порции</button></div>
-     <label class="diary-entry-edit-amount-wrap"><input class="diary-entry-edit-amount" id="entry-quantity" type="number" value="${Number(initialQuantity.toFixed(2))}" min="0.1" max="30000" step="${quantityMode==='portions'?'0.1':'1'}" inputmode="decimal"><span class="diary-entry-edit-unit" id="entry-quantity-unit">${quantityMode==='portions'?'порц.':(existing.quantityUnit==='мл'?'мл':'г')}</span></label>
-    </div>
-    <small class="diary-entry-edit-quantity-help" id="entry-quantity-help">${supportsPortions?`Обычная порция по рецепту: ${nutritionNumber(portionGrams)} г.`:''}</small>
-   </section>
-  </div>`;
- openModal('Редактировать запись',body,'<button class="btn" id="cancel-modal">Отмена</button><button class="btn-primary" id="save-entry">Сохранить</button>');
+ const dialog=NutriMealUI.renderDiaryEntryEditModal({
+  contextDate,
+  name:existing.name,
+  mealOptionsMarkup:mealOptions,
+  supportsPortions,
+  quantityMode,
+  initialQuantity,
+  quantityHelp:supportsPortions?`Обычная порция по рецепту: ${nutritionNumber(portionGrams)} г.`:'',
+  quantityUnit:existing.quantityUnit==='мл'?'мл':'г',
+  escapeHtml
+ });
+ openModal(dialog.title,dialog.body,dialog.actions);
  document.querySelector('.modal').classList.add('diary-entry-edit-modal');
  const mealSelect=document.getElementById('entry-meal');
  const quantityInput=document.getElementById('entry-quantity');
@@ -3993,22 +4250,24 @@ function openDiaryEntryEditModal(existing){
  });
  updateQuantityHelp();
  document.getElementById('cancel-modal').onclick=closeModal;
- document.getElementById('save-entry').onclick=()=>{
+ const saveButton=document.getElementById('save-entry');
+ saveButton.onclick=async()=>{
   const amount=Number(quantityInput.value),grams=quantityToGrams();
   if(!mealSelect.value){toast('Выбери приём пищи');return}
   if(!Number.isFinite(amount)||amount<=0||!Number.isFinite(grams)||grams<=0||grams>30000){toast('Укажи корректное количество');quantityInput.focus();return}
-  const previousGrams=Number(existing.grams)||0;
-  const per100=previousGrams>0?{
-   kcal:(Number(existing.kcal)||0)/previousGrams*100,
-   p:(Number(existing.p)||0)/previousGrams*100,
-   f:(Number(existing.f)||0)/previousGrams*100,
-   c:(Number(existing.c)||0)/previousGrams*100
-  }:{kcal:0,p:0,f:0,c:0};
-  const componentRatio=previousGrams>0?grams/previousGrams:1;
-  const updated={...existing,meal:mealSelect.value,grams,kcal:per100.kcal*grams/100,p:per100.p*grams/100,f:per100.f*grams/100,c:per100.c*grams/100,components:recipeArray(existing.components).map(component=>({...component,amount:Number(component.amount)*componentRatio})),recipeId:existing.recipeId??linkedRecipe?.id??null,portionGrams:supportsPortions?portionGrams:(existing.portionGrams??null),quantityMode:quantityMode==='portions'&&supportsPortions?'portions':'grams',quantityValue:amount};
-  const index=diaryEntries.findIndex(entry=>entry.id===existing.id);
-  if(index<0){toast('Запись не найдена');closeModal();return}
-  diaryEntries[index]=updated;saveDiaryData();
+  saveButton.disabled=true;
+  let updated;
+  try{
+   const result=(await getDiaryServices()).updateEntry({
+    entries:diaryEntries,id:existing.id,today:dateKey(todayLocalDate()),
+    changes:{
+     meal:mealSelect.value,grams,quantityMode:quantityMode==='portions'&&supportsPortions?'portions':'grams',
+     quantityValue:amount,portionGrams:supportsPortions?portionGrams:(existing.portionGrams??null),
+     recipeId:existing.recipeId??linkedRecipe?.id??null
+    }
+   });
+   diaryEntries=result.entries;updated=result.entry;
+  }catch(error){saveButton.disabled=false;console.error('Не удалось обновить запись дневника',error);toast('Не удалось обновить запись');return}
   expandedMeals.add(updated.meal);
   const [year,month,day]=updated.date.split('-').map(Number);currentDate=new Date(year,month-1,day);
   closeModal();setPage('diary');toast('Запись обновлена');
@@ -4037,7 +4296,16 @@ function openEntryModal(defaultMeal='Завтрак',editId=null){
  let initialQuantity=existing?(Number(existing.quantityValue)||Number(existing.grams)||100):100;
  const initialItem=catalog.find(x=>x.id===selectedId)||null;
  if(quantityMode==='portions'&&(!initialItem||initialItem.kind!=='recipe'||!Number(initialItem.portionGrams))) {quantityMode='grams';initialQuantity=Number(existing?.grams)||100}
- openModal(existing?'Изменить запись':'Добавить запись',`<div class="field full"><label for="entry-date">Дата записи</label><input id="entry-date" type="text" value="${dateText}" readonly></div><div class="field full"><label for="entry-search">Поиск продукта или блюда</label><input id="entry-search" type="search" placeholder="Начни вводить название…" autocomplete="off"></div><div class="field full"><label for="entry-item">Продукт или блюдо</label><select id="entry-item">${optionsFor(catalog)}</select><div class="field-help" id="entry-search-status">${catalog.length} позиций в каталоге</div></div><div class="form-grid"><div class="field"><label for="entry-meal">Приём пищи</label><select id="entry-meal">${availableMeals.map(m=>`<option ${m===selectedMeal?'selected':''}>${m}</option>`).join('')}</select></div><div class="field"><label>Количество</label><div class="entry-unit-switch" id="entry-quantity-switch" ${initialItem?.kind==='recipe'&&Number(initialItem.portionGrams)>0?'':'hidden'}><button type="button" data-entry-unit="grams" class="${quantityMode==='grams'?'active':''}">Граммы</button><button type="button" data-entry-unit="portions" class="${quantityMode==='portions'?'active':''}">Порции</button></div><div class="entry-quantity-input"><input id="entry-quantity" type="number" value="${initialQuantity}" min="0.1" max="30000" step="${quantityMode==='portions'?'0.1':'1'}"><span id="entry-quantity-unit">${quantityMode==='portions'?'порций':'г'}</span></div><div class="entry-quantity-help" id="entry-quantity-help"></div></div></div><div class="muted-box" style="margin-top:12px" id="entry-preview">КБЖУ будет рассчитано по выбранному продукту и количеству.</div>`, `<button class="btn" id="cancel-modal">Отмена</button><button class="btn-primary" id="save-entry">${existing?'Сохранить изменения':'Добавить'}</button>`);
+ const dialog=NutriMealUI.renderDiaryEntryAddModal({
+  dateText,
+  optionsMarkup:optionsFor(catalog),
+  catalogCount:catalog.length,
+  mealOptionsMarkup:availableMeals.map(meal=>`<option ${meal===selectedMeal?'selected':''}>${meal}</option>`).join(''),
+  quantityMode,
+  initialQuantity,
+  showPortionSwitch:initialItem?.kind==='recipe'&&Number(initialItem.portionGrams)>0
+ });
+ openModal(dialog.title,dialog.body,dialog.actions);
  const select=document.getElementById('entry-item'),search=document.getElementById('entry-search'),quantityInput=document.getElementById('entry-quantity'),unitSwitch=document.getElementById('entry-quantity-switch'),quantityUnit=document.getElementById('entry-quantity-unit'),quantityHelp=document.getElementById('entry-quantity-help');
  const getSelected=()=>catalog.find(x=>x.id===select.value)||null;
  const supportsPortions=x=>Boolean(x&&x.kind==='recipe'&&Number(x.portionGrams)>0);
@@ -4075,13 +4343,27 @@ function openEntryModal(defaultMeal='Завтрак',editId=null){
  });
  update();
  document.getElementById('cancel-modal').onclick=closeModal;
- document.getElementById('save-entry').onclick=()=>{
+ const saveButton=document.getElementById('save-entry');
+ saveButton.onclick=async()=>{
   const x=getSelected(),amount=Number(quantityInput.value),g=currentGrams(x),values=getPer100(x);
   if(!x){toast('Выбери продукт или блюдо');return}
   if(!Number.isFinite(amount)||amount<=0||!Number.isFinite(g)||g>30000){toast('Укажи корректное количество');quantityInput.focus();return}
-  const itemComponents=x.kind==='recipe'?recipeArray(recipeNutrition(x).components.per100).map(component=>({...component,amount:Number(component.amount)*g/100})):recipeArray(x.components).map(component=>({...component,amount:Number(component.amount)*g/100}));
-  const updated={id:existing?existing.id:Date.now(),date:entryDate,meal:document.getElementById('entry-meal').value,name:x.name,grams:g,kcal:values.kcal*g/100,p:values.p*g/100,f:values.f*g/100,c:values.c*g/100,recipeId:x.kind==='recipe'?String(x.id).replace(/^r-/,''):null,productId:x.kind==='product'?String(x.id).replace(/^p-/,''):null,quantityMode:quantityMode==='portions'&&supportsPortions(x)?'portions':'grams',quantityValue:amount,quantityUnit:x.kind==='product'?productBasisUnit(x):'г',portionGrams:supportsPortions(x)?Number(x.portionGrams):null,components:itemComponents,...createDiaryFoodEntrySnapshot(x)};
-  if(existing){const idx=diaryEntries.findIndex(e=>e.id===existing.id);if(idx>=0)diaryEntries[idx]=updated}else diaryEntries.push(updated);saveDiaryData();
+  const meal=document.getElementById('entry-meal').value;
+  const id=String(x.id).replace(x.kind==='product'?/^p-/:/^r-/,'');
+  saveButton.disabled=true;
+  let updated;
+  try{
+   const result=(await getDiaryServices()).addEntry({
+    entries:diaryEntries,id:Date.now(),date:entryDate,today:dateKey(todayLocalDate()),meal,
+    item:{...x,id},kind:x.kind,grams:g,
+    quantityMode:quantityMode==='portions'&&supportsPortions(x)?'portions':'grams',
+    quantityValue:amount,quantityUnit:x.kind==='product'?productBasisUnit(x):'г',
+    portionGrams:supportsPortions(x)?Number(x.portionGrams):null,
+    ...createDiaryFoodEntrySnapshot(x,values)
+   });
+   diaryEntries=result;
+   updated=result[result.length-1];
+  }catch(error){saveButton.disabled=false;console.error('Не удалось добавить запись дневника',error);toast('Не удалось сохранить запись');return}
   expandedMeals.add(updated.meal);const [entryYear,entryMonth,entryDay]=entryDate.split('-').map(Number);currentDate=new Date(entryYear,entryMonth-1,entryDay);
   closeModal();setPage('diary');toast(existing?'Запись обновлена':'Запись добавлена');
  };
@@ -4165,7 +4447,7 @@ function recipeNutrition(recipe){
  return {total:totals,per100,portion:portionValues,weight,portionGrams:portion,missingProducts,conversionIssues,components:{total:componentTotal,per100:componentPer100,portion:componentPortion}};
 }
 
-function createDiaryFoodEntrySnapshot(item){
+function createDiaryFoodEntrySnapshot(item,nutritionValues=null){
  const kind=item?.kind==='product'?'product':'recipe';
  const prefixedId=String(item?.id??''),sourceId=prefixedId.replace(kind==='product'?/^p-/:/^r-/,'');
  const source=kind==='product'?productDB.find(product=>String(product.id)===sourceId):recipes.find(recipe=>String(recipe.id)===sourceId);
@@ -4181,7 +4463,7 @@ function createDiaryFoodEntrySnapshot(item){
  });
  return {
   foodMetadataSnapshot:{categories:[...metadata.categories],items:[...metadata.items]},
-  nutritionSnapshot:{kcal:Number(item.kcal)||0,p:Number(item.p)||0,f:Number(item.f)||0,c:Number(item.c)||0,components:snapshotComponents}
+  nutritionSnapshot:{kcal:Number(nutritionValues?.kcal??item.kcal)||0,p:Number(nutritionValues?.p??item.p)||0,f:Number(nutritionValues?.f??item.f)||0,c:Number(nutritionValues?.c??item.c)||0,components:snapshotComponents}
  };
 }
 diaryEntries.forEach(entry=>{if(isCalorieOnlyEntry(entry))return;if(!entry.foodMetadataSnapshot){const metadata=getDiaryFoodMetadata(entry);entry.foodMetadataSnapshot={categories:[...metadata.categories],items:[...metadata.items]}};if(!entry.nutritionSnapshot){const grams=Math.max(1,Number(entry.grams)||100);entry.nutritionSnapshot={kcal:(Number(entry.kcal)||0)/grams*100,p:(Number(entry.p)||0)/grams*100,f:(Number(entry.f)||0)/grams*100,c:(Number(entry.c)||0)/grams*100,components:recipeArray(entry.components).map(component=>({...component,amount:Number(component.amount)*100/grams}))}}});
@@ -4218,7 +4500,12 @@ function openRecipeDetail(id){
  openModal(recipe.name,body,actions);document.querySelector('.modal').classList.add('recipe-detail-modal');
  document.querySelectorAll('[data-nutrition-mode]').forEach(button=>button.onclick=()=>{nutritionMode=button.dataset.nutritionMode;document.querySelectorAll('[data-nutrition-mode]').forEach(item=>item.classList.toggle('active',item===button));document.getElementById('recipe-nutrition-values').innerHTML=recipeNutritionPanel(recipe,nutritionMode)});
  document.getElementById('detail-close').onclick=closeModal;
- document.getElementById('detail-fav')?.addEventListener('click',()=>{recipe.favorite=!recipe.favorite;closeModal();renderRecipes();toast(recipe.favorite?'Добавлено в избранное':'Удалено из избранного')});
+ document.getElementById('detail-fav')?.addEventListener('click',async()=>{
+  try{
+   const updated=await toggleCatalogFavoriteIn(recipes,recipe.id);if(!updated)return;
+   closeModal();renderRecipes();toast(updated.favorite?'Добавлено в избранное':'Удалено из избранного');
+  }catch(error){reportCatalogOperationError('Не удалось изменить избранное рецепта',error)}
+ });
  document.getElementById('detail-edit')?.addEventListener('click',()=>openRecipeModal(recipe.id));
  document.getElementById('detail-add').onclick=()=>{if(inPickMode){const added=addCurrentPickerDraftItem(recipe,'recipe');closeModal();renderRecipes();toast(added?(plannerDishAddContext?'Рецепт выбран':plannerCategoryAddContext?'Добавлено в список выбора':collectionAddContext?'Добавлено в подборку':'Добавлено в список'):(plannerDishAddContext?'Для одной позиции уже выбран рецепт':plannerCategoryAddContext?'Этот рецепт уже выбран':collectionAddContext?'Этот рецепт уже есть в подборке':'Этот рецепт уже добавлен'))}else openRecipeMealChooser(recipe)};
 }
@@ -4320,11 +4607,11 @@ function openRecipeFilterCategoryEditor(categoryId){
  const isProductCategory=category.kind==='products';
  const isRangeCategory=['timeRange','composition'].includes(category.kind);
  const values=isProductCategory?[]:getRecipeFilterCategoryValues(category);
- const rows=values.map((value,index)=>`<div class="filter-admin-value-row"><input type="text" data-admin-value-input="${index}" value="${escapeHtml(value)}" aria-label="Значение ${escapeHtml(value)}"><button type="button" class="btn-quiet" data-save-admin-value="${index}">Заменить</button><button type="button" class="btn-quiet filter-admin-delete" data-delete-admin-value="${index}">Удалить</button></div>`).join('');
- const addValue=isProductCategory?'<div class="filter-admin-note">Список вариантов берётся из каталога «Мои продукты» и управляется там.</div>':isRangeCategory?'<div class="filter-admin-note">У этой категории числовой диапазон. Изменяется название категории; диапазоны остаются частью фильтра.</div>':`<div class="filter-admin-add"><input type="text" id="filter-admin-new-value" maxlength="48" placeholder="Новое значение"><button type="button" class="btn" id="filter-admin-add-value">＋ Добавить</button></div>`;
- const body=`<div class="filter-admin-form"><div class="field"><label for="filter-admin-category-name">Название категории</label><input id="filter-admin-category-name" maxlength="64" value="${escapeHtml(category.label)}"></div><div class="filter-admin-section"><div class="filter-admin-section-head"><div><strong>${isCustomTags?'Список пользовательских тегов':'Значения категории'}</strong><small>Переименование обновит привязки в рецептах и фильтрах.</small></div><span class="tag">${values.length} знач.</span></div>${rows||'<div class="filter-admin-note">Пока нет значений.</div>'}${addValue}</div></div>`;
- const deleteButton=recipeCustomFilterCategories.some(item=>item.id===category.id)?`<button type="button" class="btn-danger" id="filter-admin-delete-category">Удалить категорию</button>`:'';
- openModal('Настройка фильтра',body,`${deleteButton}<button type="button" class="btn" id="filter-admin-cancel">Отмена</button><button type="button" class="btn-primary" id="filter-admin-save-category">Сохранить</button>`);
+ const dialog=NutriMealUI.renderRecipeFilterCategoryEditorModal({
+  categoryLabel:category.label,isCustomTags,isProductCategory,isRangeCategory,values,
+  canDelete:recipeCustomFilterCategories.some(item=>item.id===category.id),escapeHtml
+ });
+ openModal(dialog.title,dialog.body,dialog.actions);
  document.querySelector('.modal').classList.add('filter-admin-modal');
  document.getElementById('filter-admin-cancel').onclick=()=>{closeModal();renderRecipes()};
  document.getElementById('filter-admin-save-category').onclick=()=>{
@@ -4354,7 +4641,8 @@ function openRecipeFilterCategoryEditor(categoryId){
  });
 }
 function openRecipeFilterCategoryCreateModal(){
- openModal('Новая категория фильтра','<div class="field"><label for="new-filter-category-name">Название категории</label><input id="new-filter-category-name" maxlength="64" placeholder="Например, Способ приготовления"></div><div class="filter-admin-note">Категория появится в стандартных фильтрах и в редакторе рецептов. Для неё можно будет создавать и выбирать собственные значения.</div>','<button type="button" class="btn" id="new-filter-category-cancel">Отмена</button><button type="button" class="btn-primary" id="new-filter-category-save">Создать</button>');
+ const dialog=NutriMealUI.renderRecipeFilterCategoryCreateModal();
+ openModal(dialog.title,dialog.body,dialog.actions);
  document.querySelector('.modal').classList.add('filter-admin-modal');
  document.getElementById('new-filter-category-cancel').onclick=()=>{closeModal();renderRecipes()};
  document.getElementById('new-filter-category-save').onclick=()=>{
@@ -4375,13 +4663,16 @@ function openRecipeModal(recipeId=null,resumeDraft=null){
  const customAttributeFields=recipeCustomFilterCategories.map(category=>recipeTokenFieldMarkup(`custom-${category.id}`,category.label,category.id,draft.customAttributes[category.id]||[])).join('');
  const metadataField=(categoryId,fieldId,selected,mode='multiple')=>{const category=getRecipeFilterCategory(categoryId);return category?recipeTokenFieldMarkup(fieldId,category.label,categoryId,selected,mode):''};
  const metadataMarkup=`${metadataField('mealTypes','mealTypes',draft.mealTypes)}${metadataField('cuisines','cuisine',draft.cuisine||'','single')}${metadataField('dishTypes','dishTypes',draft.dishTypes)}${metadataField('allergens','allergens',draft.allergens)}${metadataField('categories','categories',draft.categories)}${metadataField('customTags','tags',draft.tags)}${customAttributeFields}`;
- const body=`<div class="recipe-editor-form"><div class="form-grid"><div class="field full"><label for="recipe-edit-name">Название блюда</label><input id="recipe-edit-name" maxlength="120" value="${escapeHtml(draft.name||'')}" placeholder="Например, рис с овощами"></div><div class="field"><label for="recipe-edit-emoji">Значок, если нет фото</label><input id="recipe-edit-emoji" maxlength="8" value="${escapeHtml(draft.emoji||'🍽️')}"></div><div class="field"><label for="recipe-edit-time">Время готовки, минут</label><input id="recipe-edit-time" type="number" min="0" max="1440" value="${draft.time||0}"></div><div class="field"><label for="recipe-edit-difficulty">Сложность</label><select id="recipe-edit-difficulty"><option ${draft.difficulty==='Легко'?'selected':''}>Легко</option><option ${draft.difficulty==='Средне'?'selected':''}>Средне</option><option ${draft.difficulty==='Сложно'?'selected':''}>Сложно</option></select></div>${metadataMarkup}<div class="field"><label for="recipe-edit-yield">Вес готового блюда, г</label><input id="recipe-edit-yield" type="number" min="1" step="1" value="${draft.totalWeight||300}"></div><div class="field"><label for="recipe-edit-portion">Обычная порция, г</label><input id="recipe-edit-portion" type="number" min="1" step="1" value="${draft.portionGrams||200}"></div></div>
- <section class="recipe-editor-section"><div class="recipe-detail-section-head"><h3>Фотография блюда</h3><span>Необязательно</span></div><div class="recipe-image-editor"><div id="recipe-image-preview">${draft.imageData?`<img src="${draft.imageData}" alt="Предпросмотр блюда">`:draft.emoji||'🍽️'}</div><label class="btn" for="recipe-edit-image-file">Выбрать изображение</label><input id="recipe-edit-image-file" type="file" accept="image/*" hidden><div class="field-help">Изображение будет использоваться в карточке рецепта.</div></div></section>
- <section class="recipe-editor-section"><div class="recipe-detail-section-head"><h3>Ингредиенты</h3><span>Продукт и количество</span></div><div id="recipe-editor-ingredients">${ingredientMarkup}</div><button type="button" class="btn recipe-add-ingredient" id="recipe-add-ingredient">＋ Выбрать продукты</button><p class="recipe-picker-selection-note">Откроется раздел «Мои продукты». Выбранные продукты вернутся сюда, где можно указать количество в граммах или миллилитрах.</p></section>
- <section class="recipe-editor-section"><div class="recipe-detail-section-head"><h3>Микронутриенты</h3><span>На 100 г готового блюда</span></div><div id="recipe-component-list" class="product-nutrient-list">${componentMarkup||'<div class="filter-admin-note">Пока нутриенты не добавлены.</div>'}</div><button type="button" class="btn" id="recipe-add-component">＋ Добавить нутриент</button><div class="field-help" style="margin-top:8px">Укажи содержание витаминов, минералов и других нутриентов на 100 г готового блюда.</div></section>
- <section class="recipe-editor-section"><div class="recipe-detail-section-head"><h3>Пищевая ценность</h3><span>КБЖУ рассчитывается по составу</span></div><div id="recipe-editor-nutrition-preview">${recipeEditorNutritionPreview(draft)}</div></section>
- <section class="recipe-editor-section"><div class="recipe-detail-section-head"><h3>Пошаговое приготовление</h3><span>Один шаг — одна строка</span></div><div class="field"><label for="recipe-edit-steps">Шаги приготовления</label><textarea id="recipe-edit-steps" rows="5" placeholder="Шаг 1…&#10;Шаг 2…">${escapeHtml(draft.steps.join('\n'))}</textarea></div></section></div>`;
- openModal(existing?'Редактирование рецепта':'Новый рецепт',body,`<button class="btn" id="recipe-editor-cancel">Отмена</button><button class="btn-primary" id="recipe-editor-save">Сохранить</button>`);document.querySelector('.modal').classList.add('recipe-edit-modal');
+ const dialog=NutriMealUI.renderRecipeEditorModal({
+  existing,
+  draft,
+  ingredientMarkup,
+  componentMarkup,
+  metadataMarkup,
+  nutritionPreview:recipeEditorNutritionPreview(draft),
+  escapeHtml
+ });
+ openModal(dialog.title,dialog.body,dialog.actions);document.querySelector('.modal').classList.add('recipe-edit-modal');
  initRecipeTokenFields();
  const rows=document.getElementById('recipe-editor-ingredients'),componentList=document.getElementById('recipe-component-list');
  document.getElementById('recipe-edit-image-file').addEventListener('change',event=>{const file=event.target.files?.[0];if(!file)return;if(!file.type.startsWith('image/')){toast('Выбери файл изображения');return}const reader=new FileReader();reader.onload=()=>{draft.imageData=reader.result;document.getElementById('recipe-image-preview').innerHTML=`<img src="${reader.result}" alt="Предпросмотр блюда">`};reader.readAsDataURL(file)});
@@ -4411,7 +4702,7 @@ function openRecipeModal(recipeId=null,resumeDraft=null){
    const densityValue=product.density??'';
    openModal(`Плотность · ${product.name}`,`<div class="field"><label for="recipe-product-density">Плотность, г/мл</label><input id="recipe-product-density" type="number" min="0.0001" max="100" step="0.001" value="${escapeHtml(densityValue)}" placeholder="Например, 1.03"></div><div class="field-help">Плотность — свойство продукта в каталоге. Изменение повлияет на все рецепты, где используется этот продукт, включая текущий черновик.</div>`,`<button type="button" class="btn" id="recipe-density-cancel">Отмена</button><button type="button" class="btn-primary" id="recipe-density-save">Применить</button>`);
    document.getElementById('recipe-density-cancel').onclick=()=>{closeModal();openRecipeModal(existing?.id??null,snapshot)};
-   document.getElementById('recipe-density-save').onclick=()=>{
+   document.getElementById('recipe-density-save').onclick=async()=>{
     const raw=document.getElementById('recipe-product-density').value.trim(),nextDensity=raw===''?null:Number(raw);
     if(raw&&(!Number.isFinite(nextDensity)||nextDensity<=0||nextDensity>100)){toast('Укажи корректную плотность от 0,0001 до 100 г/мл');return}
     const oldDensity=product.density??null;
@@ -4420,11 +4711,14 @@ function openRecipeModal(recipeId=null,resumeDraft=null){
     const names=linked.slice(0,5).map(item=>item.name).join(', '),suffix=linked.length>5?` и ещё ${linked.length-5}`:'';
     const details=linked.length?`Будут пересчитаны ${linked.length} сохранённых рецептов${names?`: ${names}${suffix}`:''}.`:'Сохранённых рецептов с этим продуктом пока нет.';
     if(!confirm(`Изменить плотность продукта «${product.name}» с ${oldDensity??'не задана'} на ${nextDensity??'не задана'} г/мл? ${details} Текущий черновик рецепта также будет пересчитан. Продолжить?`))return;
-    product.density=nextDensity;
-    recalculateRecipesUsingProduct(product.id);
-    const updated=recipeNutrition(snapshot);snapshot.kcal=updated.per100.kcal;snapshot.p=updated.per100.p;snapshot.f=updated.per100.f;snapshot.c=updated.per100.c;
-    closeModal();openRecipeModal(existing?.id??null,snapshot);
-    toast(`Плотность обновлена · пересчитано рецептов: ${linked.length}`);
+    try{
+     const result=(await getCatalogServices()).saveProduct({products:productDB,recipes,productData:{...product,density:nextDensity},existingId:product.id,confirmDensityChange:true});
+     if(result.status!=='saved')throw new Error('Не удалось подтвердить изменение плотности продукта.');
+     replaceCatalogArray(productDB,result.products);replaceCatalogArray(recipes,result.recipes);
+     const updated=recipeNutrition(snapshot);snapshot.kcal=updated.per100.kcal;snapshot.p=updated.per100.p;snapshot.f=updated.per100.f;snapshot.c=updated.per100.c;
+     closeModal();openRecipeModal(existing?.id??null,snapshot);
+     toast(`Плотность обновлена · пересчитано рецептов: ${result.recalculatedRecipeCount}`);
+    }catch(error){reportCatalogOperationError('Не удалось изменить плотность продукта',error)}
    };
    return;
   }
@@ -4435,7 +4729,7 @@ function openRecipeModal(recipeId=null,resumeDraft=null){
  document.getElementById('recipe-add-ingredient').onclick=()=>beginRecipeIngredientPick({draft,existingId:existing?.id??null,readRows,readField:()=>({name:document.getElementById('recipe-edit-name').value,emoji:document.getElementById('recipe-edit-emoji').value,time:Number(document.getElementById('recipe-edit-time').value)||0,difficulty:document.getElementById('recipe-edit-difficulty').value,...readRecipeEditorMetadata(draft),totalWeight:Number(document.getElementById('recipe-edit-yield').value)||300,portionGrams:Number(document.getElementById('recipe-edit-portion').value)||200,components:readComponents(),steps:document.getElementById('recipe-edit-steps').value.split('\n').map(value=>value.trim()).filter(Boolean),imageData:draft.imageData})});
  ['recipe-edit-yield','recipe-edit-portion'].forEach(id=>document.getElementById(id).addEventListener('input',updatePreview));
  document.getElementById('recipe-editor-cancel').onclick=()=>{if(existing)openRecipeDetail(existing.id);else closeModal()};
- document.getElementById('recipe-editor-save').onclick=()=>{
+ document.getElementById('recipe-editor-save').onclick=async()=>{
   const name=document.getElementById('recipe-edit-name').value.trim();if(!name){toast('Укажи название блюда');return}
   const ingredients=readRows().filter(row=>row.amount>0&&row.productId);
   if(!ingredients.length){toast('Добавь хотя бы один ингредиент');return}
@@ -4446,10 +4740,12 @@ function openRecipeModal(recipeId=null,resumeDraft=null){
   for(const row of [...componentList.querySelectorAll('[data-recipe-component-row]')]){const componentName=row.querySelector('[data-recipe-component-name]').value.trim(),amount=row.querySelector('[data-recipe-component-amount]').value;if(componentName&&(amount===''||!Number.isFinite(Number(amount))||Number(amount)<0)){toast(`Укажи корректное количество нутриента «${componentName}»`);return}}
   const allergens=uniqueAllergens([...readRecipeEditorMetadata(draft).allergens,...ingredients.flatMap(row=>row.productAllergens)]);
   Object.assign(draft,{name,emoji:document.getElementById('recipe-edit-emoji').value.trim()||'🍽️',time:Number.isFinite(time)&&time>=0?time:0,difficulty:document.getElementById('recipe-edit-difficulty').value,...readRecipeEditorMetadata(draft),allergens,totalWeight:yieldWeight,portionGrams:portion,ingredientItems:ingredients,components,ingredients:ingredients.map(row=>`${row.productName||'Продукт'} — ${nutritionNumber(row.amount)} ${row.unit}`).join(', '),steps:document.getElementById('recipe-edit-steps').value.split('\n').map(value=>value.trim()).filter(Boolean),mine:true});
-  const data=recipeNutrition(draft);draft.kcal=data.per100.kcal;draft.p=data.per100.p;draft.f=data.per100.f;draft.c=data.per100.c;
-  recipeArray(draft.tags).forEach(tag=>addRecipeFilterValue('customTags',tag));
-  if(existing){const index=recipes.findIndex(item=>String(item.id)===String(existing.id));if(index>=0)recipes[index]=draft}else{draft.id=Math.max(0,...recipes.map(item=>Number(item.id)||0))+1;draft.favorite=false;recipes.unshift(draft)}
-  closeModal();renderRecipes();if(existing){openRecipeDetail(draft.id);toast('Рецепт обновлён')}else toast('Рецепт создан');
+  try{
+   const result=(await getCatalogServices()).saveRecipe({recipes,products:productDB,draft,existingId:existing?.id??null});
+   replaceCatalogArray(recipes,result.recipes);
+   recipeArray(result.recipe.tags).forEach(tag=>addRecipeFilterValue('customTags',tag));
+   closeModal();renderRecipes();if(existing){openRecipeDetail(result.recipe.id);toast('Рецепт обновлён')}else toast('Рецепт создан');
+  }catch(error){reportCatalogOperationError('Не удалось сохранить рецепт',error)}
  };
  updateIngredientHints();
 }
@@ -4467,7 +4763,12 @@ function openProductDetail(productId){
  openModal(product.name,body,actions);document.querySelector('.modal').classList.add('product-detail-modal');
  document.getElementById('product-detail-close').onclick=closeModal;
  if(!inPickMode){
-  document.getElementById('product-detail-fav').onclick=()=>{product.favorite=!product.favorite;closeModal();renderRecipes();toast(product.favorite?'Добавлено в избранное':'Удалено из избранного')};
+  document.getElementById('product-detail-fav').onclick=async()=>{
+   try{
+    const updated=await toggleCatalogFavoriteIn(productDB,product.id);if(!updated)return;
+    closeModal();renderRecipes();toast(updated.favorite?'Добавлено в избранное':'Удалено из избранного');
+   }catch(error){reportCatalogOperationError('Не удалось изменить избранное продукта',error)}
+  };
   document.getElementById('product-detail-edit').onclick=()=>{closeModal();openProductModal(product.id)};
   document.getElementById('product-detail-add').onclick=()=>openProductMealChooser(product);
  }else document.getElementById('product-detail-add').onclick=()=>{const added=addCurrentPickerDraftItem(product,'product');closeModal();renderRecipes();toast(added?(collectionAddContext?'Добавлено в подборку':'Добавлено в список'):(collectionAddContext?'Этот продукт уже есть в подборке':'Этот продукт уже добавлен'))};
@@ -4561,11 +4862,11 @@ function readProductNutrientRows(){
 function openProductFilterCategoryEditor(categoryId){
  const category=getProductFilterCategory(categoryId);if(!category)return;
  const values=getProductFilterCategoryValues(category),isRange=category.kind==='composition';
- const rows=values.map((value,index)=>`<div class="filter-admin-value-row"><input type="text" data-product-admin-value-input="${index}" value="${escapeHtml(value)}" aria-label="Значение ${escapeHtml(value)}"><button type="button" class="btn-quiet" data-product-save-admin-value="${index}">Заменить</button><button type="button" class="btn-quiet filter-admin-delete" data-product-delete-admin-value="${index}">Удалить</button></div>`).join('');
- const addValue=isRange?'<div class="filter-admin-note">Числовые значения задаются диапазонами в фильтре. Здесь можно изменить название категории.</div>':`<div class="filter-admin-add"><input type="text" id="product-filter-admin-new-value" maxlength="64" placeholder="Новое значение"><button type="button" class="btn" id="product-filter-admin-add-value">＋ Добавить</button></div>`;
- const body=`<div class="filter-admin-form"><div class="field"><label for="product-filter-admin-category-name">Название категории</label><input id="product-filter-admin-category-name" maxlength="64" value="${escapeHtml(category.label)}"></div><div class="filter-admin-section"><div class="filter-admin-section-head"><div><strong>${category.id==='customTags'?'Список пользовательских тегов':'Значения категории'}</strong><small>Изменения синхронизируются с карточками продуктов и фильтрами.</small></div><span class="tag">${values.length} знач.</span></div>${rows||'<div class="filter-admin-note">Пока нет значений.</div>'}${addValue}</div></div>`;
- const deleteButton=productCustomFilterCategories.some(item=>item.id===category.id)?`<button type="button" class="btn-danger" id="product-filter-admin-delete-category">Удалить категорию</button>`:'';
- openModal('Настройка фильтра продуктов',body,`${deleteButton}<button type="button" class="btn" id="product-filter-admin-cancel">Отмена</button><button type="button" class="btn-primary" id="product-filter-admin-save">Сохранить</button>`);document.querySelector('.modal').classList.add('filter-admin-modal');
+ const dialog=NutriMealUI.renderProductFilterCategoryEditorModal({
+  categoryLabel:category.label,isCustomTags:category.id==='customTags',isRange,values,
+  canDelete:productCustomFilterCategories.some(item=>item.id===category.id),escapeHtml
+ });
+ openModal(dialog.title,dialog.body,dialog.actions);document.querySelector('.modal').classList.add('filter-admin-modal');
  document.getElementById('product-filter-admin-cancel').onclick=()=>{closeModal();renderRecipes()};
  document.getElementById('product-filter-admin-save').onclick=()=>{const name=document.getElementById('product-filter-admin-category-name').value.trim();if(!name){toast('Укажи название категории');return}category.label=name;if(category.id==='customTags')customProductFilterTitle=name;closeModal();renderRecipes();toast('Название категории обновлено')};
  document.getElementById('product-filter-admin-add-value')?.addEventListener('click',()=>{const input=document.getElementById('product-filter-admin-new-value'),value=input.value.trim();if(!value){toast('Введи значение');return}if(!addProductFilterValue(category.id,value)){toast('Такое значение уже существует');return}openProductFilterCategoryEditor(category.id);toast('Значение добавлено')});
@@ -4574,13 +4875,11 @@ function openProductFilterCategoryEditor(categoryId){
  document.getElementById('product-filter-admin-delete-category')?.addEventListener('click',()=>{if(!confirm(`Удалить категорию «${category.label}» из фильтров?`))return;deleteProductFilterCategory(category);closeModal();renderRecipes();toast('Категория удалена из фильтров продуктов')});
 }
 function openProductFilterCategoryCreateModal(){
- openModal('Новая категория фильтра продуктов','<div class="field"><label for="new-product-filter-category-name">Название категории</label><input id="new-product-filter-category-name" maxlength="64" placeholder="Например, Способ обработки"></div><div class="filter-admin-note">Категория появится в фильтрах и редакторе продуктов. Для неё можно будет создавать и выбирать собственные значения.</div>','<button type="button" class="btn" id="new-product-filter-category-cancel">Отмена</button><button type="button" class="btn-primary" id="new-product-filter-category-save">Создать</button>');
+ const dialog=NutriMealUI.renderProductFilterCategoryCreateModal();
+ openModal(dialog.title,dialog.body,dialog.actions);
  document.querySelector('.modal').classList.add('filter-admin-modal');
  document.getElementById('new-product-filter-category-cancel').onclick=()=>{closeModal();renderRecipes()};
  document.getElementById('new-product-filter-category-save').onclick=()=>{const category=createProductFilterCategory(document.getElementById('new-product-filter-category-name').value);if(!category){toast('Укажи название категории');return}catalogCardSettings.products[category.id]=false;closeModal();productFiltersOpen=true;productFilterMode='standard';renderRecipes();openProductFilterCategoryEditor(category.id)};
-}
-function recalculateRecipesUsingProduct(productId){
- recipes.forEach(recipe=>{if(!recipeArray(recipe.ingredientItems).some(row=>String(row.productId)===String(productId)))return;const nutrition=recipeNutrition(recipe);recipe.kcal=nutrition.per100.kcal;recipe.p=nutrition.per100.p;recipe.f=nutrition.per100.f;recipe.c=nutrition.per100.c;});
 }
 function openProductModal(productId=null){
  const existing=productId!==null?productDB.find(x=>String(x.id)===String(productId)):null;
@@ -4588,30 +4887,25 @@ function openProductModal(productId=null){
  if(!Array.isArray(draft.categories))draft.categories=[];if(!Array.isArray(draft.components))draft.components=[];if(!Array.isArray(draft.allergens))draft.allergens=[];if(!Array.isArray(draft.state))draft.state=[];if(!Array.isArray(draft.tags))draft.tags=[];if(!draft.customAttributes||typeof draft.customAttributes!=='object')draft.customAttributes={};
  const customFields=productCustomFilterCategories.map(category=>productTokenFieldMarkup(`custom-${category.id}`,category.label,category.id,draft.customAttributes[category.id]||[])).join('');
  const componentRows=draft.components.map(item=>productNutrientRowMarkup(item)).join('');
- const body=`<div class="product-editor-form"><div class="form-grid">
-  <div class="field full"><label for="my-product-name">Название продукта</label><input id="my-product-name" type="text" maxlength="100" placeholder="Например, овсяные хлопья" value="${escapeHtml(draft.name||'')}"></div>
-  ${productTokenFieldMarkup('product-brand','Производитель / марка (необязательно)','brand',draft.brand||'','single')}
-  <div class="field full"><div class="card-desc">Пищевая ценность</div></div>
-  <div class="field full"><label for="my-product-basis">Основа расчёта</label><select id="my-product-basis"><option value="г" ${draft.basisUnit!=='мл'?'selected':''}>На 100 г</option><option value="мл" ${draft.basisUnit==='мл'?'selected':''}>На 100 мл</option></select></div><div class="field full"><label for="my-product-density">Плотность, г/мл</label><input id="my-product-density" type="number" min="0.0001" max="100" step="0.001" value="${draft.density??''}" placeholder="Необязательно; нужно для перевода г ↔ мл"><div class="field-help">Укажи плотность, если продукт понадобится пересчитывать между граммами и миллилитрами.</div></div>
-  <div class="field"><label for="my-product-kcal">Калории, ккал</label><input id="my-product-kcal" type="number" min="0" max="1000" step="0.1" value="${draft.kcal??0}"></div>
-  <div class="field"><label for="my-product-p">Белки, г</label><input id="my-product-p" type="number" min="0" max="100" step="0.1" value="${draft.p??0}"></div>
-  <div class="field"><label for="my-product-f">Жиры, г</label><input id="my-product-f" type="number" min="0" max="100" step="0.1" value="${draft.f??0}"></div>
-  <div class="field"><label for="my-product-c">Углеводы, г</label><input id="my-product-c" type="number" min="0" max="100" step="0.1" value="${draft.c??0}"></div>
-  ${productTokenFieldMarkup('product-categories','Категория продукта','categories',draft.categories)}
-  ${productTokenFieldMarkup('product-allergens','Аллергены','allergens',draft.allergens)}
-  ${productTokenFieldMarkup('product-state','Состояние продукта','state',draft.state,'single')}
-  ${productTokenFieldMarkup('product-tags','Пользовательские теги','customTags',draft.tags)}
-  ${customFields}
- </div>
- <section class="recipe-editor-section"><div class="recipe-detail-section-head"><h3>Полезные компоненты</h3><span>Количество на 100 ${draft.basisUnit==='мл'?'мл':'г'}</span></div><div id="product-nutrient-list" class="product-nutrient-list">${componentRows||'<div class="filter-admin-note">Пока компоненты не добавлены.</div>'}</div><button type="button" class="btn" id="product-add-nutrient">＋ Добавить компонент</button><div class="field-help" style="margin-top:8px">Для каждого компонента укажи содержание и единицу измерения на выбранную основу.</div></section>
- </div>`;
- openModal(existing?'Редактирование продукта':'Новый продукт',body,'<button class="btn" id="my-product-cancel">Отмена</button><button class="btn-primary" id="my-product-save">Сохранить</button>');document.querySelector('.modal').classList.add('product-detail-modal');
+ const dialog=NutriMealUI.renderProductEditorModal({
+  existing,
+  draft,
+  brandField:productTokenFieldMarkup('product-brand','Производитель / марка (необязательно)','brand',draft.brand||'','single'),
+  categoriesField:productTokenFieldMarkup('product-categories','Категория продукта','categories',draft.categories),
+  allergensField:productTokenFieldMarkup('product-allergens','Аллергены','allergens',draft.allergens),
+  stateField:productTokenFieldMarkup('product-state','Состояние продукта','state',draft.state,'single'),
+  tagsField:productTokenFieldMarkup('product-tags','Пользовательские теги','customTags',draft.tags),
+  customFieldsMarkup:customFields,
+  componentRows,
+  escapeHtml
+ });
+ openModal(dialog.title,dialog.body,dialog.actions);document.querySelector('.modal').classList.add('product-detail-modal');
  initProductTokenFields();
  const nutrientList=document.getElementById('product-nutrient-list');
  initProductNutrientList(nutrientList);
  document.getElementById('product-add-nutrient').onclick=()=>{if(nutrientList.querySelector('.filter-admin-note'))nutrientList.innerHTML='';nutrientList.insertAdjacentHTML('beforeend',productNutrientRowMarkup());nutrientList.querySelector('[data-product-nutrient-row]:last-child [data-product-nutrient-name]')?.focus()};
  document.getElementById('my-product-cancel').onclick=closeModal;
- document.getElementById('my-product-save').onclick=()=>{
+ document.getElementById('my-product-save').onclick=async()=>{
   const name=document.getElementById('my-product-name').value.trim();if(!name){toast('Укажи название продукта');return}
   const values={kcal:Number(document.getElementById('my-product-kcal').value),p:Number(document.getElementById('my-product-p').value),f:Number(document.getElementById('my-product-f').value),c:Number(document.getElementById('my-product-c').value)};
   if(Object.values(values).some(value=>!Number.isFinite(value)||value<0)){toast('Проверь значения КБЖУ');return}
@@ -4623,15 +4917,22 @@ function openProductModal(productId=null){
   const densityRaw=document.getElementById('my-product-density').value.trim(),density=densityRaw===''?null:Number(densityRaw);if(densityRaw&&(!Number.isFinite(density)||density<=0||density>100)){toast('Укажи корректную плотность в г/мл');return}
   const productData={name,brand:getProductTokenValues('product-brand')[0]||'',basisUnit:document.getElementById('my-product-basis').value,density,...values,categories:getProductTokenValues('product-categories'),allergens:getProductTokenValues('product-allergens'),state:getProductTokenValues('product-state'),tags:getProductTokenValues('product-tags'),components,customAttributes:{...(draft.customAttributes||{})}};
   productCustomFilterCategories.forEach(category=>{productData.customAttributes[category.id]=getProductTokenValues(`custom-${category.id}`)});
-  const densityChanged=Boolean(existing)&&Number(existing.density||0)!==Number(productData.density||0);
-  const linkedRecipes=existing&&densityChanged?recipes.filter(recipe=>recipeArray(recipe.ingredientItems).some(row=>String(row.productId)===String(existing.id))):[];
-  if(linkedRecipes.length){const names=linkedRecipes.slice(0,5).map(recipe=>recipe.name).join(', '),suffix=linkedRecipes.length>5?` и ещё ${linkedRecipes.length-5}`:'';if(!confirm(`Плотность продукта «${existing.name}» изменится с ${existing.density??'не задана'} на ${productData.density??'не задана'} г/мл. Это затронет ${linkedRecipes.length} рецептов: ${names}${suffix}. Подтвердить изменение и пересчитать эти рецепты?`))return}
-  productData.components.forEach(component=>{if(!getProductFilterCategoryValues(getProductFilterCategory('components')).some(value=>normalizeRecipeFilterValue(value)===normalizeRecipeFilterValue(component.name)))addProductFilterValue('components',component.name)});
-  productData.categories.forEach(value=>addProductFilterValue('categories',value));productData.allergens.forEach(value=>addProductFilterValue('allergens',value));productData.state.forEach(value=>addProductFilterValue('state',value));productData.tags.forEach(value=>addProductFilterValue('customTags',value));
-  if(productData.brand)addProductFilterValue('brand',productData.brand);
-  if(existing){Object.assign(existing,productData);if(densityChanged&&linkedRecipes.length)recalculateRecipesUsingProduct(existing.id);toast(densityChanged&&linkedRecipes.length?`Продукт обновлён · пересчитано рецептов: ${linkedRecipes.length}`:'Продукт обновлён')}
-  else{productDB.unshift({id:`my-${Date.now()}`,favorite:false,...productData});toast('Продукт добавлен в «Мои продукты»')}
-  closeModal();recipeTab='myProducts';myProductSearch='';setPage('recipes');
+  try{
+   const services=await getCatalogServices(),command={products:productDB,recipes,productData,existingId:existing?.id??null};
+   let result=services.saveProduct(command);
+   if(result.status==='confirmation-required'){
+    const names=result.affectedRecipes.slice(0,5).map(recipe=>recipe.name).join(', '),suffix=result.affectedRecipes.length>5?` и ещё ${result.affectedRecipes.length-5}`:'';
+    if(!confirm(`Плотность продукта «${existing.name}» изменится с ${existing.density??'не задана'} на ${productData.density??'не задана'} г/мл. Это затронет ${result.affectedRecipes.length} рецептов: ${names}${suffix}. Подтвердить изменение и пересчитать эти рецепты?`))return;
+    result=services.saveProduct({...command,confirmDensityChange:true});
+   }
+   if(result.status!=='saved')throw new Error('Не удалось сохранить продукт после подтверждения изменения плотности.');
+   replaceCatalogArray(productDB,result.products);replaceCatalogArray(recipes,result.recipes);
+   productData.components.forEach(component=>{if(!getProductFilterCategoryValues(getProductFilterCategory('components')).some(value=>normalizeRecipeFilterValue(value)===normalizeRecipeFilterValue(component.name)))addProductFilterValue('components',component.name)});
+   productData.categories.forEach(value=>addProductFilterValue('categories',value));productData.allergens.forEach(value=>addProductFilterValue('allergens',value));productData.state.forEach(value=>addProductFilterValue('state',value));productData.tags.forEach(value=>addProductFilterValue('customTags',value));
+   if(productData.brand)addProductFilterValue('brand',productData.brand);
+   closeModal();recipeTab='myProducts';myProductSearch='';setPage('recipes');
+   toast(existing?(result.recalculatedRecipeCount?`Продукт обновлён · пересчитано рецептов: ${result.recalculatedRecipeCount}`:'Продукт обновлён'):'Продукт добавлен в «Мои продукты»');
+  }catch(error){reportCatalogOperationError('Не удалось сохранить продукт',error)}
  };
 }
 // #endregion JS / Карточки и редакторы продуктов
@@ -4640,27 +4941,29 @@ function openSetupModal(){
  const existingCalc=calculatePlanTargets();
  const goal=normalizeGoalLabel(plan.goal);
  const currentAdjustment=Number.isFinite(Number(plan.energyAdjustment))?Number(plan.energyAdjustment):defaultGoalAdjustment(goal);
- const body=`<div class="form-grid">
-  <div class="field full"><label for="setup-goal">Цель</label><select id="setup-goal"><option value="Поддержание веса">Поддержание веса</option><option value="Снижение веса">Снижение веса</option><option value="Набор веса">Набор веса</option></select></div>
-  <div class="field full"><label for="setup-target">Целевой вес, кг</label><input id="setup-target" type="number" min="1" max="500" step="0.1" value="${plan.targetWeight}"></div>
-  <div class="field"><label for="setup-adjustment">Коррекция относительно TDEE, ккал</label><input id="setup-adjustment" type="number" min="-1500" max="1500" step="50" value="${currentAdjustment}"></div>
-  <div class="field"><label for="setup-protein-rate">Белок, г на кг веса</label><select id="setup-protein-rate"><option value="auto" ${plan.proteinPerKg===null?'selected':''}>Автоматически по активности тренировок</option>${[0.8,1,1.2,1.4,1.6,1.8,2].map(value=>`<option value="${value}" ${Number(plan.proteinPerKg)===value?'selected':''}>${value.toLocaleString(localeTags())} г/кг</option>`).join('')}</select></div>
-  <div class="field"><label for="setup-fat-share">Доля энергии из жиров</label><select id="setup-fat-share">${[20,25,30,35].map(value=>`<option value="${value}" ${Number(plan.fatPercent)===value?'selected':''}>${value}%</option>`).join('')}</select></div>
- </div>
- <div class="planning-settings-preview" id="setup-calc-preview">${existingCalc?`<strong>Текущая оценка: ${fmt(existingCalc.kcal)} ккал/день</strong><span>BMR ${fmt(existingCalc.bmr)} × ${formatActivityFactor(existingCalc.factor)} + ${existingCalc.adjustment} ккал</span>`:'<strong>Расчёт пока недоступен</strong><span>Заполни пол, дату рождения, рост, вес и активность в Профиле.</span>'}</div>
- <div class="field-help" style="margin-top:10px">Стартовая коррекция: поддержание — 0 ккал, снижение — −400 ккал, набор — +300 ккал. Значение можно настроить вручную. Белок при регулярных тренировках автоматически рассчитывается по ориентиру 1,6 г/кг, без регулярных тренировок — 0,8 г/кг. Жиры по умолчанию составляют 30% энергии, углеводы заполняют оставшуюся калорийность.</div>`;
- openModal('Настройки плана',body,`<button class="btn" id="cancel-setup">Отмена</button><button class="btn-primary" id="save-setup">Сохранить план</button>`);
+ const calculationPreview=existingCalc?`<strong>Текущая оценка: ${fmt(existingCalc.kcal)} ккал/день</strong><span>BMR ${fmt(existingCalc.bmr)} × ${formatActivityFactor(existingCalc.factor)} + ${existingCalc.adjustment} ккал</span>`:'<strong>Расчёт пока недоступен</strong><span>Заполни пол, дату рождения, рост, вес и активность в Профиле.</span>';
+ const dialog=NutriMealUI.renderPlanSetupModal({
+  targetWeight:plan.targetWeight,
+  adjustment:currentAdjustment,
+  proteinPerKg:plan.proteinPerKg,
+  fatPercent:plan.fatPercent,
+  calculationPreview,
+  locale:localeTags()
+ });
+ openModal(dialog.title,dialog.body,dialog.actions);
  document.getElementById('setup-goal').value=goal;
  document.getElementById('setup-goal').addEventListener('change',event=>{document.getElementById('setup-adjustment').value=defaultGoalAdjustment(event.target.value)});
  document.getElementById('cancel-setup').onclick=closeModal;
- document.getElementById('save-setup').onclick=()=>{
+ document.getElementById('save-setup').onclick=async()=>{
   const target=Number(document.getElementById('setup-target').value),adjustment=Number(document.getElementById('setup-adjustment').value),proteinChoice=document.getElementById('setup-protein-rate').value,fatPercent=Number(document.getElementById('setup-fat-share').value);
   if(!Number.isFinite(target)||target<=0||target>500){toast('Укажи корректный целевой вес');return}
   if(!Number.isFinite(adjustment)||adjustment< -1500||adjustment>1500){toast('Проверь коррекцию калорийности');return}
   const nextGoal=normalizeGoalLabel(document.getElementById('setup-goal').value);
   plan.goal=nextGoal;plan.targetWeight=target;plan.energyAdjustment=nextGoal==='Поддержание веса'?0:nextGoal==='Снижение веса'?-Math.abs(adjustment||400):Math.abs(adjustment||300);
   plan.proteinPerKg=proteinChoice==='auto'?null:Number(proteinChoice);plan.fatPercent=fatPercent;
-  syncPlanCalculations(false);savePlanData();closeModal();renderPlanning();toast('План пересчитан');
+  syncPlanCalculations(false);
+  try{await savePlanData();closeModal();renderPlanning();toast('План пересчитан')}
+  catch(error){reportPlanningOperationError('Не удалось сохранить план',error)}
  };
 }
 function openWeightModal(editDate=null){

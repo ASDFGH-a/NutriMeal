@@ -65,3 +65,22 @@ export function deleteCollection(collections, id) {
     index
   });
 }
+
+export function restoreCollection(collections, collection, index) {
+  assertCollectionArray(collections);
+  if (!collection || typeof collection !== 'object'
+    || collection.id === undefined || collection.id === null
+    || !Array.isArray(collection.items)) {
+    throw new TypeError('A collection to restore is required.');
+  }
+  if (collections.some((item) => String(item.id) === String(collection.id))) {
+    throw new Error(`Collection "${collection.id}" already exists.`);
+  }
+  if (!Number.isInteger(index) || index < 0) {
+    throw new RangeError('Collection restore index must be a non-negative integer.');
+  }
+
+  const nextCollections = [...collections];
+  nextCollections.splice(Math.min(index, nextCollections.length), 0, collection);
+  return nextCollections;
+}

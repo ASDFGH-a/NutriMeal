@@ -47,6 +47,88 @@ export function productFilterDefaults() {
   };
 }
 
+export function createRecipeStandardFilterCategories() {
+  return [
+    { id: 'time', label: 'Время приготовления', kind: 'timeRange' },
+    {
+      id: 'mealTypes',
+      label: 'Приём пищи',
+      kind: 'multi',
+      filterKey: 'mealTypes',
+      recipeField: 'mealTypes',
+      values: ['Завтрак', 'Второй завтрак', 'Обед', 'Полдник', 'Ужин', 'Поздний ужин', 'Перекус']
+    },
+    {
+      id: 'cuisines',
+      label: 'Тип кухни',
+      kind: 'multi',
+      filterKey: 'cuisines',
+      recipeField: 'cuisine',
+      values: ['Домашняя', 'Русская']
+    },
+    {
+      id: 'dishTypes',
+      label: 'Тип блюда',
+      kind: 'multi',
+      filterKey: 'dishTypes',
+      recipeField: 'dishTypes',
+      values: ['Первое', 'Второе', 'Гарнир', 'Салат']
+    },
+    {
+      id: 'allergens',
+      label: 'Аллергены',
+      kind: 'includeExclude',
+      recipeField: 'allergens',
+      values: ['Молоко', 'Яйца', 'Глютен', 'Орехи', 'Рыба', 'Соя']
+    },
+    {
+      id: 'categories',
+      label: 'Категории продуктов',
+      kind: 'multi',
+      filterKey: 'categories',
+      recipeField: 'categories',
+      values: ['Молочные продукты', 'Овощи', 'Фрукты', 'Зерновые', 'Бобовые', 'Рыба', 'Орехи']
+    },
+    { id: 'composition', label: 'Состав на 100 г', kind: 'composition' },
+    { id: 'products', label: 'Продукты', kind: 'products' }
+  ];
+}
+
+export function createProductStandardFilterCategories() {
+  return [
+    { id: 'composition', label: 'КБЖУ', kind: 'composition' },
+    { id: 'brand', label: 'Производитель', kind: 'multi', productField: 'brand', values: [] },
+    {
+      id: 'categories',
+      label: 'Категория продукта',
+      kind: 'multi',
+      productField: 'categories',
+      values: ['Молочные продукты', 'Овощи', 'Фрукты', 'Зерновые', 'Бобовые', 'Рыба', 'Орехи', 'Мясо и птица', 'Яйца', 'Масла и жиры', 'Специи и приправы', 'Сладости и прочие продукты']
+    },
+    {
+      id: 'components',
+      label: 'Полезные компоненты',
+      kind: 'multi',
+      productField: 'components',
+      values: ['Витамин A', 'Витамин C', 'Витамин D', 'Витамин E', 'Витамин K', 'Витамин B1', 'Витамин B2', 'Витамин B3 (ниацин)', 'Витамин B5 (пантотеновая кислота)', 'Витамин B6', 'Биотин (B7)', 'Витамин B9', 'Витамин B12', 'Холин', 'Кальций', 'Железо', 'Магний', 'Калий', 'Цинк', 'Фосфор', 'Йод', 'Натрий', 'Селен', 'Медь', 'Марганец', 'Хром', 'Молибден', 'Фтор', 'Хлорид', 'Клетчатка', 'Омега-3']
+    },
+    {
+      id: 'allergens',
+      label: 'Аллергены',
+      kind: 'includeExclude',
+      productField: 'allergens',
+      values: ['Молоко', 'Яйца', 'Глютен', 'Орехи', 'Арахис', 'Рыба', 'Соя', 'Кунжут', 'Горчица', 'Сельдерей', 'Ракообразные', 'Сульфиты']
+    },
+    {
+      id: 'state',
+      label: 'Состояние продукта',
+      kind: 'multi',
+      productField: 'state',
+      values: ['Сырой', 'Сухой', 'Приготовленный', 'Готовый', 'Пастеризованный', 'Замороженный', 'Консервированный', 'Сушёный']
+    }
+  ];
+}
+
 function filterCount(filters) {
   return Object.entries(filters).reduce((total, [key, value]) => {
     if (Array.isArray(value)) return total + value.length;

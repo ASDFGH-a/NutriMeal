@@ -24,6 +24,10 @@ import {
   createWeightHistoryRepository,
   WEIGHT_HISTORY_STORAGE_KEY
 } from '../src/infrastructure/persistence/repositories/weight.repository.js';
+import {
+  createThemeRepository,
+  THEME_STORAGE_KEY
+} from '../src/infrastructure/persistence/repositories/theme.repository.js';
 import { createArrayRepository } from '../src/infrastructure/persistence/storage.js';
 import { initializeCoreData } from '../src/application/services/initialize-core-data.js';
 import { addFoodEntry } from '../src/application/usecases/diary/add-food-entry.js';
@@ -131,14 +135,33 @@ test('core data initialization composes catalog, settings, and persisted records
 
   assert.equal(state.recipes.length, 6);
   assert.equal(state.products.length, 7);
+  assert.equal(state.theme, 'light');
   assert.deepEqual(state.collections, []);
-  assert.deepEqual(state.mealSettings, { mealCount: 5 });
   assert.deepEqual(state.profile, createDefaultProfile());
   assert.deepEqual(state.plan, createDefaultPlan());
   assert.deepEqual(state.diaryEntries, [{ id: 7, date: '2026-11-17' }]);
   assert.deepEqual(state.waterEntries, [{ id: 8, ml: 250 }]);
   assert.deepEqual(state.weightHistory, [{ id: 9, weight: 65 }]);
   assert.deepEqual(state.measurementHistory, [{ id: 10, height: 166 }]);
+});
+
+test('core data initialization loads the saved appearance preference', () => {
+  const state = initializeCoreData(createMemoryStorage({
+    [THEME_STORAGE_KEY]: 'dark'
+  }));
+
+  assert.equal(state.theme, 'dark');
+});
+
+test('theme repository keeps the legacy key and validates theme updates', () => {
+  const storage = createMemoryStorage();
+  const repository = createThemeRepository(storage);
+
+  assert.equal(repository.load(), 'light');
+  repository.save('dark');
+  assert.equal(storage.getItem(THEME_STORAGE_KEY), 'dark');
+  assert.equal(repository.load(), 'dark');
+  assert.throws(() => repository.save('system'), /Theme must be/);
 });
 
 test('core data initialization syncs the latest valid measurement into profile and current values', () => {

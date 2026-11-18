@@ -36,3 +36,20 @@ export function deleteProduct({ products, recipes, productId }) {
     index
   });
 }
+
+export function restoreProduct({ products, recipes, product, index }) {
+  assertCatalogCollections({ products, recipes });
+  if (!product || typeof product !== 'object' || product.id === undefined || product.id === null) {
+    throw new TypeError('A product to restore is required.');
+  }
+  if (products.some((item) => String(item.id) === String(product.id))) {
+    throw new Error(`Product "${product.id}" already exists.`);
+  }
+  if (!Number.isInteger(index) || index < 0) {
+    throw new RangeError('Product restore index must be a non-negative integer.');
+  }
+
+  const nextProducts = [...products];
+  nextProducts.splice(Math.min(index, nextProducts.length), 0, product);
+  return { products: nextProducts, recipes: [...recipes] };
+}

@@ -49,7 +49,8 @@ import {
 } from '../src/contracts/nutrition-set.contract.js';
 import {
   assertWaterMutationRequest,
-  assertWaterMutationResult
+  assertWaterMutationResult,
+  assertWaterRemovalResult
 } from '../src/contracts/water.contract.js';
 
 test('storage contracts define the required adapter and repository ports', () => {
@@ -183,11 +184,23 @@ test('catalog, planning, nutrition-set, and water contracts validate their outpu
   }));
   assert.equal(assertActiveNutritionSetResult('set-1'), 'set-1');
 
+  assert.doesNotThrow(() => assertWaterRemovalResult({
+    entries: [],
+    removed: { id: 1 },
+    index: 0
+  }));
+  assert.doesNotThrow(() => assertWaterRemovalResult({
+    entries: [],
+    removed: null,
+    index: -1
+  }));
   assert.throws(() => assertProductSaveResult({ status: 'unknown', products: [], recipes: [] }), /invalid status/);
   assert.throws(() => assertRecipeSaveResult({ recipes: [] }), /recipe and recipes array/);
   assert.throws(() => assertPlanCalculationResult({ plan: {} }), /incomplete/);
   assert.throws(() => assertNutritionSetMutationResult({ sets: [] }), /set and sets array/);
   assert.throws(() => assertWaterMutationResult(null), /entries array/);
+  assert.throws(() => assertWaterRemovalResult({ entries: [], removed: null, index: 0 }), /index -1/);
+  assert.throws(() => assertWaterRemovalResult({ entries: [], removed: { id: 1 }, index: 1 }), /remaining entries length/);
 });
 
 test('body-history contracts define persisted mutation requests and results', () => {
@@ -207,4 +220,40 @@ test('body-history contracts define persisted mutation requests and results', ()
   }));
   assert.throws(() => assertWeightHistoryRequest({ ...request, historyRepository: {} }), /weight-history repository/);
   assert.throws(() => assertMeasurementHistoryResult({ history: [], profile: {} }), /incomplete/);
+  assert.throws(() => assertWeightHistoryResult({
+    history: [],
+    profile: {},
+    removed: { date: '2026-11-17', weight: 64 }
+  }), /valid index/);
+  assert.throws(() => assertWeightHistoryResult({
+    history: [],
+    profile: {},
+    removed: 'invalid',
+    index: 0
+  }), /removed record is invalid/);
+  assert.throws(() => assertMeasurementHistoryResult({
+    history: [],
+    measurements: [],
+    profile: {},
+    removed: { date: '2026-11-17', values: [] },
+    index: 0
+  }), /removed record is invalid/);
+  assert.throws(() => assertMeasurementHistoryResult({
+    history: [],
+    measurements: [],
+    profile: {},
+    removed: null,
+    index: -2
+  }), /valid index/);
+  assert.doesNotThrow(() => assertWeightHistoryResult({
+    history: [],
+    profile: {},
+    removed: null,
+    index: 0
+  }));
+  assert.throws(() => assertWeightHistoryResult({
+    history: [],
+    profile: {},
+    index: 0
+  }), /valid index/);
 });

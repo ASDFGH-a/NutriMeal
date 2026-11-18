@@ -1,5 +1,6 @@
 import { calculatePlanTargets } from '../../../domain/planning/plan-calculations.js';
 import { normalizePlanData } from '../../../domain/planning/plan.model.js';
+import { assertObjectRepositoryPort } from '../../../contracts/storage.contract.js';
 import {
   assertPlanCalculationResult,
   assertPlanCalculationRequest,
@@ -25,6 +26,16 @@ export function recalculatePlan({ profile, plan, referenceDate = new Date() }) {
     },
     targets
   });
+}
+
+export function savePlan({ plan, repository }) {
+  if (!plan || typeof plan !== 'object' || Array.isArray(plan)) {
+    throw new TypeError('Plan data is required.');
+  }
+  assertObjectRepositoryPort(repository);
+  const normalized = normalizePlanData(plan);
+  repository.save(normalized);
+  return normalized;
 }
 
 export function applyPlanPreset({ presets, presetId, profile, plan, referenceDate = new Date() }) {

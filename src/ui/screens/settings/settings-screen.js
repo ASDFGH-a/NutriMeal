@@ -5,7 +5,7 @@
     return `<section class="card">
    <div class="card-head"><div><div class="card-title">Внешний вид</div><div class="card-desc">Оформление приложения</div></div></div>
    <div class="settings-list">
-    <div class="setting"><div><strong>Тёмная тема</strong><small>Переключение светлого и тёмного оформления</small></div><input class="switch" type="checkbox" id="settings-theme" ${theme === 'dark' ? 'checked' : ''}></div>
+    <div class="setting"><div><strong>Тёмная тема</strong><small>Переключение светлого и тёмного оформления</small></div><input class="switch" type="checkbox" id="settings-theme" aria-label="Тёмная тема" ${theme === 'dark' ? 'checked' : ''}></div>
     <div class="setting"><div><strong>Единицы измерения</strong><small>Вес, продукты и замеры тела</small></div><span class="tag">кг · г · см</span></div>
    </div>
   </section>

@@ -1,5 +1,4 @@
 import { createSeedCatalog } from '../../domain/catalog/catalog-seed.js';
-import { DEFAULT_MEAL_COUNT } from '../../domain/diary/meal-config.js';
 import { createCatalogCardSettingsRepository } from '../../infrastructure/persistence/repositories/catalog-card-settings.repository.js';
 import { createDiaryRepository } from '../../infrastructure/persistence/repositories/diary.repository.js';
 import { createMeasurementHistoryRepository } from '../../infrastructure/persistence/repositories/measurement.repository.js';
@@ -7,11 +6,9 @@ import { createPlanPresetsRepository } from '../../infrastructure/persistence/re
 import { createPlanRepository } from '../../infrastructure/persistence/repositories/plan.repository.js';
 import { createProfileRepository } from '../../infrastructure/persistence/repositories/profile.repository.js';
 import { createActiveNutritionSetRepository } from '../../infrastructure/persistence/repositories/active-nutrition-set.repository.js';
-import {
-  createNutritionSetsRepository,
-  NUTRITION_SETS_STORAGE_KEY
-} from '../../infrastructure/persistence/repositories/nutrition-sets.repository.js';
+import { createNutritionSetsRepository } from '../../infrastructure/persistence/repositories/nutrition-sets.repository.js';
 import { createWaterRepository } from '../../infrastructure/persistence/repositories/water.repository.js';
+import { createThemeRepository } from '../../infrastructure/persistence/repositories/theme.repository.js';
 import { createWeightHistoryRepository } from '../../infrastructure/persistence/repositories/weight.repository.js';
 import { migrateLegacyPlanWeeklyGoals, resolveActiveNutritionSetId } from '../../domain/nutrition-set/nutrition-set.model.js';
 import {
@@ -41,7 +38,7 @@ export function initializeCoreData(storage) {
     .sort((left, right) => right.date.localeCompare(left.date))[0];
   const nutritionSetsRepository = createNutritionSetsRepository(storage, catalog.products);
   let nutritionSets = nutritionSetsRepository.load();
-  if (storage.getItem(NUTRITION_SETS_STORAGE_KEY) === null) {
+  if (!nutritionSetsRepository.hasStoredValue()) {
     nutritionSetsRepository.save(nutritionSets);
   }
   const activeNutritionSetRepository = createActiveNutritionSetRepository(storage);
@@ -76,12 +73,12 @@ export function initializeCoreData(storage) {
     ...catalog,
     collections: [],
     catalogCardSettings: createCatalogCardSettingsRepository(storage).load(),
+    theme: createThemeRepository(storage).load(),
     diaryEntries: createDiaryRepository(storage).load(),
     waterEntries: createWaterRepository(storage).load(),
     weightHistory,
     measurementHistory,
     measurements: getCurrentMeasurementValues(measurementHistory),
-    mealSettings: { mealCount: DEFAULT_MEAL_COUNT },
     profile,
     plan,
     planPresets: createPlanPresetsRepository(storage).load(),

@@ -74,10 +74,19 @@ export function createNutritionSet({
   name,
   comment = '',
   id = `nutrition-set-${Date.now()}`,
-  products = []
+  products = [],
+  weeks,
+  personalWeeklyGoals
 }) {
   assertNutritionSetArray(sets);
   if (id === undefined || id === null || id === '') throw new TypeError('Nutrition set id is required.');
+  if (weeks !== undefined && !Array.isArray(weeks)) {
+    throw new TypeError('Nutrition set weeks must be an array.');
+  }
+  if (personalWeeklyGoals !== undefined
+    && (!personalWeeklyGoals || typeof personalWeeklyGoals !== 'object' || Array.isArray(personalWeeklyGoals))) {
+    throw new TypeError('Nutrition set weekly goals must be an object.');
+  }
   const normalizedName = normalizeSetName(name);
   assertUniqueName(sets, normalizedName);
   if (sets.some((set) => String(set.id) === String(id))) {
@@ -88,7 +97,8 @@ export function createNutritionSet({
     id,
     name: normalizedName,
     comment: normalizeSetComment(comment),
-    weeks: [emptyNutritionWeek(), emptyNutritionWeek(), emptyNutritionWeek(), emptyNutritionWeek()]
+    weeks: weeks ?? [emptyNutritionWeek(), emptyNutritionWeek(), emptyNutritionWeek(), emptyNutritionWeek()],
+    personalWeeklyGoals
   }, sets.length, products);
   const nextSets = [...sets, set];
   persist(repository, nextSets);

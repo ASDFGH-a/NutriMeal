@@ -101,6 +101,10 @@ export function createFoodDiaryEntry({
     p: protein * amount / 100,
     f: fat * amount / 100,
     c: carbohydrates * amount / 100,
+    components: storedSnapshot.components.map((component) => ({
+      ...component,
+      amount: Number(component.amount) * amount / 100
+    })),
     recipeId: kind === 'recipe' ? item.id : null,
     productId: kind === 'product' ? item.id : null,
     foodMetadataSnapshot: {

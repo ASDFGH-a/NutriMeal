@@ -40,7 +40,15 @@ test('food diary factory keeps portion quantity and calculates consumed nutrient
     date: '2026-11-17',
     today: '2026-11-17',
     meal: 'Завтрак',
-    item: { id: 9, name: 'Каша', kcal: 150, p: 5, f: 3, c: 25 },
+    item: {
+      id: 9,
+      name: 'Каша',
+      kcal: 150,
+      p: 5,
+      f: 3,
+      c: 25,
+      components: [{ name: 'Клетчатка', amount: 4, unit: 'г' }]
+    },
     kind: 'recipe',
     grams: 200,
     quantityMode: 'portions',
@@ -53,6 +61,7 @@ test('food diary factory keeps portion quantity and calculates consumed nutrient
   assert.equal(entry.quantityValue, 2);
   assert.equal(entry.portionGrams, 100);
   assert.equal(entry.kcal, 300);
+  assert.deepEqual(entry.components, [{ name: 'Клетчатка', amount: 8, unit: 'г' }]);
 });
 
 test('updating a food entry scales nutrients and components while preserving snapshots', () => {

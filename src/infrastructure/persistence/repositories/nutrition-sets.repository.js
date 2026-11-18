@@ -10,6 +10,9 @@ export function createNutritionSetsRepository(storage, products) {
   if (!Array.isArray(products)) throw new TypeError('Products must be an array.');
 
   return {
+    hasStoredValue() {
+      return storage.getItem(NUTRITION_SETS_STORAGE_KEY) !== null;
+    },
     load() {
       const serialized = storage.getItem(NUTRITION_SETS_STORAGE_KEY);
       if (serialized === null) return createDefaultNutritionSets(products);
