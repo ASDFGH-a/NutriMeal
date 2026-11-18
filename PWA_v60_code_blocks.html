@@ -928,6 +928,12 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 <script src="./src/ui/screens/diary/diary-screen.js"></script>
 <script src="./src/ui/screens/statistics/statistics-screen.js"></script>
 <script src="./src/ui/screens/planning/planning-screen.js"></script>
+<script src="./src/ui/screens/planning/nutrition-set-library.js"></script>
+<script src="./src/ui/screens/planning/planning-week.js"></script>
+<script src="./src/ui/screens/planning/planning-analytics.js"></script>
+<script src="./src/ui/screens/catalog/catalog-screen.js"></script>
+<script src="./src/ui/components/catalog/catalog-cards.js"></script>
+<script src="./src/ui/modals/catalog-modals.js"></script>
 <script>
 // #region JAVASCRIPT — Логика приложения
 // Примечание: большая часть динамической HTML-разметки создаётся внутри render/open-функций ниже.
@@ -1840,7 +1846,14 @@ function renderRecipes(){
   :(plannerDishAddContext||plannerCategoryAddContext)?`<div class="tabs meal-pick-tabs"><button class="tab active" data-pick-catalog="recipes">Рецепты</button></div>`
   :`<div class="tabs meal-pick-tabs"><button class="tab ${view==='recipes'?'active':''}" data-pick-catalog="recipes">Рецепты</button><button class="tab ${view==='myProducts'?'active':''}" data-pick-catalog="myProducts">Мои продукты</button><button class="tab ${view==='favorite'?'active':''}" data-pick-catalog="favorite">Избранное</button>${collectionAddContext?'':`<button class="tab ${view==='collections'?'active':''}" data-pick-catalog="collections">Подборки</button>`}</div>`
   :`<div class="tabs"><button class="tab ${view==='recipes'?'active':''}" data-tab="recipes">Рецепты</button><button class="tab ${view==='myProducts'?'active':''}" data-tab="myProducts">Мои продукты</button><button class="tab ${view==='favorite'?'active':''}" data-tab="favorite">Избранное</button><button class="tab ${view==='collections'?'active':''}" data-tab="collections">Подборки</button></div>`;
- const tabsMarkup=pickMode?tabs:`<div class="catalog-tabs-row">${tabs}<button type="button" class="icon-btn catalog-card-settings-btn" id="catalog-card-settings" title="Настройки отображения карточек" aria-label="Настройки отображения карточек">⚙</button></div>`;
+ const tabsMarkup=NutriMealUI.renderCatalogTabs({
+  view,
+  pickMode,
+  collectionAddContext,
+  recipeIngredientPickContext,
+  plannerDishAddContext,
+  plannerCategoryAddContext
+ });
  const searchValue=collectionView?collectionSearch:(productView?productsQuery:recipeSearch);
  const searchPlaceholder=collectionDetail?'Поиск в подборке':collectionView?'Поиск подборок':productView?'Поиск продуктов':'Поиск рецептов';
  const showFilters=(!pickMode||Boolean(plannerCategoryAddContext))&&view==='recipes';
@@ -1899,7 +1912,16 @@ function renderRecipes(){
   const productMeta=display.products?attributeRow('Продукты',getRecipeIngredientNames()):'';
   const customAttributeMeta=recipeCustomFilterCategories.map(category=>display[category.id]?attributeRow(category.label,valuesFor(r.customAttributes?.[category.id])):'').join('');
   const tagsMeta=display.customTags?attributeRow('Пользовательские теги',valuesFor(r.tags),'recipe-card-tags') :'';
-  return `<article class="card recipe-card" data-recipe="${r.id}"><div class="recipe-photo"><span>${r.emoji||'🍽️'}</span>${timeBadge}<div class="recipe-alert-badges">${missingProducts.length?'<span class="recipe-alert-badge" title="В составе есть продукт, отсутствующий в каталоге" aria-label="Неполный состав">!</span>':''}${allergenMatches.length?`<span class="recipe-alert-badge allergen" title="Совпадение с аллергиями профиля: ${escapeHtml(allergenMatches.join(', '))}" aria-label="Есть аллерген из профиля">!</span>`:''}</div><button class="heart ${r.favorite?'on':''}" data-heart="${r.id}" aria-label="${r.favorite?'Убрать из избранного':'В избранное'}">${r.favorite?'♥':'♡'}</button></div><div class="recipe-body"><div class="recipe-name">${escapeHtml(r.name)}</div>${mealMeta}${cuisineMeta}${dishTypeMeta}${allergenMeta}${categoriesMeta}${compositionMeta}${productMeta}${customAttributeMeta}${tagsMeta}${pickAction}${removeAction}</div></article>`;
+  return NutriMealUI.renderRecipeCatalogCard({
+   recipe:r,
+   timeBadge,
+   missingProducts:missingProducts.length>0,
+   allergenMatches,
+   mealMeta,cuisineMeta,dishTypeMeta,allergenMeta,categoriesMeta,
+   compositionMeta,productMeta,customAttributeMeta,tagsMeta,
+   pickAction,removeAction,
+   escapeHtml
+  });
  };
  const makeProductCard=(p,opts={})=>{
   const chosen=selectedProductKeys.has('p-'+p.id);
@@ -1918,12 +1940,32 @@ function renderRecipes(){
   const pickAction=pickMode?`<div class="recipe-pick-action"><span>${chosen?'Добавлено':''}</span><button type="button" class="recipe-pick-plus ${chosen?'selected':''}" data-pick-product="${p.id}" ${chosen?'disabled':''} aria-label="${chosen?'Уже добавлено':'Добавить '+escapeHtml(p.name)}">${chosen?'✓':'＋'}</button></div>`:'';
   const manageActions=!pickMode&&view==='myProducts'?`<div class="product-manage-actions"><button type="button" class="btn-quiet" data-edit-product="${p.id}">Изменить</button><button type="button" class="btn-quiet product-delete-btn" data-delete-product="${p.id}">Удалить</button></div>`:'';
   const removeAction=opts.collectionDetail&&!pickMode?`<button type="button" class="collection-item-remove" data-remove-collection-kind="product" data-remove-collection-id="${p.id}">Убрать из подборки</button>`:'';
-  return `<article class="card recipe-card product-pick-card" data-product="${p.id}" tabindex="0" role="button" aria-label="Открыть продукт ${escapeHtml(p.name)}"><div class="recipe-photo"><span>▧</span>${!pickMode?`<button class="heart ${p.favorite?'on':''}" data-product-heart="${p.id}" aria-label="${p.favorite?'Убрать из избранного':'В избранное'}">${p.favorite?'♥':'♡'}</button>`:''}</div><div class="recipe-body"><div class="recipe-name">${escapeHtml(p.name)}</div>${detail}${energyMeta}${macrosMeta}${categoriesMeta}${componentsMeta}${allergensMeta}${stateMeta}${tagsMeta}${customMeta}${pickAction}${manageActions}${removeAction}</div></article>`;
+  return NutriMealUI.renderProductCatalogCard({
+   product:p,
+   detail,
+   energyMeta,
+   macrosMeta,
+   categoriesMeta,
+   componentsMeta,
+   allergensMeta:allergensMeta,
+   stateMeta,
+   tagsMeta,
+   customMeta,
+   pickAction,
+   manageActions,
+   removeAction,
+   escapeHtml
+  });
  };
  let content='',heading='',countText='';
  if(collectionView&&!collectionDetail){
   const found=collections.filter(c=>c.name.toLocaleLowerCase('ru-RU').includes(q));
-  content=found.length?`<div class="collection-grid">${found.map(c=>{const valid=c.items.filter(x=>getCollectionItem(x.kind,x.id));return `<article class="card collection-card" data-open-collection="${c.id}"><div><div class="collection-card-icon">▤</div><div class="collection-card-title">${c.name}</div><div class="collection-card-meta">${valid.length} ${valid.length===1?'позиция':valid.length>=2&&valid.length<=4?'позиции':'позиций'}</div></div>${!pickMode?`<div class="collection-card-actions"><button class="btn-quiet" data-edit-collection="${c.id}">Переименовать</button><button class="btn-quiet" data-delete-collection="${c.id}">Удалить</button></div>`:''}</article>`}).join('')}</div>`:`<div class="empty" style="grid-column:1/-1">${q?'Подборки не найдены.':'Пока нет подборок.'}<br><span class="small muted">Создай подборку и добавь в неё любые свои рецепты и продукты.</span></div>`;
+  content=found.length?`<div class="collection-grid">${found.map(c=>{
+   const valid=c.items.filter(x=>getCollectionItem(x.kind,x.id));
+   return NutriMealUI.renderCollectionCatalogCard({
+    collection:c,itemCount:valid.length,pickMode,escapeHtml
+   });
+  }).join('')}</div>`:`<div class="empty" style="grid-column:1/-1">${q?'Подборки не найдены.':'Пока нет подборок.'}<br><span class="small muted">Создай подборку и добавь в неё любые свои рецепты и продукты.</span></div>`;
   heading='Подборки';countText=`${found.length} подборок`;
  }else if(collectionDetail){
   const items=collection.items.map(x=>({ref:x,item:getCollectionItem(x.kind,x.id)})).filter(x=>x.item).filter(x=>x.item.name.toLocaleLowerCase('ru-RU').includes(q));
@@ -1953,9 +1995,24 @@ function renderRecipes(){
   else if(view==='recipes')actionButton=`<div class="recipe-top-actions"><button type="button" class="btn" id="import-recipes">⇧ Импорт JSON</button><button class="btn-primary" id="new-recipe">＋ Новый рецепт</button></div>`;
  }
  const detailHeader=collectionDetail?`<div class="collection-detail-head"><button class="btn" id="collection-back">← Все подборки</button>${!pickMode?`<div class="collection-detail-actions"><button class="btn-quiet" id="collection-rename">Переименовать</button><button class="btn-quiet" id="collection-delete">Удалить подборку</button></div>`:''}</div>`:'';
- const toolbarMarkup=`<div class="toolbar"><div class="search"><span>⌕</span><input id="recipe-search" placeholder="${searchPlaceholder}" value="${searchValue.replace(/"/g,'&quot;')}"></div>${filterButton}${actionButton}</div>`;
+ const toolbarMarkup=NutriMealUI.renderCatalogToolbar({
+  searchPlaceholder,
+  searchValue,
+  filterButton,
+  actionButton
+ });
  const headingMarkup=`<div class="between"><div class="section-title">${heading}</div><span class="small muted">${countText}</span></div>`;
- page.innerHTML=pickMode?`${selectionBanner}${tabsMarkup}${detailHeader}${toolbarMarkup}${filtersPanel}${headingMarkup}${content}`:`${toolbarMarkup}${combinedFiltersPanel}${tabsMarkup}${detailHeader}${headingMarkup}${content}`;
+ page.innerHTML=NutriMealUI.renderCatalogScreen({
+  pickMode,
+  selectionBanner,
+  tabsMarkup,
+  detailHeader,
+  toolbarMarkup,
+  filtersPanel,
+  combinedFiltersPanel,
+  headingMarkup,
+  content
+ });
  const searchInput=document.getElementById('recipe-search');
  searchInput.addEventListener('input',e=>{
   if(collectionView)collectionSearch=e.target.value;
@@ -2055,7 +2112,8 @@ function renderRecipes(){
 }
 function openCollectionModal(collectionId=null){
  const existing=collectionId?collections.find(x=>String(x.id)===String(collectionId)):null;
- openModal(existing?'Переименовать подборку':'Новая подборка',`<div class="field"><label for="collection-name">Название подборки</label><input id="collection-name" type="text" maxlength="60" placeholder="Например, Завтраки или Набор массы" value="${existing?existing.name.replace(/"/g,'&quot;'):''}"></div><div class="field-help" style="margin-top:9px">Внутри можно собрать любые рецепты и продукты. Один объект можно включать в несколько подборок.</div>`,`<button class="btn" id="collection-cancel">Отмена</button><button class="btn-primary" id="collection-save">Сохранить</button>`);
+ const modalConfig=NutriMealUI.renderCollectionModal({existing,escapeHtml});
+ openModal(modalConfig.title,modalConfig.body,modalConfig.actions);
  document.getElementById('collection-cancel').onclick=closeModal;
  document.getElementById('collection-save').onclick=()=>{
   const name=document.getElementById('collection-name').value.trim();if(!name){toast('Укажи название подборки');return}
@@ -2071,8 +2129,8 @@ function deleteCollection(collectionId){
 function openCollectionItemsModal(collectionId){
  const collection=collections.find(x=>String(x.id)===String(collectionId));if(!collection)return;
  collectionAddTab='recipes';collectionSearch='';
- const body=`<div class="tabs collection-source-tabs"><button class="tab active" data-collection-source-tab="recipes">Рецепты</button><button class="tab" data-collection-source-tab="products">Мои продукты</button></div><div class="search" style="max-width:none"><span>⌕</span><input id="collection-source-search" type="search" placeholder="Поиск"></div><div class="collection-source-list" id="collection-source-list"></div>`;
- openModal(`Добавить в «${collection.name}»`,body,`<button class="btn" id="collection-source-done">Готово</button>`);
+ const modalConfig=NutriMealUI.renderCollectionSourceModal({collectionName:collection.name,escapeHtml});
+ openModal(modalConfig.title,modalConfig.body,modalConfig.actions);
  const list=document.getElementById('collection-source-list');
  const paint=()=>{
   const isProducts=collectionAddTab==='products';
@@ -2375,19 +2433,13 @@ function renderPlanning(){
   const dishCount=stats.recipeCount;
   const groupCount=getPlannerSetFoodGroupCount(set);
   const hasWarnings=stats.unresolvedDishCount+stats.missingProductCount+stats.conversionIssueCount>0;
-  return `<div class="planner48-set-wrap">
-   <button type="button" class="planner48-set-card ${selected?'is-selected':''}" data-nutrition-set-select="${escapeHtml(set.id)}" aria-pressed="${selected}">
-    <div class="planner48-set-top"><span class="planner48-set-code">${String.fromCharCode(65+index)}</span>${selected?'<span class="tag active">Выбран</span>':'<span class="planner48-set-open">Открыть набор ↗</span>'}</div>
-    <strong class="planner48-set-name">${escapeHtml(set.name)}</strong><span class="planner48-set-note">4 недели · ${dishCount} ${dishCount===1?'блюдо':dishCount>=2&&dishCount<=4?'блюда':'блюд'}${hasWarnings?' · есть неполные составы':''}</span>
-    ${set.comment?`<div class="planner48-set-comment"><span class="planner48-set-comment-label">Комментарий</span><span class="planner48-set-comment-text">${escapeHtml(set.comment)}</span></div>`:''}
-    <div class="planner48-set-kcal"><b>${fmt(stats.totals.kcal||0)}</b><span>ккал / весь набор</span></div>
-    <div class="planner48-set-average">${stats.recipeCount?`В среднем ${fmt(daily.kcal||0)} ккал в день`:'Нет записей для расчёта среднего'}</div>
-    <div class="planner48-set-stats"><span><b>${micro.averageCoverage===null?'—':micro.averageCoverage+'%'}</b><small>RDA / AI</small></span><span><b>${groupCount}/7</b><small>групп продуктов</small></span><span><b>${stats.productNames.size}</b><small>продуктов</small></span><span><b>${dishCount}</b><small>блюд</small></span></div>
-    <div class="planner48-set-macros"><span>Б ${fmt(stats.totals.p||0)} г</span><span>Ж ${fmt(stats.totals.f||0)} г</span><span>У ${fmt(stats.totals.c||0)} г</span></div>
-   </button>
-   <button type="button" class="planner48-set-edit" data-nutrition-set-edit="${escapeHtml(set.id)}" aria-label="Редактировать набор ${escapeHtml(set.name)}" title="Редактировать набор">Редактировать</button>
-   <button type="button" class="planner48-set-delete" data-nutrition-set-delete="${escapeHtml(set.id)}" aria-label="Удалить набор ${escapeHtml(set.name)}" title="Удалить набор">×</button>
-  </div>`;
+  return NutriMealUI.renderNutritionSetCard({
+   set,index,selected,dishCount,groupCount,
+   averageKcal:daily.kcal||0,
+   averageCoverage:micro.averageCoverage,
+   productCount:stats.productNames.size,
+   hasWarnings,totals:stats.totals,escapeHtml,fmt
+  });
  }).join('');
  const mainDishes=currentWeek?.mainDishes||[];
  const weekSnacks=currentWeek?.snacks||[];
@@ -2474,33 +2526,27 @@ function renderPlanning(){
  </section>
  <section class="card planner48-week-panel">
   <div class="planner48-section-head"><div><div class="planner48-eyebrow">02 / СОСТАВ НАБОРА</div><h2>${activeSet?`${escapeHtml(activeSet.name)} · четыре недели`:'Набор не выбран'}</h2><p>${activeSet?'Выбранная неделя определяет состав и все показатели аналитики ниже.':'Создай новый набор или выбери существующий в библиотеке выше.'}</p></div>${activeSet?`<div class="planner48-set-heading-actions"><span class="tag active">${selectedWeek} / 4</span></div>`:''}</div>
-  ${activeSet?`<div class="planner48-week-tabs" role="group" aria-label="Переключение недель">${[1,2,3,4].map(n=>`<button type="button" data-planner-week-select="${n}" class="${n===selectedWeek?'active':''}" aria-pressed="${n===selectedWeek}"><b>0${n}</b><small>${dates[n-1]}</small></button>`).join('')}</div>
-  <div class="planner48-week-heading"><div><h3>Неделя ${selectedWeek}</h3><span>${dates[selectedWeek-1]} 2026</span></div><button type="button" class="btn" data-edit-nutrition-week="${selectedWeek-1}">Изменить блюда ↗</button></div>
-  <section class="planner48-dish-section"><div class="planner48-dish-section-head"><h3>Основные блюда</h3><span class="tag">${mainDishes.filter(dish=>dish.recipeId).length} из ${mainDishes.length} заполнено</span></div>${mainDishRows?`<div class="planner48-dish-grid">${mainDishRows}</div>`:'<div class="planner48-empty-dishes">Пока нет основных блюд. Нажми «Изменить блюда», чтобы добавить позиции.</div>'}</section>
-  <section class="planner48-dish-section planner48-snacks-section"><div class="planner48-dish-section-head"><h3>Закуски</h3><span class="tag">${weekSnacks.filter(dish=>dish.recipeId).length} из ${weekSnacks.length} заполнено</span></div>${snackRows?`<div class="planner48-dish-grid">${snackRows}</div>`:'<div class="planner48-empty-dishes">Пока нет закусок. При необходимости добавь их в режиме редактирования.</div>'}</section>`:`<div class="planner48-library-empty">Пока нечего редактировать. Создай набор в библиотеке — в нём всегда будет четыре недели.</div>`}
+  ${NutriMealUI.renderPlanningWeek({
+   activeSet,selectedWeek,dates,
+   mainDishes,
+   snackDishes:weekSnacks,
+   recipes,
+   recipeSummary,
+   escapeHtml,
+   locale:appLocale
+  })}
  </section>
- <section class="card planner48-categories">
-  <div class="planner48-section-head"><div><div class="planner48-eyebrow">03 / ПОЛНОТА И РАЗНООБРАЗИЕ</div><h2>Мои ориентиры</h2><p>Показатели рассчитываются по блюдам и продуктам выбранной недели.</p></div>${activeSet?`<div class="planner48-set-heading-actions"><span class="tag active">Неделя ${selectedWeek}</span><button type="button" class="btn" id="planner-weekly-goals-open">Настроить ориентиры</button></div>`:''}</div>
-  ${activeSet?`<div class="planner48-category-legend"><span>КАТЕГОРИЯ И ЦЕЛЬ</span><span>БЛЮДА В МЕНЮ</span><span>РАЗНООБРАЗИЕ</span></div><div class="planner48-category-list">${categoryMarkup}</div>`:`<div class="planner48-library-empty">Ориентиры появятся здесь после выбора набора и недели.</div>`}
- </section>
- <section class="card planner48-analytics">
-  <div class="planner48-section-head"><div><div class="planner48-eyebrow">04 / АНАЛИТИКА РАЦИОНА</div><h2>Питательная ценность</h2><p>Фактическое КБЖУ блюд выбранного набора и недели в сравнении с целями профиля.</p></div></div>
-  <div class="planner48-period-row"><div class="planner-period-switch" role="group" aria-label="Период аналитики"><button type="button" data-planner-period="day" class="${plannerAnalyticsPeriod==='day'?'active':''}" aria-pressed="${plannerAnalyticsPeriod==='day'}">Среднее за день</button><button type="button" data-planner-period="week" class="${plannerAnalyticsPeriod==='week'?'active':''}" aria-pressed="${plannerAnalyticsPeriod==='week'}">Итого за неделю</button></div><span class="planner48-period-caption">${period.label}</span></div>
-  <div class="planner48-analytics-overview">
-   <div class="planner48-kcal-card"><div class="planner48-kcal-top"><span>${period.heading}</span><span class="tag active">${targetKcalPeriod>0?Math.round((periodData.kcal||0)/targetKcalPeriod*100)+'% цели':'Цель не задана'}</span></div><div class="planner48-kcal-number">${fmt(periodData.kcal||0)} <small>${period.valueUnit}</small></div><div class="planner48-kcal-target">Персональный ориентир: ${fmt(targetKcalPeriod)} ${period.valueUnit}</div><div class="planner48-kcal-track"><i style="width:${targetKcalPeriod>0?Math.min(100,(periodData.kcal||0)/targetKcalPeriod*100):0}%"></i></div></div>
-   <div class="planner48-rda-card"><span>СРЕДНЕЕ ПОКРЫТИЕ RDA / AI</span><strong>${rdaText}</strong><small>${nutrientStats.averageCoverage===null?'Нет сопоставимых нутриентов или данных Профиля':'Среднее по нутриентам с заполненными значениями, за сутки'}</small><div class="planner48-kcal-track"><i style="width:${Math.min(100,nutrientStats.averageCoverage||0)}%"></i></div></div>
-  </div>
-  <div class="planner48-macro-grid">${macroMarkup}</div>
-  <div class="planner48-nutrients-grid">
-   <div class="planner48-nutrient-card"><div class="planner48-subhead"><h3>Витамины</h3><span>Факт / RDA</span></div>${nutrientList(nutrientStats.vitaminRows)}</div>
-   <div class="planner48-nutrient-card"><div class="planner48-subhead"><h3>Минералы и другие нутриенты</h3><span>Факт / RDA</span></div>${nutrientList(nutrientStats.mineralRows)}</div>
-  </div>
-  <div class="planner48-analysis-foot">${nutritionFootParts.map(escapeHtml).join(' ')}</div>
- </section>
- <section class="planner-meals-section planner48-meals">
-  <div class="planner48-section-head"><div><div class="planner48-eyebrow">05 / РАСПРЕДЕЛЕНИЕ</div><h2>КБЖУ по приёмам пищи</h2><p>Среднее суточное КБЖУ выбранной недели распределяется по приёмам пищи с учётом структуры из Профиля.</p></div><span class="tag active">Неделя ${selectedWeek}</span></div>
-  <div class="planner-meal-target-grid">${mealCards}</div>
- </section>
+ ${NutriMealUI.renderPlannerCategoryAndMeals({
+  activeSet,selectedWeek,categoryMarkup,
+  period:{...period,mode:plannerAnalyticsPeriod,kcalText:fmt(periodData.kcal||0),targetText:fmt(targetKcalPeriod)},
+  periodData,targetKcalPeriod,rdaText,nutrientStats,
+  macroMarkup,
+  vitaminMarkup:nutrientList(nutrientStats.vitaminRows),
+  mineralMarkup:nutrientList(nutrientStats.mineralRows),
+  nutritionFootText:nutritionFootParts.map(escapeHtml).join(' '),
+  mealCards,
+  escapeHtml
+ })}
 `;
  document.getElementById('edit-setup').onclick=()=>openSetupModal();
  document.getElementById('plan-preset-save-open').onclick=()=>openPlanPresetSaveModal();
