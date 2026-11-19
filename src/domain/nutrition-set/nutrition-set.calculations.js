@@ -153,6 +153,17 @@ export function getNutritionRecipeFoodMetadata(recipe, products) {
   };
 }
 
+export function recipeMatchesFoodGroup(recipe, group, products) {
+  if (!group || typeof group !== 'object' || !Array.isArray(group.categories)) {
+    throw new TypeError('A food group with categories is required.');
+  }
+  const metadata = getNutritionRecipeFoodMetadata(recipe, products);
+  const categories = [...metadata.categories, ...getRecipeCategories(recipe)];
+  return categories.some((category) => group.categories.some((expected) => (
+    normalizeRecipeFilterValue(expected) === normalizeRecipeFilterValue(category)
+  )));
+}
+
 export function getNutritionWeekFoodStats(week, recipes, products, groups = WEEKLY_FOOD_GROUPS) {
   if (!Array.isArray(recipes) || !Array.isArray(products) || !Array.isArray(groups)) {
     throw new TypeError('Recipes, products, and food groups must be arrays.');
@@ -204,6 +215,35 @@ export function getPersonalWeeklyGoal(set, groupId, type) {
     ? goals.completeness?.[groupId] ?? goals.frequency?.[groupId]
     : goals[type]?.[groupId];
   return Number(value) || null;
+}
+
+export function getNutritionWeekGoalStats(week, set, recipes, products, groups = WEEKLY_FOOD_GROUPS) {
+  const stats = getNutritionWeekFoodStats(week, recipes, products, groups);
+  return groups.map((group) => {
+    const stat = stats[group.id];
+    const personalTarget = getPersonalWeeklyGoal(set, group.id, 'completeness');
+    const completionTarget = Math.max(1, Number(personalTarget) || group.min || 1);
+    const diversityTarget = getPersonalWeeklyGoal(set, group.id, 'diversity');
+
+    return {
+      group,
+      count: stat.count,
+      items: stat.items,
+      personalTarget,
+      completionTarget,
+      completionPercent: Math.min(100, Math.round(stat.count / completionTarget * 100)),
+      completionReached: stat.count >= completionTarget,
+      completionRemaining: Math.max(0, completionTarget - stat.count),
+      diversityTarget,
+      diversityPercent: diversityTarget
+        ? Math.min(100, Math.round(stat.items.size / diversityTarget * 100))
+        : null,
+      diversityReached: diversityTarget ? stat.items.size >= diversityTarget : null,
+      diversityRemaining: diversityTarget
+        ? Math.max(0, diversityTarget - stat.items.size)
+        : null
+    };
+  });
 }
 
 export function getNutritionSetFoodGroupCount(set, recipes, products, groups = WEEKLY_FOOD_GROUPS) {
@@ -284,7 +324,8 @@ export function aggregateNutritionWeeks(weeks, recipes, products) {
     recipeCount,
     unresolvedDishCount,
     missingProductCount,
-    conversionIssueCount
+    conversionIssueCount,
+    missingDataCount: unresolvedDishCount + missingProductCount + conversionIssueCount
   };
 }
 
@@ -299,6 +340,34 @@ export function getNutritionAverage(aggregate, days) {
       ...component,
       amount: component.amount / days
     }))
+  };
+}
+
+export function getNutritionPeriodStats(aggregate, targets, period = 'day') {
+  if (!targets || typeof targets !== 'object') throw new TypeError('Nutrition targets are required.');
+  const dailyTotals = getNutritionAverage(aggregate, 7).totals;
+  const days = period === 'week' ? 7 : 1;
+  const totals = period === 'week' ? aggregate.totals : dailyTotals;
+  const macros = [
+    { key: 'p', target: targets.protein },
+    { key: 'f', target: targets.fat },
+    { key: 'c', target: targets.carbs }
+  ].map(({ key, target }) => {
+    const actual = totals[key] || 0;
+    const periodTarget = target * days;
+    return {
+      key,
+      actual,
+      target: periodTarget,
+      percent: periodTarget > 0 ? Math.round(actual / periodTarget * 100) : null
+    };
+  });
+  return {
+    dailyTotals,
+    totals,
+    days,
+    targetKcal: targets.kcal * days,
+    macros
   };
 }
 

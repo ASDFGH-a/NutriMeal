@@ -8,6 +8,7 @@ import {
   getMealShares,
   getStandardMeals
 } from '../src/domain/diary/meal-config.js';
+import { getMealNutritionTargets } from '../src/domain/diary/diary-calculations.js';
 import {
   createDiaryRepository,
   DIARY_STORAGE_KEY
@@ -30,6 +31,7 @@ import {
 } from '../src/infrastructure/persistence/repositories/theme.repository.js';
 import { createArrayRepository } from '../src/infrastructure/persistence/storage.js';
 import { initializeCoreData } from '../src/application/services/initialize-core-data.js';
+import { initializeCoreDataFromStorage } from './helpers/core-data.js';
 import { addFoodEntry } from '../src/application/usecases/diary/add-food-entry.js';
 import { addWaterEntry } from '../src/application/usecases/water/add-water-entry.js';
 import { createFoodDiaryEntry } from '../src/domain/diary/diary-entry.js';
@@ -85,6 +87,30 @@ test('meal configuration preserves default, bounded meal count, shares, and diar
   );
 });
 
+test('meal nutrition targets apply normalized meal shares and preserve macro rounding', () => {
+  const targets = getMealNutritionTargets(
+    { kcal: 2187, p: 100, f: 67, c: 250 },
+    { kcal: 2100 },
+    { mealCount: 3 }
+  );
+
+  assert.deepEqual(targets.map(({ meal, sharePercent }) => [meal, sharePercent]), [
+    ['Завтрак', 33],
+    ['Обед', 40],
+    ['Ужин', 27]
+  ]);
+  assert.deepEqual(targets[0], {
+    meal: 'Завтрак',
+    share: 1 / 3,
+    sharePercent: 33,
+    kcal: 729,
+    protein: 33.3,
+    fat: 22.3,
+    carbs: 83.3,
+    targetKcal: 700
+  });
+});
+
 test('array repositories read and write legacy arrays using unchanged localStorage keys', () => {
   const storage = createMemoryStorage({
     [DIARY_STORAGE_KEY]: '[{"id":1}]',
@@ -131,7 +157,7 @@ test('core data initialization composes catalog, settings, and persisted records
     [MEASUREMENT_HISTORY_STORAGE_KEY]: '[{"id":10,"height":166}]'
   });
 
-  const state = initializeCoreData(storage);
+  const state = initializeCoreDataFromStorage(storage);
 
   assert.equal(state.recipes.length, 6);
   assert.equal(state.products.length, 7);
@@ -146,7 +172,7 @@ test('core data initialization composes catalog, settings, and persisted records
 });
 
 test('core data initialization loads the saved appearance preference', () => {
-  const state = initializeCoreData(createMemoryStorage({
+  const state = initializeCoreDataFromStorage(createMemoryStorage({
     [THEME_STORAGE_KEY]: 'dark'
   }));
 
@@ -172,11 +198,15 @@ test('core data initialization syncs the latest valid measurement into profile a
     ])
   });
 
-  const state = initializeCoreData(storage);
+  const state = initializeCoreDataFromStorage(storage);
 
   assert.equal(state.profile.height, 170);
   assert.equal(state.measurements.find((measurement) => measurement.name === 'Талия').value, 76);
   assert.equal(state.measurements.find((measurement) => measurement.name === 'Грудь').value, null);
+});
+
+test('core data initialization requires the composition root to provide repositories', () => {
+  assert.throws(() => initializeCoreData(), /Core repositories are required/);
 });
 
 test('default profile and plan factories return independent initial settings', () => {

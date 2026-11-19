@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { initializeCoreData } from '../src/application/services/initialize-core-data.js';
+import { initializeCoreDataFromStorage } from './helpers/core-data.js';
 import {
   addNutritionDishSlot,
   assignNutritionDishRecipe,
@@ -241,7 +241,7 @@ test('core initialization persists defaults, resolves invalid active ids, and mi
     })
   });
 
-  const state = initializeCoreData(storage);
+  const state = initializeCoreDataFromStorage(storage);
   assert.equal(state.nutritionSets.length, 1);
   assert.equal(state.nutritionSets[0].weeks.length, 4);
   assert.equal(state.activeNutritionSetId, 'legacy-set');
@@ -251,7 +251,7 @@ test('core initialization persists defaults, resolves invalid active ids, and mi
   assert.equal(JSON.parse(storage.getItem(NUTRITION_SETS_STORAGE_KEY))[0].id, 'legacy-set');
 
   const emptyStorage = createMemoryStorage();
-  const initialized = initializeCoreData(emptyStorage);
+  const initialized = initializeCoreDataFromStorage(emptyStorage);
   assert.deepEqual(initialized.nutritionSets, createDefaultNutritionSets(products));
   assert.equal(initialized.activeNutritionSetId, 'nutrition-set-a');
   assert.ok(emptyStorage.getItem(NUTRITION_SETS_STORAGE_KEY));

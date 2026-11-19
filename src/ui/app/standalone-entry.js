@@ -1,41 +1,79 @@
 import '../state/app-state.js';
 import '../components/app-shell.js';
 import '../components/overlay-host.js';
+import '../router/app-router.js';
+import '../screens/screen-router.js';
 import './application-bootstrap.js';
 import '../screens/diary/diary-screen.js';
 import '../screens/catalog/catalog-screen.js';
 import '../screens/statistics/statistics-screen.js';
 import '../screens/settings/settings-screen.js';
 import '../screens/settings/theory-screen.js';
+import '../screens/planning/planning-screen.js';
+import '../screens/profile/profile-screen.js';
+import '../screens/planning/nutrition-set-library.js';
+import '../screens/planning/planning-week.js';
+import '../screens/planning/planning-analytics.js';
 import '../components/catalog/catalog-cards.js';
 import '../components/catalog/catalog-filters.js';
 import '../modals/diary-modals.js';
 import '../modals/catalog-editors.js';
 import '../modals/catalog-modals.js';
+import '../modals/planning-modals.js';
+import '../modals/profile-modal.js';
+import '../modals/body-history-modals.js';
 import { initializeCoreData } from '../../application/services/initialize-core-data.js';
+import { createSeedCatalog } from '../../domain/catalog/catalog-seed.js';
+import { createCoreRepositories } from '../../infrastructure/persistence/create-core-repositories.js';
 import { createDiaryServices } from '../../application/services/diary-services.js';
 import { createWaterServices } from '../../application/services/water-services.js';
 import { createCatalogServices } from '../../application/services/catalog-services.js';
+import { createPlanningServices } from '../../application/services/planning-services.js';
+import { createProfileServices } from '../../application/services/profile-services.js';
+import { createBodyHistoryServices } from '../../application/services/body-history-services.js';
 import { dateKey, todayLocalDate } from '../../domain/shared/date-utils.js';
 import { createDiaryViewModel } from '../screens/diary/diary-presenter.js';
 import { createMealAddFlow } from './meal-add-flow.js';
 import { createMassEntryFlow } from './mass-entry-flow.js';
 import { createStatisticsFlow } from './statistics-flow.js';
 import { createSettingsFlow } from './settings-flow.js';
-import { createThemeRepository } from '../../infrastructure/persistence/repositories/theme.repository.js';
-import { createCatalogCardSettingsRepository } from '../../infrastructure/persistence/repositories/catalog-card-settings.repository.js';
+import { createPlanningFlow } from './planning-flow.js';
+import { createProfileFlow } from './profile-flow.js';
 
 const ui = globalThis.NutriMealUI;
 const storage = globalThis.localStorage;
-const data = initializeCoreData(storage);
-const diaryServices = createDiaryServices(storage);
-const waterServices = createWaterServices(storage);
+const catalog = createSeedCatalog();
+const repositories = createCoreRepositories(storage, catalog.products);
+const data = initializeCoreData({ catalog, repositories });
+const diaryServices = createDiaryServices(repositories.diary);
+const waterServices = createWaterServices(repositories.water);
 const catalogServices = createCatalogServices();
-const catalogCardSettingsRepository = createCatalogCardSettingsRepository(storage);
+const planningServices = createPlanningServices({
+  planRepository: repositories.plan,
+  presetRepository: repositories.planPresets,
+  nutritionSetRepository: repositories.nutritionSets,
+  activeNutritionSetRepository: repositories.activeNutritionSet,
+  products: data.products
+});
+const profileServices = createProfileServices(repositories.profile);
+const bodyHistoryServices = createBodyHistoryServices({
+  weightRepository: repositories.weightHistory,
+  measurementRepository: repositories.measurementHistory,
+  profileRepository: repositories.profile
+});
+const catalogCardSettingsRepository = repositories.catalogCardSettings;
 const application = ui.bootstrapApplication({ document, initialPage: 'diary' });
 const page = document.getElementById('page');
 page.dataset.page = 'diary';
 const today = dateKey(todayLocalDate());
+const pageTitles = {
+  diary: ['Дневник', 'Ежедневный учёт питания и показателей'],
+  recipes: ['Рецепты', 'Каталог блюд и продуктов'],
+  planning: ['Планирование', 'Составление плана питания'],
+  stats: ['Статистика', 'Показатели питания и тела за выбранный период'],
+  profile: ['Профиль', 'Личные параметры и история тела'],
+  settings: ['Настройки', 'Настройки приложения']
+};
 let selectedDate = today;
 let expandedMeals = new Set();
 let toastTimer;
@@ -44,6 +82,10 @@ let mealAddFlow;
 let massEntryFlow;
 let statisticsFlow;
 let settingsFlow;
+let planningFlow;
+let profileFlow;
+let appRouter;
+let screenRouter;
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -87,7 +129,10 @@ function openModal(title, body, actions, onDismiss = null) {
     'filter-admin-modal',
     'recipe-detail-modal',
     'recipe-edit-modal',
-    'product-detail-modal'
+    'product-detail-modal',
+    'nutrition-review-modal',
+    'profile-edit-modal',
+    'measurements-modal'
   ].forEach((className) => modal.classList.remove(className));
   const head = document.querySelector('.modal-head');
   modalDismissHandler = onDismiss;
@@ -116,6 +161,7 @@ function setSelectedDate(value) {
 
 function renderDiary(expandMeal) {
   if (expandMeal) expandedMeals.add(expandMeal);
+  profileFlow.syncPlanCalculations();
   const model = createDiaryViewModel({
     data,
     selectedDate,
@@ -187,17 +233,16 @@ function renderDiary(expandMeal) {
     button.addEventListener('click', () => removeWaterEntry(button.dataset.waterRemove));
   });
 
-  page.querySelectorAll('#open-weight, #open-weight-history, #open-measures').forEach((button) => {
-    button.disabled = true;
-    button.title = 'Этот сценарий будет подключён следующим этапом переноса';
-  });
+  profileFlow.bindDiaryActions();
 }
 
 function updateNavigation(activePage) {
   document.querySelectorAll('#nav [data-page]').forEach((button) => {
     const available = button.dataset.page === 'diary'
       || button.dataset.page === 'recipes'
+      || button.dataset.page === 'planning'
       || button.dataset.page === 'stats'
+      || button.dataset.page === 'profile'
       || button.dataset.page === 'settings';
     button.disabled = !available;
     button.classList.toggle('active', button.dataset.page === activePage);
@@ -206,22 +251,7 @@ function updateNavigation(activePage) {
 }
 
 function navigatePage(name) {
-  application.state.setPage(name);
-  const titles = {
-    diary: ['Дневник', 'Ежедневный учёт питания и показателей'],
-    recipes: ['Рецепты', 'Каталог блюд и продуктов'],
-    stats: ['Статистика', 'Показатели питания и тела за выбранный период'],
-    settings: ['Настройки', 'Настройки приложения']
-  };
-  const [title, subtitle] = titles[name] || titles.diary;
-  document.getElementById('page-title').textContent = title;
-  document.getElementById('page-subtitle').textContent = subtitle;
-  page.dataset.page = name;
-  updateNavigation(name);
-  if (name === 'recipes') mealAddFlow.renderPicker();
-  else if (name === 'stats') statisticsFlow.render();
-  else if (name === 'settings') settingsFlow.render();
-  else renderDiary();
+  appRouter.navigate(name);
 }
 
 function openFoodModal(meal, existing = null, replacing = false) {
@@ -410,6 +440,7 @@ massEntryFlow = createMassEntryFlow({
   today,
   getSelectedDate: () => selectedDate,
   setSelectedDate,
+  expandDiaryMeals: (meals) => meals.forEach((meal) => expandedMeals.add(meal)),
   navigatePage,
   openModal,
   closeModal,
@@ -431,9 +462,65 @@ settingsFlow = createSettingsFlow({
   document,
   ui,
   data,
-  themeRepository: createThemeRepository(storage),
+  themeRepository: repositories.theme,
   showToast,
   escapeHtml
+});
+
+profileFlow = createProfileFlow({
+  document,
+  ui,
+  page,
+  data,
+  profileServices,
+  bodyHistoryServices,
+  planningServices,
+  today,
+  openModal,
+  closeModal,
+  showToast,
+  escapeHtml,
+  renderDiary
+});
+
+planningFlow = createPlanningFlow({
+  document,
+  ui,
+  data,
+  services: planningServices,
+  mealAddFlow,
+  navigatePage,
+  openProfile: () => {
+    navigatePage('profile');
+    profileFlow.openProfileModal();
+  },
+  openModal,
+  closeModal,
+  showToast,
+  escapeHtml
+});
+
+screenRouter = ui.createScreenRouter({
+  screens: {
+    diary: renderDiary,
+    recipes: () => mealAddFlow.renderPicker(),
+    planning: () => planningFlow.render(),
+    stats: () => statisticsFlow.render(),
+    profile: () => profileFlow.render(),
+    settings: () => settingsFlow.render()
+  },
+  afterRender: () => updateNavigation(application.state.activePage)
+});
+
+appRouter = ui.createAppRouter({
+  state: application.state,
+  onNavigate(name) {
+    const [title, subtitle] = pageTitles[name];
+    document.getElementById('page-title').textContent = title;
+    document.getElementById('page-subtitle').textContent = subtitle;
+    page.dataset.page = name;
+    screenRouter.render(name);
+  }
 });
 
 document.documentElement.dataset.theme = data.theme;
@@ -441,6 +528,10 @@ document.querySelectorAll('#nav [data-page]').forEach((button) => {
   button.addEventListener('click', () => {
     if (button.disabled) return;
     if (button.dataset.page !== 'recipes' && mealAddFlow.isPicking()) {
+      if (mealAddFlow.abandonPlannerRecipeSelection()) {
+        navigatePage(button.dataset.page);
+        return;
+      }
       mealAddFlow.cancel();
       if (button.dataset.page !== 'diary') navigatePage(button.dataset.page);
       return;
@@ -454,5 +545,4 @@ document.getElementById('modal-backdrop').addEventListener('click', (event) => {
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && document.getElementById('modal-backdrop').classList.contains('open')) closeModal();
 });
-updateNavigation('diary');
-renderDiary();
+navigatePage('diary');

@@ -4,6 +4,7 @@ import { getDiaryStatistics } from '../src/application/usecases/statistics/get-d
 import {
   calculateBodyStatistics,
   calculateDiaryStatistics,
+  getAggregateMicronutrientStats,
   getDiaryStatisticsBuckets,
   getDiaryStatisticsRange,
   getMeasurementDelta,
@@ -112,11 +113,29 @@ test('diary analytics distinguish missing records, calorie-only days, and known 
   assert.equal(model.waterTotalMl, 500);
   assert.equal(model.waterAverageMl, 100);
   assert.equal(model.loggedWaterDays, 2);
+  assert.equal(model.minWaterDayMl, 250);
+  assert.equal(model.maxWaterDayMl, 250);
   assert.equal(model.allFoodItemCount, 2);
   assert.equal(model.groupStats.find((item) => item.group.id === 'vegetables').targetEntries, 2);
   assert.equal(model.groupStats.find((item) => item.group.id === 'vegetables').frequencyPercent, 50);
+  assert.equal(model.frequencyGoalMetCount, 0);
+  assert.equal(model.matchedMicronutrientCount, 2);
   assert.equal(model.micronutrients.find((item) => item.name === 'Кальций').dailyAmount, 150);
   assert.equal(model.micronutrients.find((item) => item.name === 'Кальций').percent, 15);
+});
+
+test('statistics summarize recorded water extremes and leave them unset when empty', () => {
+  const model = statistics([], [
+    { date: '2026-11-15', ml: 200 },
+    { date: '2026-11-18', ml: 750 }
+  ]);
+  const empty = statistics();
+
+  assert.equal(model.minWaterDayMl, 200);
+  assert.equal(model.maxWaterDayMl, 750);
+  assert.equal(model.frequencyGoalMetCount, 0);
+  assert.equal(empty.minWaterDayMl, null);
+  assert.equal(empty.maxWaterDayMl, null);
 });
 
 test('statistics buckets use calendar-day averages and omit unknown macro values', () => {
@@ -149,6 +168,7 @@ test('body analytics order measurements and calculate weight and circumference c
 
   assert.equal(body.weightChange, -2);
   assert.equal(body.latestWeight.date, '2026-11-17');
+  assert.equal(body.latestMeasureFilledCount, 1);
   assert.equal(getMeasurementDelta('Талия', body.latestMeasure, body.previousMeasure), -2);
   assert.equal(getMeasurementDelta('Грудь', body.latestMeasure, body.previousMeasure), null);
 });
@@ -160,6 +180,29 @@ test('nutrient reference values depend on age and sex and unit-compatible compon
     kind: 'RDA'
   });
   assert.equal(getNutrientReferenceValue('Кальций', { birthDate: '', sex: 'Женский' }), null);
+});
+
+test('aggregate micronutrient stats use calendar-day averages and separate vitamin groups', () => {
+  const stats = getAggregateMicronutrientStats({
+    components: [
+      { name: 'Витамин C', amount: 630, unit: 'мг' },
+      { name: 'Кальций', amount: 7, unit: 'г' },
+      { name: 'Фолат (B9)', amount: 1400, unit: 'мкг DFE' },
+      { name: 'Неизвестный компонент', amount: 70, unit: 'мг' }
+    ]
+  }, 7, PROFILE, new Date(2026, 10, 17));
+
+  assert.equal(stats.components[0].dailyAmount, 90);
+  assert.equal(stats.components[0].percent, 120);
+  assert.equal(stats.components[1].dailyAmount, 1);
+  assert.equal(stats.components[1].percent, 100);
+  assert.equal(stats.components[2].dailyAmount, 200);
+  assert.equal(stats.components[2].percent, 50);
+  assert.equal(stats.components[3].percent, null);
+  assert.deepEqual(stats.vitamins.map((component) => component.name), ['Витамин C', 'Фолат (B9)']);
+  assert.deepEqual(stats.minerals.map((component) => component.name), ['Кальций', 'Неизвестный компонент']);
+  assert.equal(stats.averageCoverage, 90);
+  assert.throws(() => getAggregateMicronutrientStats({ components: [] }, 0, PROFILE), /days must be greater than 0/);
 });
 
 test('statistics use case composes diary and body history for the selected date range', () => {
@@ -179,5 +222,6 @@ test('statistics use case composes diary and body history for the selected date 
 
   assert.equal(model.days, 7);
   assert.equal(model.body.latestWeight.weight, 60);
+  assert.equal(model.body.latestMeasureFilledCount, 0);
   assert.equal(model.averages.kcal, 300 / 7);
 });

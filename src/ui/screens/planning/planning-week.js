@@ -32,7 +32,7 @@
     const snackCards = renderDishCards(snackDishes, true);
 
     return `<div class="planner48-week-tabs" role="group" aria-label="Переключение недель">${tabs}</div>
-  <div class="planner48-week-heading"><div><h3>Неделя ${selectedWeek}</h3><span>${dates[selectedWeek - 1]} 2026</span></div><button type="button" class="btn" data-edit-nutrition-week="${selectedWeek - 1}">Изменить блюда ↗</button></div>
+  <div class="planner48-week-heading"><div><h3>Неделя ${selectedWeek}</h3><span>${dates[selectedWeek - 1]}</span></div><button type="button" class="btn" data-edit-nutrition-week="${selectedWeek - 1}">Изменить блюда ↗</button></div>
   <section class="planner48-dish-section"><div class="planner48-dish-section-head"><h3>Основные блюда</h3><span class="tag">${mainFilled} из ${mainDishes.length} заполнено</span></div>${mainCards ? `<div class="planner48-dish-grid">${mainCards}</div>` : '<div class="planner48-empty-dishes">Пока нет основных блюд. Нажми «Изменить блюда», чтобы добавить позиции.</div>'}</section>
   <section class="planner48-dish-section planner48-snacks-section"><div class="planner48-dish-section-head"><h3>Закуски</h3><span class="tag">${snackFilled} из ${snackDishes.length} заполнено</span></div>${snackCards ? `<div class="planner48-dish-grid">${snackCards}</div>` : '<div class="planner48-empty-dishes">Пока нет закусок. При необходимости добавь их в режиме редактирования.</div>'}</section>`;
   };

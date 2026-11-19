@@ -1,12 +1,10 @@
-import { assertKeyValueStoragePort } from '../../contracts/storage.contract.js';
-import { createWaterRepository } from '../../infrastructure/persistence/repositories/water.repository.js';
+import { assertArrayRepositoryPort } from '../../contracts/storage.contract.js';
 import { addWaterEntry } from '../usecases/water/add-water-entry.js';
 import { removeWaterEntry, restoreWaterEntry } from '../usecases/water/remove-water-entry.js';
 
-/** @param {import('../../contracts/storage.contract.js').KeyValueStoragePort} storage */
-export function createWaterServices(storage) {
-  assertKeyValueStoragePort(storage);
-  const repository = createWaterRepository(storage);
+/** @param {import('../../contracts/storage.contract.js').ArrayRepositoryPort} repository */
+export function createWaterServices(repository) {
+  assertArrayRepositoryPort(repository);
   const withRepository = (command) => ({ ...command, repository });
 
   return {

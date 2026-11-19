@@ -1,8 +1,7 @@
-import { assertKeyValueStoragePort } from '../../contracts/storage.contract.js';
-import { createActiveNutritionSetRepository } from '../../infrastructure/persistence/repositories/active-nutrition-set.repository.js';
-import { createNutritionSetsRepository } from '../../infrastructure/persistence/repositories/nutrition-sets.repository.js';
-import { createPlanPresetsRepository } from '../../infrastructure/persistence/repositories/plan-presets.repository.js';
-import { createPlanRepository } from '../../infrastructure/persistence/repositories/plan.repository.js';
+import {
+  assertArrayRepositoryPort,
+  assertObjectRepositoryPort
+} from '../../contracts/storage.contract.js';
 import {
   createNutritionSet,
   deleteNutritionSet,
@@ -11,7 +10,7 @@ import {
   updateNutritionSetWeek,
   updateNutritionSetWeeklyGoals
 } from '../usecases/planning/nutrition-sets.js';
-import { applyPlanPreset, savePlan } from '../usecases/planning/plan.js';
+import { applyPlanPreset, recalculatePlan, savePlan } from '../usecases/planning/plan.js';
 import {
   deletePlanPreset,
   renamePlanPreset,
@@ -19,17 +18,26 @@ import {
 } from '../usecases/planning/plan-presets.js';
 
 /**
- * @param {import('../../contracts/storage.contract.js').KeyValueStoragePort} storage
- * @param {Array<Object>} products
+ * @param {Object} dependencies
+ * @param {import('../../contracts/storage.contract.js').ObjectRepositoryPort} dependencies.planRepository
+ * @param {import('../../contracts/storage.contract.js').ArrayRepositoryPort} dependencies.presetRepository
+ * @param {import('../../contracts/storage.contract.js').ArrayRepositoryPort} dependencies.nutritionSetRepository
+ * @param {Object} dependencies.activeNutritionSetRepository
+ * @param {Array<Object>} [dependencies.products]
  */
-export function createPlanningServices(storage, products = []) {
-  assertKeyValueStoragePort(storage);
+export function createPlanningServices({
+  planRepository,
+  presetRepository,
+  nutritionSetRepository,
+  activeNutritionSetRepository,
+  products = []
+} = {}) {
+  assertObjectRepositoryPort(planRepository);
+  assertArrayRepositoryPort(presetRepository);
+  assertArrayRepositoryPort(nutritionSetRepository);
+  assertObjectRepositoryPort(activeNutritionSetRepository);
   if (!Array.isArray(products)) throw new TypeError('Products must be an array.');
 
-  const planRepository = createPlanRepository(storage);
-  const presetRepository = createPlanPresetsRepository(storage);
-  const nutritionSetRepository = createNutritionSetsRepository(storage, products);
-  const activeNutritionSetRepository = createActiveNutritionSetRepository(storage);
   const withSetRepositories = (command) => ({
     ...command,
     repository: nutritionSetRepository,
@@ -39,6 +47,7 @@ export function createPlanningServices(storage, products = []) {
 
   return {
     loadPlan: () => planRepository.load(),
+    recalculatePlan: (command) => recalculatePlan(command),
     savePlan: ({ plan }) => savePlan({ plan, repository: planRepository }),
     applyPlanPreset: (command) => {
       const result = applyPlanPreset(command);

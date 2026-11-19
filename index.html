@@ -4,22 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Питание — трекер</title>
-  <style>
-    html,
-    body,
-    iframe {
-      width: 100%;
-      height: 100%;
-      margin: 0;
-      border: 0;
-    }
-
-    iframe {
-      display: block;
-    }
-  </style>
+  <link rel="stylesheet" href="./src/ui/styles/app.css">
 </head>
 <body>
-  <iframe src="./PWA_v60_code_blocks.html" title="Питание — трекер"></iframe>
+  <div id="app-shell"></div>
+  <div id="overlay-host"></div>
+  <script type="module" src="./src/ui/app/standalone-entry.js"></script>
 </body>
 </html>

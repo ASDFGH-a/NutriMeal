@@ -22,6 +22,14 @@ export const STATISTICS_PERIODS = Object.freeze([
   { key: 'Год', days: 365 }
 ]);
 
+const VITAMIN_PATTERN = /витамин|фолат|биотин/i;
+export const BODY_STATISTICS_MEASUREMENT_NAMES = Object.freeze([
+  'Талия',
+  'Грудь',
+  'Бёдра',
+  'Плечи'
+]);
+
 export const NUTRIENT_REFERENCE_VALUES = Object.freeze([
   { name: 'Витамин A', unit: 'мкг RAE', kind: 'RDA', v: { '9-13': [600, 600], '14-18': [900, 700], '19-30': [900, 700], '31-50': [900, 700], '51-70': [900, 700], '71+': [900, 700] } },
   { name: 'Витамин C', unit: 'мг', kind: 'RDA', v: { '9-13': [45, 45], '14-18': [75, 65], '19-30': [90, 75], '31-50': [90, 75], '51-70': [90, 75], '71+': [90, 75] } },
@@ -97,6 +105,42 @@ export function getNutrientReferenceValue(name, profile, referenceDate = todayLo
     value: Number(values[profile.sex === 'Мужской' ? 0 : 1]),
     unit: reference.unit,
     kind: reference.kind
+  };
+}
+
+export function getAggregateMicronutrientStats(
+  aggregate,
+  days,
+  profile,
+  referenceDate = todayLocalDate()
+) {
+  if (!aggregate || !Array.isArray(aggregate.components)) {
+    throw new TypeError('An aggregate with nutrient components is required.');
+  }
+  if (!Number.isFinite(days) || days <= 0) {
+    throw new RangeError('The number of days must be greater than 0.');
+  }
+
+  const components = aggregate.components.map((component) => {
+    const dailyAmount = (Number(component.amount) || 0) / days;
+    const target = getNutrientReferenceValue(component.name, profile, referenceDate);
+    const comparable = target
+      ? convertPlannerNutrientUnit(dailyAmount, component.unit, target.unit)
+      : null;
+    const percent = comparable !== null && target?.value > 0
+      ? Math.round(comparable / target.value * 100)
+      : null;
+    return { ...component, dailyAmount, target, percent };
+  });
+  const comparable = components.filter((component) => Number.isFinite(component.percent));
+
+  return {
+    components,
+    vitamins: components.filter((component) => VITAMIN_PATTERN.test(component.name)),
+    minerals: components.filter((component) => !VITAMIN_PATTERN.test(component.name)),
+    averageCoverage: comparable.length
+      ? Math.round(comparable.reduce((sum, component) => sum + component.percent, 0) / comparable.length)
+      : null
   };
 }
 
@@ -279,6 +323,9 @@ export function calculateDiaryStatistics({
   const waterTotalMl = waterRows.reduce((sum, entry) => sum + Number(entry.ml), 0);
   const waterAverageMl = waterTotalMl / days;
   const loggedWaterDays = dailyRows.filter((row) => row.waterMl > 0).length;
+  const recordedWaterAmounts = dailyRows.map((row) => row.waterMl).filter((amount) => amount > 0);
+  const minWaterDayMl = recordedWaterAmounts.length ? Math.min(...recordedWaterAmounts) : null;
+  const maxWaterDayMl = recordedWaterAmounts.length ? Math.max(...recordedWaterAmounts) : null;
 
   const completenessEntries = foodEntries.filter((entry) => (
     !isMassSystemEntry(entry) && !incompleteDates.has(entry.date)
@@ -332,6 +379,7 @@ export function calculateDiaryStatistics({
     stat.frequencyPercent = stat.targetEntries ? Math.round(stat.entries / stat.targetEntries * 100) : 0;
     stat.diversityPercent = stat.targetItems ? Math.round(stat.itemCount / stat.targetItems * 100) : null;
   });
+  const frequencyGoalMetCount = groupStats.filter((stat) => stat.entries >= stat.targetEntries).length;
 
   const components = new Map();
   const microDataDates = new Set();
@@ -394,6 +442,8 @@ export function calculateDiaryStatistics({
     averages,
     waterTotalMl,
     waterAverageMl,
+    minWaterDayMl,
+    maxWaterDayMl,
     loggedFoodDays,
     loggedWaterDays,
     noRecordDays,
@@ -401,8 +451,10 @@ export function calculateDiaryStatistics({
     mixedCalorieDays,
     allFoodItemCount: allFoodItems.size,
     groupStats,
+    frequencyGoalMetCount,
     varietyKnownDays,
     micronutrients,
+    matchedMicronutrientCount: comparableMicros.length,
     averageCoverage,
     macroKnownDays,
     macroIncompleteDays: incompleteDates.size,
@@ -432,11 +484,15 @@ export function calculateBodyStatistics({ weightHistory, measurementHistory, sta
   const weightChange = weights.length > 1
     ? Number(weights[weights.length - 1].weight) - Number(weights[0].weight)
     : null;
+  const latestMeasure = measureRecords.length ? measureRecords[measureRecords.length - 1] : null;
   return {
     weights,
     measureRecords,
     latestWeight: weights.length ? weights[weights.length - 1] : null,
-    latestMeasure: measureRecords.length ? measureRecords[measureRecords.length - 1] : null,
+    latestMeasure,
+    latestMeasureFilledCount: latestMeasure
+      ? BODY_STATISTICS_MEASUREMENT_NAMES.filter((name) => measurementValue(name, latestMeasure.values) !== null).length
+      : 0,
     previousMeasure: measureRecords.length > 1 ? measureRecords[measureRecords.length - 2] : null,
     weightChange
   };

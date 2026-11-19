@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createDiaryServices } from '../src/application/services/diary-services.js';
 import { DIARY_STORAGE_KEY } from '../src/infrastructure/persistence/repositories/diary.repository.js';
+import { createCoreRepositoriesFromStorage } from './helpers/core-data.js';
 
 function createMemoryStorage() {
   const values = new Map();
@@ -22,7 +23,7 @@ function idSequence(start) {
 
 test('mass-entry service previews and applies skip, append, and replace modes', () => {
   const storage = createMemoryStorage();
-  const services = createDiaryServices(storage);
+  const services = createDiaryServices(createCoreRepositoriesFromStorage(storage).diary);
   const initialEntries = [{ id: 1, date: '2026-11-17', name: 'Existing' }];
   const baseRequest = {
     entries: initialEntries,
@@ -72,7 +73,7 @@ test('mass-entry service previews and applies skip, append, and replace modes', 
 
 test('mass-entry service applies library and nutrition-set sources through diary storage', () => {
   const storage = createMemoryStorage();
-  const services = createDiaryServices(storage);
+  const services = createDiaryServices(createCoreRepositoriesFromStorage(storage).diary);
   const recipe = {
     id: 'recipe-1',
     name: 'Каша',

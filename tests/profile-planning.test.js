@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { initializeCoreData } from '../src/application/services/initialize-core-data.js';
+import { initializeCoreDataFromStorage } from './helpers/core-data.js';
 import { applyPlanPreset, recalculatePlan } from '../src/application/usecases/planning/plan.js';
 import {
   deletePlanPreset,
@@ -13,6 +13,7 @@ import {
   calculateProfileAge
 } from '../src/domain/planning/plan-calculations.js';
 import {
+  normalizeEnergyAdjustment,
   normalizePlanData,
   normalizePlanPreset
 } from '../src/domain/planning/plan.model.js';
@@ -90,6 +91,15 @@ test('plan normalization canonicalizes goal aliases and migrates weekly-goal fie
   assert.equal(normalizePlanPreset({ id: 'bad', name: 'Без плана' }), null);
 });
 
+test('energy adjustment normalization preserves goal direction and fallback values', () => {
+  assert.equal(normalizeEnergyAdjustment('Снижение жировой массы', -500), -500);
+  assert.equal(normalizeEnergyAdjustment('Снижение веса', 0), -400);
+  assert.equal(normalizeEnergyAdjustment('Снижение веса', 'invalid'), -400);
+  assert.equal(normalizeEnergyAdjustment('Набор массы', -250), 250);
+  assert.equal(normalizeEnergyAdjustment('Набор веса', 0), 300);
+  assert.equal(normalizeEnergyAdjustment('Поддержание веса', -800), 0);
+});
+
 test('profile age and plan targets preserve the existing Mifflin-St Jeor calculations', () => {
   const referenceDate = new Date(2026, 10, 17);
   assert.equal(calculateProfileAge('1990-11-17', referenceDate), 36);
@@ -152,7 +162,7 @@ test('profile, plan, and preset repositories retain legacy storage keys and norm
   presetsRepository.save(presetsRepository.load());
   assert.equal(JSON.parse(storage.getItem(PLAN_PRESETS_STORAGE_KEY))[0].id, 'p1');
 
-  const initialized = initializeCoreData(storage);
+  const initialized = initializeCoreDataFromStorage(storage);
   assert.equal(initialized.profile.currentWeight, 72);
   assert.equal(initialized.plan.goal, 'Набор веса');
   assert.equal(initialized.planPresets.length, 1);

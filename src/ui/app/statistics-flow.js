@@ -1,15 +1,16 @@
 import { getDiaryStatistics } from '../../application/usecases/statistics/get-diary-statistics.js';
 import {
+  BODY_STATISTICS_MEASUREMENT_NAMES,
   getDiaryStatisticsBuckets,
   getDiaryStatisticsRange,
   getMeasurementDelta,
   STATISTICS_PERIODS
 } from '../../domain/statistics/diary-statistics.js';
+import { getNutritionGoalProgress } from '../../domain/diary/diary-calculations.js';
 import { measurementValue } from '../../domain/measurement/measurement-calculations.js';
 import { dateKey, isValidDateKey, todayLocalDate } from '../../domain/shared/date-utils.js';
 
 const MONTHS = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
-const MEASUREMENT_NAMES = ['Талия', 'Грудь', 'Бёдра', 'Плечи'];
 
 function dateFromKey(key) {
   const [year, month, day] = key.split('-').map(Number);
@@ -181,6 +182,7 @@ export function createStatisticsFlow({
   function openDetail(key) {
     if (!currentStats) return;
     const stats = currentStats;
+    const nutritionProgress = getNutritionGoalProgress(stats.averages, data.plan);
     const body = stats.body;
     const dateRange = `${readableDate(stats.startKey)} — ${readableDate(stats.endKey)}`;
     let title;
@@ -200,12 +202,12 @@ export function createStatisticsFlow({
         ? `Всего ${averageText(stats.totals.kcal, 'ккал')} за ${stats.days} календарных дней. Среднее включает дни без записей.`
         : 'В выбранном периоде нет записей питания.';
       chart = statsBars(makeBuckets(stats, 'kcal', period));
-      const goal = Number(data.plan.kcal) || 0;
+      const goal = nutritionProgress.calories.target;
       rows = [
         ['Всего за период', averageText(stats.totals.kcal, 'ккал')],
         ['Среднее за календарный день', averageText(stats.averages.kcal, 'ккал')],
         ['Ориентир в день', goal ? averageText(goal, 'ккал') : 'Не задан'],
-        ['Среднее от ориентира', goal ? percentText(stats.averages.kcal / goal * 100) : 'Нет ориентира'],
+        ['Среднее от ориентира', goal ? percentText(nutritionProgress.calories.percent) : 'Нет ориентира'],
         ['Дней с записями', `${stats.loggedFoodDays} из ${stats.days}`]
       ];
     } else if (key === 'macros') {
@@ -220,14 +222,15 @@ export function createStatisticsFlow({
         ['Белки', 'p'],
         ['Жиры', 'f'],
         ['Углеводы', 'c']
-      ].map(([label, nutrient]) => statsProgressRow(
-        label,
-        averageText(stats.averages[nutrient], 'г'),
-        stats.averages[nutrient] !== null && Number(data.plan[nutrient]) > 0
-          ? stats.averages[nutrient] / data.plan[nutrient] * 100
-          : 0,
-        `Цель: ${formatNumber(data.plan[nutrient])} г / день`
-      )).join('')}</div>`;
+      ].map(([label, nutrient]) => {
+        const progress = nutritionProgress.macros[nutrient];
+        return statsProgressRow(
+          label,
+          averageText(progress.actual, 'г'),
+          progress.percent ?? 0,
+          `Цель: ${formatNumber(progress.target)} г / день`
+        );
+      }).join('')}</div>`;
       rows = [
         ['Дней с известными БЖУ', `${stats.macroKnownDays} из ${stats.days}`],
         ['Дней с неполным составом', String(stats.macroIncompleteDays)],
@@ -238,7 +241,6 @@ export function createStatisticsFlow({
       ];
     } else if (key === 'water') {
       const waterBuckets = makeBuckets(stats, 'water', period).map((item) => ({ ...item, value: item.value / 1000 }));
-      const recorded = stats.dailyRows.map((row) => row.waterMl).filter((amount) => amount > 0);
       title = 'Вода';
       eyebrow = 'ФАКТИЧЕСКОЕ ПОТРЕБЛЕНИЕ ВОДЫ';
       value = averageText(stats.waterAverageMl / 1000);
@@ -249,8 +251,8 @@ export function createStatisticsFlow({
         ['Всего за период', averageText(stats.waterTotalMl / 1000, 'л')],
         ['Среднее за календарный день', averageText(stats.waterAverageMl / 1000, 'л')],
         ['Дней с записями воды', `${stats.loggedWaterDays} из ${stats.days}`],
-        ['Максимум за день', recorded.length ? averageText(Math.max(...recorded) / 1000, 'л') : 'Нет данных'],
-        ['Минимум среди дней с записями', recorded.length ? averageText(Math.min(...recorded) / 1000, 'л') : 'Нет данных']
+        ['Максимум за день', stats.maxWaterDayMl === null ? 'Нет данных' : averageText(stats.maxWaterDayMl / 1000, 'л')],
+        ['Минимум среди дней с записями', stats.minWaterDayMl === null ? 'Нет данных' : averageText(stats.minWaterDayMl / 1000, 'л')]
       ];
     } else if (key === 'variety') {
       title = 'Полнота и разнообразие';
@@ -258,7 +260,7 @@ export function createStatisticsFlow({
       value = String(stats.allFoodItemCount);
       unit = 'разных продуктов за период';
       note = stats.foodEntries.length
-        ? `${stats.groupStats.filter((item) => item.entries >= item.targetEntries).length} из ${stats.groupStats.length} групп достигли частотного ориентира`
+        ? `${stats.frequencyGoalMetCount} из ${stats.groupStats.length} групп достигли частотного ориентира`
         : 'В выбранном периоде нет записей питания.';
       chart = `<div class="stats-detail-list">${stats.groupStats.map((item) => statsProgressRow(
         item.group.label,
@@ -292,7 +294,7 @@ export function createStatisticsFlow({
         ['Дней с данными о микронутриентах', `${stats.microKnownDays} из ${stats.days}`],
         ['Дней без данных о микронутриентах', String(stats.microMissingOnKnownMacroDays)],
         ['Компонентов с данными', String(stats.micronutrients.length)],
-        ['Сопоставлены с нормами', String(stats.micronutrients.filter((item) => item.percent !== null).length)],
+        ['Сопоставлены с нормами', String(stats.matchedMicronutrientCount)],
         ['Среднее покрытие', stats.averageCoverage === null ? 'Не рассчитано' : percentText(stats.averageCoverage)]
       ];
     } else if (key === 'weight') {
@@ -315,16 +317,14 @@ export function createStatisticsFlow({
       ];
     } else if (key === 'measures') {
       const latest = body.latestMeasure;
-      const filled = latest
-        ? MEASUREMENT_NAMES.filter((name) => measurementValue(name, latest.values) !== null).length
-        : 0;
+      const filled = body.latestMeasureFilledCount;
       title = 'Замеры тела';
       eyebrow = 'ИЗМЕНЕНИЯ ПАРАМЕТРОВ';
       value = latest ? String(filled) : '—';
       unit = 'показателей заполнено';
       note = latest ? `Последний замер · ${readableDate(latest.date)}` : 'За выбранный период нет записей замеров.';
       chart = latest
-        ? `<div class="stats-measure-list">${MEASUREMENT_NAMES.map((name) => {
+        ? `<div class="stats-measure-list">${BODY_STATISTICS_MEASUREMENT_NAMES.map((name) => {
           const current = measurementValue(name, latest.values);
           if (current === null) return '';
           return `<div><span>${escapeHtml(name)}</span><b>${formatNumber(current)} см</b><small>${escapeHtml(measurementDelta(name, latest, body.previousMeasure))}</small></div>`;
@@ -332,7 +332,7 @@ export function createStatisticsFlow({
         : '<div class="history-empty">Нет замеров за выбранный период.</div>';
       rows = [
         ['Последнее измерение', latest ? readableDate(latest.date) : 'Нет данных'],
-        ['Заполнено параметров', `${filled} из ${MEASUREMENT_NAMES.length}`],
+        ['Заполнено параметров', `${filled} из ${BODY_STATISTICS_MEASUREMENT_NAMES.length}`],
         ['История измерений', `${body.measureRecords.length} записей за период`]
       ];
     } else {
@@ -461,19 +461,23 @@ export function createStatisticsFlow({
     const canMoveForward = stats.endKey < dateKey(todayLocalDate());
     const foodRange = `${readableDate(stats.startKey)} — ${readableDate(stats.endKey)}`;
     const plan = data.plan;
+    const nutritionProgress = getNutritionGoalProgress(stats.averages, plan);
     const macroMarkup = [
       ['Белки', 'p'],
       ['Жиры', 'f'],
       ['Углеводы', 'c']
-    ].map(([label, key]) => statsProgressRow(
-      label,
-      `${averageText(stats.averages[key])}${stats.averages[key] === null ? '' : ' г'}`,
-      stats.averages[key] !== null && Number(plan[key]) > 0 ? stats.averages[key] / plan[key] * 100 : 0,
-      stats.averages[key] === null ? 'Нет полных данных' : `Цель ${formatNumber(plan[key])} г / день`
-    )).join('');
-    const calorieGoal = Number(plan.kcal) || 0;
+    ].map(([label, key]) => {
+      const progress = nutritionProgress.macros[key];
+      return statsProgressRow(
+        label,
+        `${averageText(progress.actual)}${progress.actual === null ? '' : ' г'}`,
+        progress.percent ?? 0,
+        progress.actual === null ? 'Нет полных данных' : `Цель ${formatNumber(progress.target)} г / день`
+      );
+    }).join('');
+    const calorieGoal = nutritionProgress.calories.target;
     const calorieGoalText = calorieGoal
-      ? `${percentText(stats.averages.kcal / calorieGoal * 100)} от цели ${formatNumber(calorieGoal)} ккал`
+      ? `${percentText(nutritionProgress.calories.percent)} от цели ${formatNumber(calorieGoal)} ккал`
       : 'Цель не задана';
     const waterTotalLitres = stats.waterTotalMl / 1000;
     const waterAverageLitres = stats.waterAverageMl / 1000;
@@ -488,7 +492,7 @@ export function createStatisticsFlow({
       : 'нет данных в составе';
     const latestMeasure = stats.body.latestMeasure;
     const measureCards = latestMeasure
-      ? MEASUREMENT_NAMES.map((name) => {
+      ? BODY_STATISTICS_MEASUREMENT_NAMES.map((name) => {
         const value = measurementValue(name, latestMeasure.values);
         return `<div class="stats-measure-mini"><span>${escapeHtml(name)}</span><b>${value === null ? '—' : `${formatNumber(value)} см`}</b><small>${escapeHtml(measurementDelta(name, latestMeasure, stats.body.previousMeasure))}</small></div>`;
       }).join('')
@@ -505,7 +509,7 @@ export function createStatisticsFlow({
     const calorieCard = `<section class="card stats-overview-card" role="button" tabindex="0" data-stats-detail="calories" aria-label="Подробнее: калории"><div class="stats-card-head"><div class="stats-card-title"><span class="stats-card-icon stats-icon-calories">♨</span><div><b>Калории</b><small>Среднее потребление на календарный день</small></div></div><span class="tag">ккал</span></div><div class="stats-card-main"><strong>${formatNumber(stats.averages.kcal)} <small>ккал / день</small></strong><span>${escapeHtml(calorieGoalText)}</span></div>${statsBars(makeBuckets(stats, 'kcal', period))}<div class="stats-card-foot"><span>${stats.foodEntries.length ? `Всего ${formatNumber(stats.totals.kcal)} ккал · ${stats.loggedFoodDays} дн. с записями` : 'Нет записей за период'}</span><b>Подробнее ↗</b></div></section>`;
     const macroCard = `<section class="card stats-overview-card" role="button" tabindex="0" data-stats-detail="macros" aria-label="Подробнее: БЖУ"><div class="stats-card-head"><div class="stats-card-title"><span class="stats-card-icon stats-icon-macros">∑</span><div><b>БЖУ</b><small>Среднее по дням с известным составом</small></div></div><span class="tag">г / день с данными</span></div><div class="stats-macro-overview">${macroMarkup}</div><div class="stats-card-foot"><span>${stats.macroKnownDays} из ${stats.days} дн. участвуют в среднем БЖУ${stats.macroIncompleteDays ? ` · ${stats.macroIncompleteDays} с неполными данными исключено` : ''}</span><b>Подробнее ↗</b></div></section>`;
     const waterCard = `<section class="card stats-overview-card" role="button" tabindex="0" data-stats-detail="water" aria-label="Подробнее: вода"><div class="stats-card-head"><div class="stats-card-title"><span class="stats-card-icon stats-icon-water">◉</span><div><b>Вода</b><small>Среднее потребление на календарный день</small></div></div><span class="tag">л</span></div><div class="stats-card-main"><strong>${formatNumber(waterAverageLitres)} <small>л / день</small></strong><span>${formatNumber(waterTotalLitres)} л всего · ${stats.loggedWaterDays} дн. с записями</span></div>${statsBars(makeBuckets(stats, 'water', period).map((item) => ({ ...item, value: item.value / 1000 })), ' л')}<div class="stats-card-foot"><span>Учитывается обычная вода из дневника</span><b>Подробнее ↗</b></div></section>`;
-    const varietyCard = `<section class="card stats-overview-card" role="button" tabindex="0" data-stats-detail="variety" aria-label="Подробнее: полнота и разнообразие"><div class="stats-card-head"><div class="stats-card-title"><span class="stats-card-icon stats-icon-variety">✿</span><div><b>Полнота и разнообразие</b><small>Фактически съеденные продукты по группам</small></div></div><span class="tag">Категории</span></div><div class="stats-variety-grid">${varietyMarkup}</div><div class="stats-card-foot"><span>${stats.allFoodItemCount} уникальных продуктов · ${stats.groupStats.filter((item) => item.entries >= item.targetEntries).length} групп достигли ориентира</span><b>Подробнее ↗</b></div></section>`;
+    const varietyCard = `<section class="card stats-overview-card" role="button" tabindex="0" data-stats-detail="variety" aria-label="Подробнее: полнота и разнообразие"><div class="stats-card-head"><div class="stats-card-title"><span class="stats-card-icon stats-icon-variety">✿</span><div><b>Полнота и разнообразие</b><small>Фактически съеденные продукты по группам</small></div></div><span class="tag">Категории</span></div><div class="stats-variety-grid">${varietyMarkup}</div><div class="stats-card-foot"><span>${stats.allFoodItemCount} уникальных продуктов · ${stats.frequencyGoalMetCount} групп достигли ориентира</span><b>Подробнее ↗</b></div></section>`;
     const microCard = `<section class="card stats-overview-card" role="button" tabindex="0" data-stats-detail="micros" aria-label="Подробнее: витамины и минералы"><div class="stats-card-head"><div class="stats-card-title"><span class="stats-card-icon stats-icon-micros">✣</span><div><b>Витамины и минералы</b><small>По составу съеденных продуктов и рецептов</small></div></div><span class="tag">RDA / AI</span></div><div class="stats-micro-summary"><strong>${microSummary}</strong><span>${escapeHtml(microSummaryLabel)}</span></div><div class="stats-micro-grid">${microPreview || '<div class="muted-box">В записях за период пока нет данных о микронутриентах.</div>'}</div><div class="stats-card-foot"><span>${stats.micronutrients.length ? `${stats.micronutrients.length} компонентов · ${stats.microKnownDays} дн. с данными` : 'Нет данных состава'}</span><b>Подробнее ↗</b></div></section>`;
     const weightCard = `<section class="card stats-overview-card" role="button" tabindex="0" data-stats-detail="weight" aria-label="Подробнее: вес"><div class="stats-card-head"><div class="stats-card-title"><span class="stats-card-icon stats-icon-weight">◎</span><div><b>Вес</b><small>Динамика массы тела · ${escapeHtml(foodRange)}</small></div></div><span class="tag">кг</span></div><div class="stats-card-main"><strong>${weightLatest ? `${formatNumber(weightLatest.weight)} <small>кг</small>` : '— <small>кг</small>'}</strong><span>${weightLatest ? `${weightTargetText} · ${readableDate(weightLatest.date)}` : 'Добавь фактическое измерение веса'}</span></div>${stats.body.weights.length ? statsLine(stats.body.weights.map((item) => ({ label: dateFromKey(item.date).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }), value: Number(item.weight) }))) : '<div class="history-empty">Нет данных о весе за выбранный период.</div>'}<div class="stats-card-foot"><span>${escapeHtml(weightChangeText)}</span><b>Подробнее ↗</b></div></section>`;
     const measuresCard = `<section class="card stats-overview-card" role="button" tabindex="0" data-stats-detail="measures" aria-label="Подробнее: замеры тела"><div class="stats-card-head"><div class="stats-card-title"><span class="stats-card-icon stats-icon-measures">↔</span><div><b>Замеры тела</b><small>Окружности и динамика параметров</small></div></div><span class="tag">см</span></div><div class="stats-measures-grid">${measureCards}</div><div class="stats-card-foot"><span>${latestMeasure ? `Последнее измерение · ${readableDate(latestMeasure.date)}` : 'Замеры пока не добавлены за период'}</span><b>Подробнее ↗</b></div></section>`;

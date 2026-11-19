@@ -6,13 +6,23 @@ import {
   recipeFilterCount,
   recipeFilterDefaults,
   recipeMatchesFilters,
+  addCatalogFilterSelection,
+  addCatalogFilterValue,
+  createCustomFilterCategory,
   createProductStandardFilterCategories,
-  createRecipeStandardFilterCategories
+  createRecipeStandardFilterCategories,
+  renameCatalogFilterCategory,
+  getProductFilterCategoryValues as collectProductFilterCategoryValues,
+  getRecipeFilterCategoryValues as collectRecipeFilterCategoryValues,
+  updateCatalogFilterValue,
+  toggleCatalogFilterSelection,
+  removeCustomFilterCategory
 } from '../../domain/catalog/catalog-filters.js';
 import { normalizeCatalogCardSettings } from '../../domain/catalog/catalog-card-settings.js';
 import { normalizeRecipeFilterValue, recipeArray, uniqueRecipeValues } from '../../domain/shared/filter-utils.js';
 import { calculateRecipeNutrition } from '../../domain/shared/nutrient-calculations.js';
 import { getNutritionRecipeFoodMetadata } from '../../domain/nutrition-set/nutrition-set.calculations.js';
+import { scaleNutritionByGrams } from '../../domain/diary/diary-calculations.js';
 import {
   getEffectiveRecipeAllergens,
   getRecipeAllergyMatches,
@@ -28,7 +38,6 @@ function readableDate(key) {
     year: 'numeric'
   });
 }
-
 function formatNumber(value) {
   return Number(value || 0).toLocaleString('ru-RU', { maximumFractionDigits: 1 });
 }
@@ -74,6 +83,8 @@ export function createMealAddFlow({
   let recipeIngredientPickDraft = [];
   let collectionAddContext = null;
   let collectionAddDraft = [];
+  let plannerSelectionContext = null;
+  let plannerSelectionDraft = [];
   let productSearch = '';
   let catalogView = 'recipes';
   let recipeSearch = '';
@@ -130,201 +141,78 @@ export function createMealAddFlow({
   }
 
   function getRecipeFilterCategoryValues(category) {
-    if (!category) return [];
-    let observed = [];
-    if (category.id === 'customTags') observed = data.recipes.flatMap((recipe) => recipeArray(recipe.tags));
-    else if (category.id === 'mealTypes') observed = data.recipes.flatMap((recipe) => recipeArray(recipe.mealTypes || recipe.mealType));
-    else if (category.id === 'cuisines') observed = data.recipes.flatMap((recipe) => recipeArray(recipe.cuisine));
-    else if (category.id === 'dishTypes') observed = data.recipes.flatMap((recipe) => recipeArray(recipe.dishTypes || recipe.dishType));
-    else if (category.id === 'categories') observed = data.recipes.flatMap((recipe) => getRecipeCategories(recipe));
-    else if (category.id === 'allergens') observed = data.recipes.flatMap((recipe) => getEffectiveRecipeAllergens(recipe, data.products));
-    else if (category.recipeField === 'customAttributes') {
-      observed = data.recipes.flatMap((recipe) => recipeArray(recipe.customAttributes?.[category.id]));
-    } else if (category.recipeField) {
-      observed = data.recipes.flatMap((recipe) => recipeArray(recipe[category.recipeField]));
-    }
-    return uniqueRecipeValues([...(category.values || []), ...observed]);
+    return collectRecipeFilterCategoryValues(category, data.recipes, data.products);
   }
 
   function getProductFilterCategoryValues(category) {
-    if (!category) return [];
-    let observed = [];
-    if (category.id === 'customTags') observed = data.products.flatMap((product) => recipeArray(product.tags));
-    else if (category.productField === 'brand') observed = data.products.map((product) => product.brand || '');
-    else if (['categories', 'allergens', 'state'].includes(category.productField)) {
-      observed = data.products.flatMap((product) => recipeArray(product[category.productField]));
-    } else if (category.productField === 'components') {
-      observed = data.products.flatMap((product) => recipeArray(product.components)
-        .map((item) => typeof item === 'string' ? item : item?.name));
-    } else if (category.productField === 'customAttributes') {
-      observed = data.products.flatMap((product) => recipeArray(product.customAttributes?.[category.id]));
-    }
-    return uniqueRecipeValues([...(category.values || []), ...observed]);
+    return collectProductFilterCategoryValues(category, data.products);
   }
 
   function addFilterValue(isProducts, categoryId, value) {
-    const clean = String(value ?? '').trim();
     const category = isProducts ? getProductFilterCategory(categoryId) : getRecipeFilterCategory(categoryId);
-    if (!clean || !category) return false;
-    const values = isProducts ? getProductFilterCategoryValues(category) : getRecipeFilterCategoryValues(category);
-    if (values.some((item) => normalizeRecipeFilterValue(item) === normalizeRecipeFilterValue(clean))) return false;
+    if (!category) return false;
+    const result = addCatalogFilterValue({
+      category,
+      availableValues: isProducts
+        ? getProductFilterCategoryValues(category)
+        : getRecipeFilterCategoryValues(category),
+      value
+    });
+    if (!result) return false;
+    category.values = result.values;
     if (categoryId === 'customTags') {
-      if (isProducts) customProductFilterTags.push(clean);
-      else customRecipeFilterTags.push(clean);
-    } else {
-      category.values = uniqueRecipeValues([...(category.values || []), clean]);
+      if (isProducts) customProductFilterTags = result.values;
+      else customRecipeFilterTags = result.values;
     }
     return true;
   }
 
-  function setRecipeFilterValue(recipe, category, oldValue, newValue, remove = false) {
-    const replacement = (value) => (
-      normalizeRecipeFilterValue(value) === normalizeRecipeFilterValue(oldValue)
-        ? (remove ? '' : newValue)
-        : value
-    );
-    if (category.recipeField === 'cuisine') {
-      if (normalizeRecipeFilterValue(recipe.cuisine) === normalizeRecipeFilterValue(oldValue)) {
-        recipe.cuisine = remove ? '' : newValue;
-      }
-    } else if (category.recipeField === 'customAttributes') {
-      recipe.customAttributes = recipe.customAttributes || {};
-      recipe.customAttributes[category.id] = uniqueRecipeValues(
-        recipeArray(recipe.customAttributes[category.id]).map(replacement).filter(Boolean)
-      );
-    } else if (category.recipeField) {
-      recipe[category.recipeField] = uniqueRecipeValues(
-        recipeArray(recipe[category.recipeField]).map(replacement).filter(Boolean)
-      );
-    }
-  }
+  function changeFilterValue(isProducts, category, oldValue, newValue, remove = false) {
+    const items = isProducts ? data.products : data.recipes;
+    const result = updateCatalogFilterValue({
+      category,
+      availableValues: isProducts
+        ? getProductFilterCategoryValues(category)
+        : getRecipeFilterCategoryValues(category),
+      items,
+      filters: isProducts ? productFilters : recipeFilters,
+      oldValue,
+      newValue,
+      remove,
+      isProducts
+    });
+    if (!result) return false;
 
-  function setProductFilterValue(product, category, oldValue, newValue, remove = false) {
-    const replacement = (value) => (
-      normalizeRecipeFilterValue(value) === normalizeRecipeFilterValue(oldValue)
-        ? (remove ? '' : newValue)
-        : value
-    );
-    if (category.productField === 'brand') {
-      if (normalizeRecipeFilterValue(product.brand) === normalizeRecipeFilterValue(oldValue)) {
-        product.brand = remove ? '' : newValue;
-      }
-    } else if (category.productField === 'components') {
-      product.components = recipeArray(product.components).map((item) => {
-        if (typeof item === 'string') return replacement(item);
-        return normalizeRecipeFilterValue(item?.name) === normalizeRecipeFilterValue(oldValue)
-          ? { ...item, name: remove ? '' : newValue }
-          : item;
-      }).filter((item) => typeof item === 'string' ? Boolean(item) : Boolean(item?.name));
-    } else if (category.productField === 'customAttributes') {
-      product.customAttributes = product.customAttributes || {};
-      product.customAttributes[category.id] = uniqueRecipeValues(
-        recipeArray(product.customAttributes[category.id]).map(replacement).filter(Boolean)
-      );
-    } else if (category.productField) {
-      product[category.productField] = uniqueRecipeValues(
-        recipeArray(product[category.productField]).map(replacement).filter(Boolean)
-      );
-    }
-  }
-
-  function updateFilterSelections(filters, category, oldValue, newValue, remove, isProducts) {
-    const replacement = (value) => (
-      normalizeRecipeFilterValue(value) === normalizeRecipeFilterValue(oldValue)
-        ? (remove ? '' : newValue)
-        : value
-    );
-    if (category.filterKey && Array.isArray(filters[category.filterKey])) {
-      filters[category.filterKey] = uniqueRecipeValues(filters[category.filterKey].map(replacement).filter(Boolean));
-    }
-    if (category.id === 'allergens') {
-      for (const key of ['allergenInclude', 'allergenExclude']) {
-        filters[key] = uniqueRecipeValues(filters[key].map(replacement).filter(Boolean));
-      }
-    }
+    category.values = result.category.values;
     if (category.id === 'customTags') {
-      filters.customTags = uniqueRecipeValues(filters.customTags.map(replacement).filter(Boolean));
+      if (isProducts) customProductFilterTags = result.category.values;
+      else customRecipeFilterTags = result.category.values;
     }
-    if (category.kind === 'customMulti' && Array.isArray(filters.customAttributes?.[category.id])) {
-      filters.customAttributes[category.id] = uniqueRecipeValues(
-        filters.customAttributes[category.id].map(replacement).filter(Boolean)
-      );
-    }
-    if (isProducts && category.id === 'brand') {
-      filters.brand = uniqueRecipeValues(filters.brand.map(replacement).filter(Boolean));
-    }
+    result.items.forEach((updated, index) => {
+      if (updated !== items[index]) Object.assign(items[index], updated);
+    });
+    if (isProducts) productFilters = result.filters;
+    else recipeFilters = result.filters;
+    return true;
   }
 
   function renameFilterValue(isProducts, category, oldValue, newValue) {
-    const clean = String(newValue ?? '').trim();
-    const getValues = isProducts ? getProductFilterCategoryValues : getRecipeFilterCategoryValues;
-    if (!clean || getValues(category).some((value) => (
-      normalizeRecipeFilterValue(value) === normalizeRecipeFilterValue(clean)
-      && normalizeRecipeFilterValue(value) !== normalizeRecipeFilterValue(oldValue)
-    ))) return false;
-    category.values = uniqueRecipeValues((category.values || []).map((value) => (
-      normalizeRecipeFilterValue(value) === normalizeRecipeFilterValue(oldValue) ? clean : value
-    )));
-    if (category.id === 'customTags') {
-      if (isProducts) {
-        customProductFilterTags = uniqueRecipeValues(customProductFilterTags.map((value) => (
-          normalizeRecipeFilterValue(value) === normalizeRecipeFilterValue(oldValue) ? clean : value
-        )));
-      } else {
-        customRecipeFilterTags = uniqueRecipeValues(customRecipeFilterTags.map((value) => (
-          normalizeRecipeFilterValue(value) === normalizeRecipeFilterValue(oldValue) ? clean : value
-        )));
-      }
-    }
-    const items = isProducts ? data.products : data.recipes;
-    items.forEach((item) => (
-      isProducts
-        ? setProductFilterValue(item, category, oldValue, clean)
-        : setRecipeFilterValue(item, category, oldValue, clean)
-    ));
-    updateFilterSelections(isProducts ? productFilters : recipeFilters, category, oldValue, clean, false, isProducts);
-    return true;
+    return changeFilterValue(isProducts, category, oldValue, newValue);
   }
 
   function deleteFilterValue(isProducts, category, value) {
-    category.values = (category.values || []).filter((item) => (
-      normalizeRecipeFilterValue(item) !== normalizeRecipeFilterValue(value)
-    ));
-    if (category.id === 'customTags') {
-      if (isProducts) {
-        customProductFilterTags = customProductFilterTags.filter((item) => (
-          normalizeRecipeFilterValue(item) !== normalizeRecipeFilterValue(value)
-        ));
-      } else {
-        customRecipeFilterTags = customRecipeFilterTags.filter((item) => (
-          normalizeRecipeFilterValue(item) !== normalizeRecipeFilterValue(value)
-        ));
-      }
-    }
-    (isProducts ? data.products : data.recipes).forEach((item) => (
-      isProducts
-        ? setProductFilterValue(item, category, value, '', true)
-        : setRecipeFilterValue(item, category, value, '', true)
-    ));
-    updateFilterSelections(isProducts ? productFilters : recipeFilters, category, value, '', true, isProducts);
+    changeFilterValue(isProducts, category, value, '', true);
   }
 
   function createFilterCategory(isProducts, label) {
-    const name = String(label ?? '').trim();
-    if (!name) return null;
     const categories = isProducts ? productCustomFilterCategories : recipeCustomFilterCategories;
-    const allCategories = isProducts ? getProductFilterCategory : getRecipeFilterCategory;
-    const base = `custom-${name.toLocaleLowerCase('ru-RU').replace(/[^a-zа-яё0-9]+/gi, '-').replace(/^-|-$/g, '').slice(0, 28)}`;
-    let id = base === 'custom-' ? 'custom-filter' : base;
-    let suffix = 2;
-    while (allCategories(id)) id = `${base === 'custom-' ? 'custom-filter' : base}-${suffix++}`;
-    const category = {
-      id,
-      label: name,
-      kind: 'customMulti',
-      ...(isProducts ? { productField: 'customAttributes' } : { recipeField: 'customAttributes' }),
-      values: []
-    };
+    const standardCategories = isProducts ? productStandardFilters : recipeStandardFilters;
+    const category = createCustomFilterCategory({
+      label,
+      isProducts,
+      existingCategories: [...standardCategories, ...categories]
+    });
+    if (!category) return null;
     categories.push(category);
     catalogCardSettings = normalizeCatalogCardSettings(catalogCardSettings, {
       recipeCustomCategories: recipeCustomFilterCategories,
@@ -335,16 +223,28 @@ export function createMealAddFlow({
 
   function deleteFilterCategory(isProducts, category) {
     const categories = isProducts ? productCustomFilterCategories : recipeCustomFilterCategories;
-    if (!categories.some((item) => item.id === category.id)) return false;
-    if (isProducts) productCustomFilterCategories = categories.filter((item) => item.id !== category.id);
-    else recipeCustomFilterCategories = categories.filter((item) => item.id !== category.id);
     const filters = isProducts ? productFilters : recipeFilters;
-    delete filters.customAttributes[category.id];
-    (isProducts ? data.products : data.recipes).forEach((item) => {
-      if (item.customAttributes) delete item.customAttributes[category.id];
+    const items = isProducts ? data.products : data.recipes;
+    const result = removeCustomFilterCategory({
+      categoryId: category.id,
+      categories,
+      items,
+      filters,
+      cardSettings: catalogCardSettings,
+      isProducts
     });
-    delete catalogCardSettings[isProducts ? 'products' : 'recipes'][category.id];
-    catalogCardSettings = normalizeCatalogCardSettings(catalogCardSettings, {
+    if (!result) return false;
+    if (isProducts) {
+      productCustomFilterCategories = result.categories;
+      productFilters = result.filters;
+    } else {
+      recipeCustomFilterCategories = result.categories;
+      recipeFilters = result.filters;
+    }
+    result.items.forEach((updated, index) => {
+      if (updated !== items[index]) items[index].customAttributes = updated.customAttributes;
+    });
+    catalogCardSettings = normalizeCatalogCardSettings(result.cardSettings, {
       recipeCustomCategories: recipeCustomFilterCategories,
       productCustomCategories: productCustomFilterCategories
     });
@@ -490,6 +390,7 @@ export function createMealAddFlow({
       replaceEntry: Boolean(context?.replaceEntry),
       fmt: formatNumber,
       nutritionNumber: formatNumber,
+      scaleNutritionByGrams,
       escapeHtml
     });
   }
@@ -568,7 +469,8 @@ export function createMealAddFlow({
         item.quantityValue = value;
         item.grams = grams;
         const row = input.closest('[data-draft-row]');
-        row.querySelector('.meal-draft-info small').textContent = `${formatNumber(item.kcal * grams / 100)} ккал · Б ${formatNumber(item.p * grams / 100)} · Ж ${formatNumber(item.f * grams / 100)} · У ${formatNumber(item.c * grams / 100)}`;
+        const nutrition = scaleNutritionByGrams(item, grams);
+        row.querySelector('.meal-draft-info small').textContent = `${formatNumber(nutrition.kcal)} ккал · Б ${formatNumber(nutrition.p)} · Ж ${formatNumber(nutrition.f)} · У ${formatNumber(nutrition.c)}`;
         const note = row.querySelector('.meal-draft-quantity-note');
         if (note) note.textContent = `1 порция = ${formatNumber(item.portionGrams)} г · всего ${formatNumber(grams)} г`;
       });
@@ -595,8 +497,8 @@ export function createMealAddFlow({
     renderPicker();
   }
 
-  function start(meal, replaceEntry = null) {
-    const date = getSelectedDate();
+  function start(meal, replaceEntry = null, dateOverride = getSelectedDate()) {
+    const date = dateOverride;
     if (date > today) {
       showToast('Нельзя добавлять записи на будущую дату');
       return;
@@ -663,14 +565,15 @@ export function createMealAddFlow({
     const alreadyInCollection = collection?.items.some((item) => (
       item.kind === 'recipe' && String(item.id) === String(recipe.id)
     ));
-    const chosen = Boolean(alreadyInCollection) || chosenKeys().includes(`r-${recipe.id}`);
+    const plannerChosen = plannerSelectionDraft.some((item) => String(item.id) === String(recipe.id));
+    const chosen = Boolean(alreadyInCollection) || plannerChosen || chosenKeys().includes(`r-${recipe.id}`);
     const allergens = getEffectiveRecipeAllergens(recipe, data.products);
     const matches = getRecipeAllergyMatches(recipe, data.profile.allergies, data.products);
     const dishTypes = Array.isArray(recipe.dishTypes)
       ? recipe.dishTypes
       : recipe.dishType ? [recipe.dishType] : [];
-    const pickAction = context || collectionAddContext
-      ? `<div class="recipe-pick-action"><span>${chosen ? 'Добавлено' : ''}</span><button type="button" class="recipe-pick-plus ${chosen ? 'selected' : ''}" data-pick-recipe="${escapeHtml(recipe.id)}" ${chosen ? 'disabled' : ''} aria-label="${chosen ? 'Уже добавлено' : `Добавить ${escapeHtml(recipe.name)}`}">${chosen ? '✓' : '＋'}</button></div>`
+    const pickAction = context || collectionAddContext || plannerSelectionContext
+      ? `<div class="recipe-pick-action"><span>${chosen ? (plannerSelectionContext ? 'Выбрано' : 'Добавлено') : ''}</span><button type="button" class="recipe-pick-plus ${chosen ? 'selected' : ''}" data-pick-recipe="${escapeHtml(recipe.id)}" ${chosen ? 'disabled' : ''} aria-label="${chosen ? 'Уже выбрано' : `Добавить ${escapeHtml(recipe.name)}`}">${chosen ? '✓' : '＋'}</button></div>`
       : '';
     const removeAction = catalogView === 'collections' && openedCollectionId && !context
       ? `<button type="button" class="collection-item-remove" data-remove-collection-kind="recipe" data-remove-collection-id="${escapeHtml(recipe.id)}">Убрать из подборки</button>`
@@ -774,7 +677,7 @@ export function createMealAddFlow({
   }
 
   function renderPicker() {
-    const pickMode = Boolean(context || recipeIngredientPickContext || collectionAddContext);
+    const pickMode = Boolean(context || recipeIngredientPickContext || collectionAddContext || plannerSelectionContext);
     const query = (catalogView === 'myProducts' ? productCatalogSearch : catalogView === 'collections' ? collectionSearch : recipeSearch)
       .trim().toLocaleLowerCase('ru-RU');
     const recipeFilterOptions = {
@@ -791,8 +694,9 @@ export function createMealAddFlow({
     const recipes = data.recipes.filter((item) => (
       (catalogView !== 'favorite' || item.favorite)
       && (pickMode
-        ? !query || `${item.name || ''} ${item.ingredients || ''} ${recipeArray(item.tags).join(' ')}`
-          .toLocaleLowerCase('ru-RU').includes(query)
+        ? (!plannerSelectionContext || !plannerSelectionContext.filterRecipe || plannerSelectionContext.filterRecipe(item))
+          && (!query || `${item.name || ''} ${item.ingredients || ''} ${recipeArray(item.tags).join(' ')}`
+            .toLocaleLowerCase('ru-RU').includes(query))
         : recipeMatchesFilters(item, catalogView === 'collections' ? '' : recipeSearch, recipeFilterOptions))
     ));
     const products = data.products.filter((item) => (
@@ -808,6 +712,7 @@ export function createMealAddFlow({
       pickMode,
       collectionAddContext,
       recipeIngredientPickContext,
+      plannerSelectionContext,
       plannerDishAddContext: null,
       plannerCategoryAddContext: null
     });
@@ -831,6 +736,8 @@ export function createMealAddFlow({
       ? `<div class="recipe-pick-banner"><div class="recipe-pick-copy"><strong>Выбор продуктов для рецепта «${escapeHtml(recipeIngredientPickContext.draft.name || 'Новый рецепт')}»</strong><span><b id="recipe-pick-count">Выбрано: ${recipeIngredientPickDraft.length}</b></span></div><button type="button" class="btn-primary" id="recipe-pick-back">Добавить в рецепт${recipeIngredientPickDraft.length ? ` · ${recipeIngredientPickDraft.length}` : ''}</button></div>`
       : collectionAddContext
         ? `<div class="recipe-pick-banner"><div class="recipe-pick-copy"><strong>Добавление в подборку «${escapeHtml(collectionAddContext.name)}»</strong><span><b id="recipe-pick-count">Выбрано: ${collectionAddDraft.length}</b></span></div><button type="button" class="btn-primary" id="collection-add-back">Добавить в подборку${collectionAddDraft.length ? ` · ${collectionAddDraft.length}` : ''}</button></div>`
+      : plannerSelectionContext
+        ? `<div class="recipe-pick-banner"><div class="recipe-pick-copy"><strong>${escapeHtml(plannerSelectionContext.title)}</strong><span><b id="recipe-pick-count">Выбрано: ${plannerSelectionDraft.length}</b></span></div><button type="button" class="btn-primary" id="planner-recipe-pick-back">${escapeHtml(plannerSelectionContext.actionLabel || 'Добавить выбранные рецепты')}${plannerSelectionDraft.length ? ` · ${plannerSelectionDraft.length}` : ''}</button></div>`
       : pickMode
         ? `<div class="recipe-pick-banner"><div class="recipe-pick-copy"><strong>${context.massEntry ? 'Состав дневного рациона' : context.replaceEntry ? 'Замена записи' : `Добавление в ${escapeHtml(context.meal)}`}</strong><span>${context.massEntry ? `Рацион на один день · повтор для ${context.dates.length} дат` : `${readableDate(context.date)} · `}<b id="recipe-pick-count">Выбрано: ${draft.length}</b></span></div><button type="button" class="btn-primary" id="recipe-pick-back">${context.massEntry ? 'К списку рациона' : 'К списку добавления'}${draft.length ? ` · ${draft.length}` : ''}</button></div>`
         : '';
@@ -940,15 +847,9 @@ export function createMealAddFlow({
 
   function toggleFilterSelection(isProducts, key, value, categoryId = '') {
     const filters = isProducts ? productFilters : recipeFilters;
-    const selected = categoryId
-      ? (filters.customAttributes[categoryId] || (filters.customAttributes[categoryId] = []))
-      : filters[key];
-    if (!Array.isArray(selected)) return;
-    const index = selected.findIndex((item) => (
-      normalizeRecipeFilterValue(item) === normalizeRecipeFilterValue(value)
-    ));
-    if (index >= 0) selected.splice(index, 1);
-    else selected.push(value);
+    const updated = toggleCatalogFilterSelection(filters, key, value, categoryId);
+    if (isProducts) productFilters = updated;
+    else recipeFilters = updated;
     renderPicker();
   }
 
@@ -964,7 +865,9 @@ export function createMealAddFlow({
       return;
     }
     const filters = isProducts ? productFilters : recipeFilters;
-    filters.customTags = uniqueRecipeValues([...filters.customTags, value]);
+    const updatedFilters = addCatalogFilterSelection(filters, 'customTags', value);
+    if (isProducts) productFilters = updatedFilters;
+    else recipeFilters = updatedFilters;
     renderPicker();
     showToast('Тег создан и выбран для фильтрации');
   }
@@ -1131,6 +1034,8 @@ export function createMealAddFlow({
         else returnToPlate();
       });
     }
+    const plannerPickerBack = document.getElementById('planner-recipe-pick-back');
+    if (plannerPickerBack) plannerPickerBack.addEventListener('click', commitPlannerRecipeSelection);
     const collectionAddBack = document.getElementById('collection-add-back');
     if (collectionAddBack) collectionAddBack.addEventListener('click', commitCollectionAddDraft);
     const collectionBack = document.getElementById('collection-back');
@@ -1148,6 +1053,7 @@ export function createMealAddFlow({
     document.querySelectorAll('[data-pick-recipe]').forEach((button) => {
       button.addEventListener('click', () => {
         if (collectionAddContext) addCollectionDraftItem('recipe', button.dataset.pickRecipe);
+        else if (plannerSelectionContext) addPlannerSelection(button.dataset.pickRecipe);
         else addItem('recipe', button.dataset.pickRecipe);
       });
     });
@@ -1224,13 +1130,15 @@ export function createMealAddFlow({
 
   function toggleFavorite(items, id) {
     const index = items.findIndex((item) => String(item.id) === String(id));
-    if (index < 0) return;
+    if (index < 0) return false;
     try {
       items[index] = catalogServices.toggleFavorite(items[index]);
       renderPicker();
+      return true;
     } catch (error) {
       console.error('Не удалось изменить избранное каталога', error);
       showToast(error instanceof Error ? error.message : 'Не удалось изменить избранное');
+      return false;
     }
   }
 
@@ -1410,15 +1318,18 @@ export function createMealAddFlow({
       renderPicker();
     });
     saveButton.addEventListener('click', () => {
-      const name = document.getElementById(`${prefix}category-name`).value.trim();
-      if (!name) {
+      const updatedCategory = renameCatalogFilterCategory(
+        category,
+        document.getElementById(`${prefix}category-name`).value
+      );
+      if (!updatedCategory) {
         showToast('Укажи название категории');
         return;
       }
-      category.label = name;
+      category.label = updatedCategory.label;
       if (category.id === 'customTags') {
-        if (isProducts) customProductFilterTitle = name;
-        else customRecipeFilterTitle = name;
+        if (isProducts) customProductFilterTitle = updatedCategory.label;
+        else customRecipeFilterTitle = updatedCategory.label;
       }
       closeModal();
       renderPicker();
@@ -1621,42 +1532,114 @@ export function createMealAddFlow({
     const item = items.find((entry) => String(entry.id) === String(id));
     if (!item) return;
     const isRecipe = kind === 'recipe';
-    const nutrition = isRecipe
-      ? calculateRecipeNutrition(item, data.products).per100
-      : item;
-    const ingredients = isRecipe
-      ? (item.ingredientItems || []).map((row) => {
-        const product = data.products.find((entry) => String(entry.id) === String(row.productId));
-        return `<li>${escapeHtml(product?.name || row.productName || row.name || 'Продукт')}${row.amount ? ` — ${formatNumber(row.amount)} ${escapeHtml(row.unit || 'г')}` : ''}</li>`;
-      }).join('')
-      : '';
-    const body = `<div class="recipe-detail-section"><p>${escapeHtml(item.description || item.brand || '')}</p><div class="macros"><span class="macro">${formatNumber(nutrition.kcal)} ккал</span><span class="macro">Б ${formatNumber(nutrition.p)}</span><span class="macro">Ж ${formatNumber(nutrition.f)}</span><span class="macro">У ${formatNumber(nutrition.c)}</span><small>на 100 г</small></div>${isRecipe ? `<h3>Состав</h3><ul>${ingredients || '<li>Состав не указан</li>'}</ul>${item.steps?.length ? `<h3>Приготовление</h3><ol>${item.steps.map((step) => `<li>${escapeHtml(typeof step === 'string' ? step : step.text || step.name || '')}</li>`).join('')}</ol>` : ''}` : ''}</div>`;
-    const actions = recipeIngredientPickContext
-      ? '<button type="button" class="btn" id="catalog-detail-cancel">Назад</button><button type="button" class="btn-primary" id="catalog-detail-add">Добавить в рецепт</button>'
+    const nutrition = isRecipe ? calculateRecipeNutrition(item, data.products) : null;
+    const detail = isRecipe
+      ? ui.renderRecipeDetailModal({
+        recipe: item,
+        nutrition,
+        products: data.products,
+        allergens: getEffectiveRecipeAllergens(item, data.products),
+        allergyMatches: getRecipeAllergyMatches(item, data.profile?.allergies, data.products),
+        formatNumber: formatNumber,
+        escapeHtml
+      })
+      : ui.renderProductDetailModal({
+        product: item,
+        formatNumber,
+        escapeHtml
+      });
+    const isPicking = Boolean(
+      recipeIngredientPickContext || collectionAddContext || context || (isRecipe && plannerSelectionContext)
+    );
+    const addLabel = recipeIngredientPickContext
+      ? 'Добавить в рецепт'
       : collectionAddContext
-      ? '<button type="button" class="btn" id="catalog-detail-cancel">Назад</button><button type="button" class="btn-primary" id="catalog-detail-add">Добавить в подборку</button>'
-      : context
-      ? '<button type="button" class="btn" id="catalog-detail-cancel">Назад</button><button type="button" class="btn-primary" id="catalog-detail-add">Добавить в приём</button>'
-      : isRecipe
-        ? '<button type="button" class="btn" id="catalog-detail-edit">Редактировать</button><button type="button" class="btn-primary" id="catalog-detail-cancel">Закрыть</button>'
-        : '<button type="button" class="btn-primary" id="catalog-detail-cancel">Закрыть</button>';
-    openModal(item.name, body, actions);
+        ? 'Добавить в подборку'
+        : plannerSelectionContext && isRecipe
+          ? 'Выбрать рецепт'
+          : 'Добавить в приём';
+    const actions = isPicking
+      ? `<button type="button" class="btn" id="catalog-detail-cancel">Назад</button><button type="button" class="btn-primary" id="catalog-detail-add">${addLabel}</button>`
+      : `<button type="button" class="btn" id="catalog-detail-fav">${item.favorite ? 'Убрать из избранного' : 'В избранное'}</button><button type="button" class="btn" id="catalog-detail-edit">Редактировать</button><button type="button" class="btn" id="catalog-detail-cancel">Закрыть</button><button type="button" class="btn-primary" id="catalog-detail-add">В дневник</button>`;
+    openModal(item.name, detail.body, actions);
+    document.querySelector('.modal').classList.add(isRecipe ? 'recipe-detail-modal' : 'product-detail-modal');
+    if (isRecipe) {
+      document.querySelectorAll('[data-nutrition-mode]').forEach((button) => {
+        button.addEventListener('click', () => {
+          document.querySelectorAll('[data-nutrition-mode]').forEach((entry) => {
+            entry.classList.toggle('active', entry === button);
+          });
+          document.getElementById('recipe-nutrition-values').innerHTML = ui.renderRecipeNutritionPanel({
+            nutrition,
+            mode: button.dataset.nutritionMode,
+            formatNumber,
+            escapeHtml
+          });
+        });
+      });
+    }
     document.getElementById('catalog-detail-cancel').addEventListener('click', () => {
       closeModal(false);
       renderPicker();
     });
-    const editRecipe = document.getElementById('catalog-detail-edit');
-    if (editRecipe) editRecipe.addEventListener('click', () => openRecipeEditor(item.id));
+    const editItem = document.getElementById('catalog-detail-edit');
+    if (editItem) {
+      editItem.addEventListener('click', () => {
+        if (isRecipe) openRecipeEditor(item.id);
+        else openProductEditor(item.id);
+      });
+    }
+    const favoriteItem = document.getElementById('catalog-detail-fav');
+    if (favoriteItem) {
+      favoriteItem.addEventListener('click', () => {
+        if (toggleFavorite(items, item.id)) openItemDetail(kind, item.id);
+      });
+    }
     const addToMeal = document.getElementById('catalog-detail-add');
     if (addToMeal) addToMeal.addEventListener('click', () => {
+      if (!isPicking) {
+        openDetailMealChooser(kind, item);
+        return;
+      }
       closeModal(false);
       if (recipeIngredientPickContext) {
         toggleRecipeIngredientPick(item.id);
       } else if (collectionAddContext) {
         addCollectionDraftItem(kind, item.id);
+      } else if (plannerSelectionContext && isRecipe) {
+        addPlannerSelection(item.id);
       } else {
         addItem(kind, item.id);
       }
+    });
+  }
+
+  function openDetailMealChooser(kind, item) {
+    const date = document.getElementById('page').dataset.page === 'diary'
+      ? getSelectedDate()
+      : today;
+    if (date > today) {
+      showToast('Нельзя добавлять записи на будущую дату');
+      return;
+    }
+    const modal = ui.renderQuickMealChooserModal({
+      dateLabel: readableDate(date),
+      optionsMarkup: getDiaryMealOptions(data.profile, data.diaryEntries)
+        .map((meal) => `<button type="button" class="history-row" data-quick-meal="${escapeHtml(meal)}"><strong>${escapeHtml(meal)}</strong><span class="muted" aria-hidden="true">›</span></button>`)
+        .join('')
+    });
+    closeModal(false);
+    openModal(modal.title, modal.body, modal.actions);
+    document.querySelector('.modal').classList.add('meal-chooser-modal');
+    document.getElementById('quick-meal-cancel').addEventListener('click', closeModal);
+    document.querySelectorAll('[data-quick-meal]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const meal = button.dataset.quickMeal;
+        closeModal(false);
+        navigatePage('diary');
+        start(meal, null, date);
+        addItem(kind, item.id);
+      });
     });
   }
 
@@ -2425,15 +2408,32 @@ export function createMealAddFlow({
 
   function cancel() {
     const onDismiss = context?.onDismiss;
+    const plannerReturnPage = plannerSelectionContext?.returnPage;
+    const plannerOnCancel = plannerSelectionContext?.onCancel;
     context = null;
     draft = [];
     recipeIngredientPickContext = null;
     recipeIngredientPickDraft = [];
     collectionAddContext = null;
     collectionAddDraft = [];
+    plannerSelectionContext = null;
+    plannerSelectionDraft = [];
     closeModal(false);
     if (onDismiss) onDismiss();
+    else if (plannerReturnPage) {
+      navigatePage(plannerReturnPage);
+      if (plannerOnCancel) plannerOnCancel();
+    }
     else navigatePage('diary');
+  }
+
+  function abandonPlannerRecipeSelection() {
+    if (!plannerSelectionContext) return false;
+    const { onAbandon } = plannerSelectionContext;
+    plannerSelectionContext = null;
+    plannerSelectionDraft = [];
+    if (typeof onAbandon === 'function') onAbandon();
+    return true;
   }
 
   function startMassLibrary({ dates, onSave, onDismiss }) {
@@ -2465,14 +2465,91 @@ export function createMealAddFlow({
     collectionAddDraft = [];
   }
 
+  function startPlannerRecipeSelection({
+    title,
+    actionLabel,
+    multiple = false,
+    filterRecipe = null,
+    returnPage = 'planning',
+    onSelect,
+    onCancel,
+    onAbandon
+  }) {
+    if (typeof onSelect !== 'function') throw new TypeError('Planner selection requires an onSelect callback.');
+    if (filterRecipe !== null && typeof filterRecipe !== 'function') {
+      throw new TypeError('Planner recipe filter must be a function.');
+    }
+    plannerSelectionContext = {
+      title: String(title || 'Выбор рецептов'),
+      actionLabel,
+      multiple: Boolean(multiple),
+      filterRecipe,
+      returnPage,
+      onSelect,
+      onCancel,
+      onAbandon
+    };
+    plannerSelectionDraft = [];
+    context = null;
+    recipeIngredientPickContext = null;
+    recipeIngredientPickDraft = [];
+    collectionAddContext = null;
+    collectionAddDraft = [];
+    catalogView = 'recipes';
+    recipeSearch = '';
+    openedCollectionId = null;
+    closeModal(false);
+    navigatePage('recipes');
+  }
+
+  function addPlannerSelection(id) {
+    if (!plannerSelectionContext) return;
+    const recipe = data.recipes.find((item) => String(item.id) === String(id));
+    if (!recipe) {
+      showToast('Рецепт не найден в каталоге');
+      return;
+    }
+    if (plannerSelectionDraft.some((item) => String(item.id) === String(recipe.id))) return;
+    if (plannerSelectionContext.multiple) plannerSelectionDraft.push(recipe);
+    else plannerSelectionDraft = [recipe];
+    renderPicker();
+  }
+
+  function commitPlannerRecipeSelection() {
+    if (!plannerSelectionContext) return;
+    const selection = plannerSelectionContext;
+    const selected = [...plannerSelectionDraft];
+    let afterNavigate;
+    try {
+      afterNavigate = selection.onSelect(selected);
+    } catch (error) {
+      console.error('Не удалось передать рецепты в планирование', error);
+      showToast(error instanceof Error ? error.message : 'Не удалось добавить рецепты в планирование');
+      return;
+    }
+    plannerSelectionContext = null;
+    plannerSelectionDraft = [];
+    navigatePage(selection.returnPage);
+    if (typeof afterNavigate === 'function') {
+      try {
+        afterNavigate();
+      } catch (error) {
+        console.error('Не удалось продолжить сценарий планирования после выбора рецептов', error);
+        showToast(error instanceof Error ? error.message : 'Не удалось продолжить планирование');
+      }
+    }
+  }
+
   return {
     start,
     openQuickAdd,
     renderPicker,
     showPlate,
     startMassLibrary,
+    startPlannerRecipeSelection,
     finishMassFlow,
     cancel,
-    isPicking: () => Boolean(context || recipeIngredientPickContext || collectionAddContext)
+    abandonPlannerRecipeSelection,
+    isPicking: () => Boolean(context || recipeIngredientPickContext || collectionAddContext || plannerSelectionContext)
   };
 }

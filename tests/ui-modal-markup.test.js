@@ -26,12 +26,16 @@ test('body-history modal markup preserves weight and measurement views', () => {
     values: { height: 166 },
     measurements: [
       { name: 'Плечи', group: 'Верхняя часть тела', value: null },
-      { name: 'Бицепс — левая рука', group: 'Руки', value: null }
+      { name: 'Бицепс — левая рука', group: 'Руки', value: null },
+      { name: 'Бицепс — правая рука', group: 'Руки', value: null }
     ],
     ratioMarkup: '<div>Соотношения</div>'
   });
   assert.match(measurementBody, /measure-height/);
   assert.match(measurementBody, /Соотношения/);
+  assert.match(measurementBody, /aria-label="Плечи"/);
+  assert.match(measurementBody, /aria-label="Бицепс — левая рука"/);
+  assert.doesNotMatch(measurementBody, /aria-label="Плечи — Плечи"/);
 });
 
 test('profile modal markup renders locale-safe fields and training options', () => {

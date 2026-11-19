@@ -1,16 +1,24 @@
-import { assertKeyValueStoragePort } from '../../contracts/storage.contract.js';
-import { createMeasurementHistoryRepository } from '../../infrastructure/persistence/repositories/measurement.repository.js';
-import { createProfileRepository } from '../../infrastructure/persistence/repositories/profile.repository.js';
-import { createWeightHistoryRepository } from '../../infrastructure/persistence/repositories/weight.repository.js';
+import {
+  assertArrayRepositoryPort,
+  assertObjectRepositoryPort
+} from '../../contracts/storage.contract.js';
 import * as measurementUseCases from '../usecases/measurement/measurement-history.js';
 import * as weightUseCases from '../usecases/weight/weight-history.js';
 
-/** @param {import('../../contracts/storage.contract.js').KeyValueStoragePort} storage */
-export function createBodyHistoryServices(storage) {
-  assertKeyValueStoragePort(storage);
-  const weightRepository = createWeightHistoryRepository(storage);
-  const measurementRepository = createMeasurementHistoryRepository(storage);
-  const profileRepository = createProfileRepository(storage);
+/**
+ * @param {Object} repositories
+ * @param {import('../../contracts/storage.contract.js').ArrayRepositoryPort} repositories.weight
+ * @param {import('../../contracts/storage.contract.js').ArrayRepositoryPort} repositories.measurements
+ * @param {import('../../contracts/storage.contract.js').ObjectRepositoryPort} repositories.profile
+ */
+export function createBodyHistoryServices({
+  weightRepository,
+  measurementRepository,
+  profileRepository
+} = {}) {
+  assertArrayRepositoryPort(weightRepository);
+  assertArrayRepositoryPort(measurementRepository);
+  assertObjectRepositoryPort(profileRepository);
   const withRepositories = (command, historyRepository) => ({
     ...command,
     historyRepository,

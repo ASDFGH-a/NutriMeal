@@ -4,6 +4,7 @@ import { createBodyHistoryServices } from '../src/application/services/body-hist
 import { MEASUREMENT_HISTORY_STORAGE_KEY } from '../src/infrastructure/persistence/repositories/measurement.repository.js';
 import { PROFILE_STORAGE_KEY } from '../src/infrastructure/persistence/repositories/profile.repository.js';
 import { WEIGHT_HISTORY_STORAGE_KEY } from '../src/infrastructure/persistence/repositories/weight.repository.js';
+import { createCoreRepositoriesFromStorage } from './helpers/core-data.js';
 
 function createMemoryStorage() {
   const values = new Map();
@@ -17,9 +18,14 @@ function createMemoryStorage() {
   };
 }
 
-test('body-history service composes repositories and use cases over the supplied storage', () => {
+test('body-history service runs use cases with injected repositories', () => {
   const storage = createMemoryStorage();
-  const services = createBodyHistoryServices(storage);
+  const repositories = createCoreRepositoriesFromStorage(storage);
+  const services = createBodyHistoryServices({
+    weightRepository: repositories.weightHistory,
+    measurementRepository: repositories.measurementHistory,
+    profileRepository: repositories.profile
+  });
 
   const priorWeight = services.weight.saveRecord({
     history: [],
@@ -84,5 +90,5 @@ test('body-history service composes repositories and use cases over the supplied
   ]);
   assert.equal(JSON.parse(storage.getItem(PROFILE_STORAGE_KEY)).height, 166);
   assert.equal(restoredMeasurement.profile.currentWeight, 64.5);
-  assert.throws(() => createBodyHistoryServices({}), /getItem and setItem/);
+  assert.throws(() => createBodyHistoryServices({}), /array repository/);
 });

@@ -1,11 +1,14 @@
-import { getStandardMeals, diaryMealShare } from '../../../domain/diary/meal-config.js';
+import { getStandardMeals } from '../../../domain/diary/meal-config.js';
 import {
+  getMealNutritionSummary,
+  getNutritionGoalProgress,
   isCalorieOnlyEntry,
   isNutritionSetAverageEntry,
   macrosFor
 } from '../../../domain/diary/diary-calculations.js';
+import { bmiSummary, weightGoalStatus } from '../../../domain/profile/profile-calculations.js';
 import { dateKey, isValidDateKey } from '../../../domain/shared/date-utils.js';
-import { ratioPercent } from '../../../domain/measurement/measurement-calculations.js';
+import { measurementRatios } from '../../../domain/measurement/measurement-calculations.js';
 
 function dateFromKey(key) {
   if (!isValidDateKey(key)) throw new TypeError('A valid diary date is required.');
@@ -21,74 +24,16 @@ function readableDate(key, locale) {
   });
 }
 
-function weightGoalStatus(profile, plan) {
-  const current = Number(profile.currentWeight) || 0;
-  const target = Number(plan.targetWeight) || 0;
-  const difference = Math.abs(target - current);
-  const amount = difference.toFixed(1).replace('.', ',');
-
-  if (plan.goal === 'Поддержание веса') {
-    const delta = current - target;
-    return {
-      label: 'Поддержание веса',
-      note: difference < 0.05
-        ? 'Целевой вес соблюдается'
-        : `Отклонение от цели: ${delta > 0 ? '+' : ''}${delta.toFixed(1).replace('.', ',')} кг`
-    };
-  }
-  if (difference < 0.05) return { label: 'Целевой вес достигнут', note: '' };
-  if (plan.goal === 'Набор веса' || plan.goal === 'Набор массы') {
-    return target > current
-      ? { label: `Осталось набрать ${amount} кг`, note: '' }
-      : { label: 'Проверь целевой вес', note: 'Для набора целевой вес должен быть выше текущего' };
-  }
-  if (plan.goal === 'Снижение веса' || plan.goal === 'Снижение жировой массы' || plan.goal === 'Сушка') {
-    return target < current
-      ? { label: `Осталось снизить ${amount} кг`, note: '' }
-      : { label: 'Проверь целевой вес', note: 'Для снижения целевой вес должен быть ниже текущего' };
-  }
-  return target > current
-    ? { label: `Осталось набрать ${amount} кг`, note: '' }
-    : { label: `Осталось снизить ${amount} кг`, note: '' };
-}
-
-function bmiSummary(profile) {
-  const height = Number(profile.height) / 100;
-  const weight = Number(profile.currentWeight);
-  if (!height || !weight) return { value: '—', label: 'Укажи рост и вес' };
-
-  const bmi = weight / (height * height);
-  let label = 'Ожирение III степени';
-  if (bmi < 18.5) label = 'Ниже нормы';
-  else if (bmi < 25) label = 'Нормальный диапазон';
-  else if (bmi < 30) label = 'Выше нормы';
-  else if (bmi < 35) label = 'Ожирение I степени';
-  else if (bmi < 40) label = 'Ожирение II степени';
-  return { value: bmi.toFixed(1).replace('.', ','), label };
-}
-
 function measurementCardSummary(data, locale) {
   const values = Object.fromEntries(data.measurements.map(({ name, value }) => [name, Number(value) || null]));
   const height = Number(data.profile.height);
-  const average = (left, right) => left && right ? (left + right) / 2 : null;
+  const ratios = measurementRatios(values, height);
   const rows = [
-    ['Талия / рост', ratioPercent(values.Талия, height > 0 ? height : null)],
-    ['Талия / бёдра', ratioPercent(values.Талия, values.Бёдра)],
-    ['Плечи / талия', ratioPercent(values.Плечи, values.Талия)],
-    [
-      'Бицепс / предплечье',
-      ratioPercent(
-        average(values['Бицепс — левая рука'], values['Бицепс — правая рука']),
-        average(values['Предплечье — левая рука'], values['Предплечье — правая рука'])
-      )
-    ],
-    [
-      'Бедро / икра',
-      ratioPercent(
-        average(values['Бедро — левая нога'], values['Бедро — правая нога']),
-        average(values['Икра — левая нога'], values['Икра — правая нога'])
-      )
-    ]
+    ['Талия / рост', ratios.waistToHeight],
+    ['Талия / бёдра', ratios.waistToHips],
+    ['Плечи / талия', ratios.shoulderToWaist],
+    ['Бицепс / предплечье', ratios.armToForearm],
+    ['Бедро / икра', ratios.thighToCalf]
   ].filter(([, value]) => Number.isFinite(value) && value > 0);
   const heightText = height > 0
     ? `${height.toLocaleString(locale, { maximumFractionDigits: 1 })} см`
@@ -150,6 +95,18 @@ export function createDiaryViewModel({
     meal,
     dayEntries.filter((entry) => entry.meal === meal)
   ]));
+  const dailyTotals = macrosFor(dayEntries);
+  const nutritionProgress = getNutritionGoalProgress(dailyTotals, data.plan);
+  const dailyProgress = {
+    kcal: nutritionProgress.calories.percent ?? 0,
+    p: nutritionProgress.macros.p.percent ?? 0,
+    f: nutritionProgress.macros.f.percent ?? 0,
+    c: nutritionProgress.macros.c.percent ?? 0
+  };
+  const mealSummaries = Object.fromEntries(displayMeals.map((meal) => {
+    return [meal, getMealNutritionSummary(entriesByMeal[meal], meal, data.plan, data.profile)];
+  }));
+  const snackEntries = dayEntries.filter((entry) => entry.meal === 'Перекус');
   const waterEntries = data.waterEntries.filter((entry) => entry.date === selectedDate);
   const waterTotal = waterEntries.reduce((total, entry) => total + (Number(entry.ml) || 0), 0);
   const fmt = (value) => Math.round(Number(value) || 0).toLocaleString(locale);
@@ -160,11 +117,13 @@ export function createDiaryViewModel({
     futureDate,
     standardMeals,
     displayMeals,
-    snackEntries: dayEntries.filter((entry) => entry.meal === 'Перекус'),
+    snackEntries,
     entriesByMeal,
     dayEntries,
-    macrosFor,
-    diaryMealShare: (meal) => diaryMealShare(meal, data.profile),
+    dailyTotals,
+    dailyProgress,
+    mealSummaries,
+    snackKcal: macrosFor(snackEntries).kcal,
     plan: data.plan,
     profile: data.profile,
     expandedMeals,

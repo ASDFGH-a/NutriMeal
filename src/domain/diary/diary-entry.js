@@ -1,4 +1,5 @@
 import { dateKey, isValidDateKey, todayLocalDate } from '../shared/date-utils.js';
+import { scaleNutritionByGrams } from './diary-calculations.js';
 
 const FOOD_COMPONENTS = [
   ['fiber', 'Клетчатка', 'г'],
@@ -86,6 +87,7 @@ export function createFoodDiaryEntry({
     c: carbohydrates,
     components
   };
+  const consumedNutrition = scaleNutritionByGrams(storedSnapshot, amount);
 
   return {
     id,
@@ -97,10 +99,10 @@ export function createFoodDiaryEntry({
     quantityValue: quantity,
     quantityUnit: quantityUnit || (kind === 'product' && item.basisUnit === 'мл' ? 'мл' : 'г'),
     portionGrams: quantityMode === 'portions' ? portionSize : (Number(portionGrams) || null),
-    kcal: kcal * amount / 100,
-    p: protein * amount / 100,
-    f: fat * amount / 100,
-    c: carbohydrates * amount / 100,
+    kcal: consumedNutrition.kcal,
+    p: consumedNutrition.p,
+    f: consumedNutrition.f,
+    c: consumedNutrition.c,
     components: storedSnapshot.components.map((component) => ({
       ...component,
       amount: Number(component.amount) * amount / 100

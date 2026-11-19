@@ -1,5 +1,5 @@
 import { PROFILE_ACTIVITY_LEVELS } from '../profile/profile.model.js';
-import { normalizeGoalLabel, defaultGoalAdjustment } from './plan.model.js';
+import { normalizeGoalLabel, normalizeEnergyAdjustment } from './plan.model.js';
 
 export function calculateProfileAge(birthDate, referenceDate = new Date()) {
   if (typeof birthDate !== 'string' || !birthDate) return null;
@@ -46,11 +46,7 @@ export function calculatePlanTargets(profile, plan, referenceDate = new Date()) 
   const bmr = 10 * weight + 6.25 * height - 5 * age + (profile.sex === 'Мужской' ? 5 : -161);
   const tdee = bmr * factor;
   const goal = normalizeGoalLabel(plan.goal);
-  let adjustment = Number(plan.energyAdjustment);
-  if (!Number.isFinite(adjustment)) adjustment = defaultGoalAdjustment(goal);
-  if (goal === 'Поддержание веса') adjustment = 0;
-  if (goal === 'Снижение веса') adjustment = -Math.abs(adjustment || 400);
-  if (goal === 'Набор веса') adjustment = Math.abs(adjustment || 300);
+  const adjustment = normalizeEnergyAdjustment(goal, plan.energyAdjustment);
 
   const kcal = Math.max(0, Math.round(tdee + adjustment));
   const training = profile.trainingFrequency

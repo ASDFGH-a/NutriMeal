@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createWaterServices } from '../src/application/services/water-services.js';
 import { WATER_STORAGE_KEY } from '../src/infrastructure/persistence/repositories/water.repository.js';
+import { createCoreRepositoriesFromStorage } from './helpers/core-data.js';
 
 function createMemoryStorage() {
   const values = new Map();
@@ -17,7 +18,7 @@ function createMemoryStorage() {
 
 test('water service adds, removes, and restores entries through its repository', () => {
   const storage = createMemoryStorage();
-  const services = createWaterServices(storage);
+  const services = createWaterServices(createCoreRepositoriesFromStorage(storage).water);
   let entries = [];
   for (const [id, ml] of [[21, 250], [22, 300], [23, 400]]) {
     entries = services.addEntry({
@@ -45,7 +46,7 @@ test('water service adds, removes, and restores entries through its repository',
 
 test('water service preserves the list and avoids writes when removal target is missing', () => {
   const storage = createMemoryStorage();
-  const services = createWaterServices(storage);
+  const services = createWaterServices(createCoreRepositoriesFromStorage(storage).water);
   const entries = [{ id: 1, date: '2026-11-18', ml: 250 }];
 
   const result = services.removeEntry({ entries, id: 2 });

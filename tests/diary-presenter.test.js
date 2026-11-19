@@ -28,9 +28,22 @@ test('diary presenter composes date-specific entries, meals, totals, and water',
   assert.deepEqual(model.displayMeals, ['Завтрак', 'Обед', 'Ужин']);
   assert.equal(model.entriesByMeal['Завтрак'].length, 1);
   assert.equal(model.snackEntries.length, 1);
-  assert.deepEqual(model.macrosFor(model.dayEntries), { kcal: 280, p: 8.3, f: 5.2, c: 51 });
+  assert.deepEqual(model.dailyTotals, { kcal: 280, p: 8.3, f: 5.2, c: 51 });
+  assert.deepEqual(
+    Object.fromEntries(Object.entries(model.dailyProgress).map(([key, value]) => [key, Number(value.toFixed(2))])),
+    { kcal: 14, p: 8.3, f: 8.67, c: 20.4 }
+  );
+  assert.equal(model.mealSummaries['Завтрак'].total.kcal, 200);
+  assert.equal(model.mealSummaries['Завтрак'].targetKcal, 667);
+  assert.equal(model.mealSummaries['Завтрак'].progress, 200 / 667 * 100);
+  assert.equal(model.snackKcal, 80);
   assert.equal(model.waterTotal, 250);
   assert.equal(model.waterLitres, '0,25');
+  assert.deepEqual(model.weightStatus, {
+    label: 'Поддержание веса',
+    note: 'Целевой вес соблюдается'
+  });
+  assert.deepEqual(model.bmi, { value: '23,6', label: 'Нормальный диапазон' });
   assert.match(model.measurementCardSummary, /Талия \/ рост/);
 });
 

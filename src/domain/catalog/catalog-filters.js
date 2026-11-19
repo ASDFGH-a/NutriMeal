@@ -1,6 +1,10 @@
 import { getEffectiveRecipeAllergens, getRecipeCategories } from '../recipe/recipe.model.js';
 import { calculateRecipeNutrition } from '../shared/nutrient-calculations.js';
-import { normalizeRecipeFilterValue, recipeArray } from '../shared/filter-utils.js';
+import {
+  normalizeRecipeFilterValue,
+  recipeArray,
+  uniqueRecipeValues
+} from '../shared/filter-utils.js';
 
 export function recipeFilterDefaults() {
   return {
@@ -129,6 +133,126 @@ export function createProductStandardFilterCategories() {
   ];
 }
 
+export function createCustomFilterCategory({ label, isProducts, existingCategories } = {}) {
+  const name = String(label ?? '').trim();
+  if (!name) return null;
+  if (!Array.isArray(existingCategories)) {
+    throw new TypeError('Existing filter categories must be an array.');
+  }
+  const base = `custom-${name.toLocaleLowerCase('ru-RU').replace(/[^a-zа-яё0-9]+/gi, '-').replace(/^-|-$/g, '').slice(0, 28)}`;
+  const root = base === 'custom-' ? 'custom-filter' : base;
+  let id = root;
+  let suffix = 2;
+  while (existingCategories.some((category) => category.id === id)) id = `${root}-${suffix++}`;
+  return {
+    id,
+    label: name,
+    kind: 'customMulti',
+    ...(isProducts ? { productField: 'customAttributes' } : { recipeField: 'customAttributes' }),
+    values: []
+  };
+}
+
+export function renameCatalogFilterCategory(category, label) {
+  if (!category || typeof category !== 'object' || Array.isArray(category)) {
+    throw new TypeError('A filter category is required.');
+  }
+  const name = String(label ?? '').trim();
+  if (!name) return null;
+  return { ...category, label: name };
+}
+
+export function removeCustomFilterCategory({
+  categoryId,
+  categories,
+  items,
+  filters,
+  cardSettings,
+  isProducts = false
+} = {}) {
+  if (typeof categoryId !== 'string' || !categoryId) {
+    throw new TypeError('A custom filter category id is required.');
+  }
+  if (!Array.isArray(categories) || !Array.isArray(items)) {
+    throw new TypeError('Filter categories and catalog items must be arrays.');
+  }
+  if (!filters || typeof filters !== 'object' || Array.isArray(filters)) {
+    throw new TypeError('Catalog filters are required.');
+  }
+  if (!cardSettings || typeof cardSettings !== 'object' || Array.isArray(cardSettings)) {
+    throw new TypeError('Catalog card settings are required.');
+  }
+  if (!categories.some((category) => category.id === categoryId)) return null;
+
+  const settingsKey = isProducts ? 'products' : 'recipes';
+  const updatedSettings = {
+    ...cardSettings,
+    [settingsKey]: { ...(cardSettings[settingsKey] || {}) }
+  };
+  delete updatedSettings[settingsKey][categoryId];
+
+  const customAttributes = { ...(filters.customAttributes || {}) };
+  delete customAttributes[categoryId];
+  const updatedFilters = { ...filters, customAttributes };
+  const updatedItems = items.map((item) => {
+    const attributes = item?.customAttributes;
+    if (
+      !attributes
+      || typeof attributes !== 'object'
+      || Array.isArray(attributes)
+      || !Object.prototype.hasOwnProperty.call(attributes, categoryId)
+    ) return item;
+    const updatedAttributes = { ...attributes };
+    delete updatedAttributes[categoryId];
+    return { ...item, customAttributes: updatedAttributes };
+  });
+
+  return {
+    categories: categories.filter((category) => category.id !== categoryId),
+    items: updatedItems,
+    filters: updatedFilters,
+    cardSettings: updatedSettings
+  };
+}
+
+export function getRecipeFilterCategoryValues(category, recipes, products) {
+  if (!category) return [];
+  if (!Array.isArray(recipes) || !Array.isArray(products)) {
+    throw new TypeError('Recipe and product catalogs must be arrays.');
+  }
+  let observed = [];
+  if (category.id === 'customTags') observed = recipes.flatMap((recipe) => recipeArray(recipe.tags));
+  else if (category.id === 'mealTypes') observed = recipes.flatMap((recipe) => recipeArray(recipe.mealTypes || recipe.mealType));
+  else if (category.id === 'cuisines') observed = recipes.flatMap((recipe) => recipeArray(recipe.cuisine));
+  else if (category.id === 'dishTypes') observed = recipes.flatMap((recipe) => recipeArray(recipe.dishTypes || recipe.dishType));
+  else if (category.id === 'categories') observed = recipes.flatMap((recipe) => getRecipeCategories(recipe));
+  else if (category.id === 'allergens') {
+    observed = recipes.flatMap((recipe) => getEffectiveRecipeAllergens(recipe, products));
+  } else if (category.recipeField === 'customAttributes') {
+    observed = recipes.flatMap((recipe) => recipeArray(recipe.customAttributes?.[category.id]));
+  } else if (category.recipeField) {
+    observed = recipes.flatMap((recipe) => recipeArray(recipe[category.recipeField]));
+  }
+  return uniqueRecipeValues([...(category.values || []), ...observed]);
+}
+
+export function getProductFilterCategoryValues(category, products) {
+  if (!category) return [];
+  if (!Array.isArray(products)) throw new TypeError('Product catalog must be an array.');
+  let observed = [];
+  if (category.id === 'customTags') observed = products.flatMap((product) => recipeArray(product.tags));
+  else if (category.productField === 'brand') observed = products.map((product) => product.brand || '');
+  else if (['categories', 'allergens', 'state'].includes(category.productField)) {
+    observed = products.flatMap((product) => recipeArray(product[category.productField]));
+  } else if (category.productField === 'components') {
+    observed = products.flatMap((product) => recipeArray(product.components)
+      .map((item) => typeof item === 'string' ? item : item?.name));
+  } else if (category.productField === 'customAttributes') {
+    observed = products.flatMap((product) => recipeArray(product.customAttributes?.[category.id]));
+  }
+  return uniqueRecipeValues([...(category.values || []), ...observed]);
+}
+
 function filterCount(filters) {
   return Object.entries(filters).reduce((total, [key, value]) => {
     if (Array.isArray(value)) return total + value.length;
@@ -155,6 +279,244 @@ function within(value, minimum, maximum) {
 
 function selected(filters, key) {
   return Array.isArray(filters[key]) ? filters[key] : [];
+}
+
+function replaceFilterValue(value, oldValue, newValue, remove) {
+  return normalizeRecipeFilterValue(value) === normalizeRecipeFilterValue(oldValue)
+    ? (remove ? '' : newValue)
+    : value;
+}
+
+function replaceUniqueFilterValues(values, oldValue, newValue, remove) {
+  return uniqueRecipeValues(values
+    .map((value) => replaceFilterValue(value, oldValue, newValue, remove))
+    .filter(Boolean));
+}
+
+export function updateRecipeFilterValue(recipe, category, oldValue, newValue, remove = false) {
+  if (!recipe || !category) throw new TypeError('Recipe and filter category are required.');
+  if (category.recipeField === 'cuisine') {
+    return {
+      ...recipe,
+      cuisine: replaceFilterValue(recipe.cuisine, oldValue, newValue, remove)
+    };
+  }
+  if (category.recipeField === 'customAttributes') {
+    return {
+      ...recipe,
+      customAttributes: {
+        ...(recipe.customAttributes || {}),
+        [category.id]: replaceUniqueFilterValues(
+          recipeArray(recipe.customAttributes?.[category.id]),
+          oldValue,
+          newValue,
+          remove
+        )
+      }
+    };
+  }
+  if (category.recipeField) {
+    return {
+      ...recipe,
+      [category.recipeField]: replaceUniqueFilterValues(
+        recipeArray(recipe[category.recipeField]),
+        oldValue,
+        newValue,
+        remove
+      )
+    };
+  }
+  return recipe;
+}
+
+export function updateProductFilterValue(product, category, oldValue, newValue, remove = false) {
+  if (!product || !category) throw new TypeError('Product and filter category are required.');
+  if (category.productField === 'brand') {
+    return {
+      ...product,
+      brand: replaceFilterValue(product.brand, oldValue, newValue, remove)
+    };
+  }
+  if (category.productField === 'components') {
+    return {
+      ...product,
+      components: recipeArray(product.components).map((item) => {
+        if (typeof item === 'string') {
+          return replaceFilterValue(item, oldValue, newValue, remove);
+        }
+        return normalizeRecipeFilterValue(item?.name) === normalizeRecipeFilterValue(oldValue)
+          ? { ...item, name: remove ? '' : newValue }
+          : item;
+      }).filter((item) => typeof item === 'string' ? Boolean(item) : Boolean(item?.name))
+    };
+  }
+  if (category.productField === 'customAttributes') {
+    return {
+      ...product,
+      customAttributes: {
+        ...(product.customAttributes || {}),
+        [category.id]: replaceUniqueFilterValues(
+          recipeArray(product.customAttributes?.[category.id]),
+          oldValue,
+          newValue,
+          remove
+        )
+      }
+    };
+  }
+  if (category.productField) {
+    return {
+      ...product,
+      [category.productField]: replaceUniqueFilterValues(
+        recipeArray(product[category.productField]),
+        oldValue,
+        newValue,
+        remove
+      )
+    };
+  }
+  return product;
+}
+
+export function updateCatalogFilterSelections(filters, category, oldValue, newValue, remove = false, isProducts = false) {
+  if (!filters || !category) throw new TypeError('Filters and filter category are required.');
+  const updated = { ...filters };
+  const replace = (values) => replaceUniqueFilterValues(values, oldValue, newValue, remove);
+  if (category.filterKey && Array.isArray(filters[category.filterKey])) {
+    updated[category.filterKey] = replace(filters[category.filterKey]);
+  }
+  if (category.id === 'allergens') {
+    for (const key of ['allergenInclude', 'allergenExclude']) {
+      if (Array.isArray(filters[key])) updated[key] = replace(filters[key]);
+    }
+  }
+  if (category.id === 'customTags' && Array.isArray(filters.customTags)) {
+    updated.customTags = replace(filters.customTags);
+  }
+  if (category.kind === 'customMulti' && Array.isArray(filters.customAttributes?.[category.id])) {
+    updated.customAttributes = {
+      ...(filters.customAttributes || {}),
+      [category.id]: replace(filters.customAttributes[category.id])
+    };
+  }
+  if (isProducts && category.id === 'brand' && Array.isArray(filters.brand)) {
+    updated.brand = replace(filters.brand);
+  }
+  return updated;
+}
+
+export function addCatalogFilterValue({ category, availableValues, value } = {}) {
+  if (!category || typeof category !== 'object' || Array.isArray(category)) {
+    throw new TypeError('A filter category is required.');
+  }
+  if (!Array.isArray(availableValues)) {
+    throw new TypeError('Available filter values must be an array.');
+  }
+  const cleanValue = String(value ?? '').trim();
+  if (!cleanValue || availableValues.some((item) => (
+    normalizeRecipeFilterValue(item) === normalizeRecipeFilterValue(cleanValue)
+  ))) return null;
+
+  return {
+    ...category,
+    values: uniqueRecipeValues([...recipeArray(category.values), cleanValue])
+  };
+}
+
+export function toggleCatalogFilterSelection(filters, key, value, categoryId = '') {
+  if (!filters || typeof filters !== 'object' || Array.isArray(filters)) {
+    throw new TypeError('Catalog filters are required.');
+  }
+  if (typeof key !== 'string' || !key || typeof value !== 'string') {
+    throw new TypeError('A filter key and value are required.');
+  }
+  if (typeof categoryId !== 'string') {
+    throw new TypeError('A custom filter category id must be a string.');
+  }
+
+  const selected = categoryId
+    ? (filters.customAttributes?.[categoryId] || [])
+    : filters[key];
+  if (!Array.isArray(selected)) return filters;
+  const index = selected.findIndex((item) => (
+    normalizeRecipeFilterValue(item) === normalizeRecipeFilterValue(value)
+  ));
+  const updatedSelection = selected.slice();
+  if (index >= 0) updatedSelection.splice(index, 1);
+  else updatedSelection.push(value);
+
+  if (!categoryId) return { ...filters, [key]: updatedSelection };
+  return {
+    ...filters,
+    customAttributes: {
+      ...(filters.customAttributes || {}),
+      [categoryId]: updatedSelection
+    }
+  };
+}
+
+export function addCatalogFilterSelection(filters, key, value) {
+  if (!filters || typeof filters !== 'object' || Array.isArray(filters)) {
+    throw new TypeError('Catalog filters are required.');
+  }
+  if (typeof key !== 'string' || !key || typeof value !== 'string' || !value) {
+    throw new TypeError('A filter key and value are required.');
+  }
+  if (!Array.isArray(filters[key])) {
+    throw new TypeError('Selected filter values must be an array.');
+  }
+  return {
+    ...filters,
+    [key]: uniqueRecipeValues([...filters[key], value])
+  };
+}
+
+export function updateCatalogFilterValue({
+  category,
+  availableValues,
+  items,
+  filters,
+  oldValue,
+  newValue,
+  remove = false,
+  isProducts = false
+} = {}) {
+  if (!category || typeof category !== 'object' || Array.isArray(category)) {
+    throw new TypeError('A filter category is required.');
+  }
+  if (!Array.isArray(availableValues) || !Array.isArray(items)) {
+    throw new TypeError('Available filter values and catalog items must be arrays.');
+  }
+  if (!filters || typeof filters !== 'object' || Array.isArray(filters)) {
+    throw new TypeError('Catalog filters are required.');
+  }
+  if (typeof oldValue !== 'string' || !oldValue) {
+    throw new TypeError('An existing filter value is required.');
+  }
+  const cleanValue = String(newValue ?? '').trim();
+  if (!remove && !cleanValue) throw new TypeError('A replacement filter value is required.');
+
+  if (!remove && availableValues.some((value) => (
+    normalizeRecipeFilterValue(value) === normalizeRecipeFilterValue(cleanValue)
+    && normalizeRecipeFilterValue(value) !== normalizeRecipeFilterValue(oldValue)
+  ))) return null;
+
+  const updatedCategory = {
+    ...category,
+    values: replaceUniqueFilterValues(
+      recipeArray(category.values),
+      oldValue,
+      cleanValue,
+      remove
+    )
+  };
+  const updateItem = isProducts ? updateProductFilterValue : updateRecipeFilterValue;
+
+  return {
+    category: updatedCategory,
+    items: items.map((item) => updateItem(item, category, oldValue, cleanValue, remove)),
+    filters: updateCatalogFilterSelections(filters, category, oldValue, cleanValue, remove, isProducts)
+  };
 }
 
 export function productMatchesFilters(product, query = '', options) {

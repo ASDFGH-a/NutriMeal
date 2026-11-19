@@ -23,10 +23,14 @@
     pickMode,
     collectionAddContext,
     recipeIngredientPickContext,
+    plannerSelectionContext,
     plannerDishAddContext,
     plannerCategoryAddContext
   }) {
     if (pickMode) {
+      if (plannerSelectionContext) {
+        return '<div class="tabs meal-pick-tabs"><button class="tab active" data-pick-catalog="recipes">Рецепты</button></div>';
+      }
       if (recipeIngredientPickContext) {
         return '<div class="tabs meal-pick-tabs"><button class="tab active" data-pick-catalog="myProducts">Мои продукты</button></div>';
       }

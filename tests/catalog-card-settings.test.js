@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { initializeCoreData } from '../src/application/services/initialize-core-data.js';
+import { initializeCoreDataFromStorage } from './helpers/core-data.js';
 import {
   createDefaultCatalogCardSettings,
   normalizeCatalogCardSettings
@@ -72,5 +72,5 @@ test('card settings repository uses the existing key and is included in core ini
   repository.save(repository.load());
   assert.equal(JSON.parse(storage.getItem(CATALOG_CARD_SETTINGS_STORAGE_KEY)).recipes.composition, false);
   assert.equal(CATALOG_CARD_SETTINGS_STORAGE_KEY, 'nutrition-catalog-card-settings');
-  assert.equal(initializeCoreData(storage).catalogCardSettings.products.allergens, true);
+  assert.equal(initializeCoreDataFromStorage(storage).catalogCardSettings.products.allergens, true);
 });

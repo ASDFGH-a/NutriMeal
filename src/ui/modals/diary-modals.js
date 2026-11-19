@@ -157,6 +157,7 @@
     replaceEntry,
     fmt,
     nutritionNumber,
+    scaleNutritionByGrams,
     escapeHtml
   }) {
     if (!draftItems.length) return '';
@@ -177,7 +178,8 @@
       const portionNote = hasPortion
         ? `<small class="meal-draft-quantity-note">1 порция = ${nutritionNumber(item.portionGrams)} г · всего ${fmt(grams)} г</small>`
         : '';
-      return `<div class="meal-draft-row" data-draft-row="${index}"><div class="meal-draft-info"><strong>${escapeHtml(item.name)}</strong><small>${fmt(item.kcal * grams / 100)} ккал · Б ${(item.p * grams / 100).toFixed(1)} · Ж ${(item.f * grams / 100).toFixed(1)} · У ${(item.c * grams / 100).toFixed(1)}</small></div><div class="meal-draft-quantity">${mealOptions}${portionControls}<label class="meal-draft-grams"><input type="number" min="0.1" max="30000" step="${mode === 'portions' ? '0.1' : '1'}" value="${replaceEntry && !value ? '' : Number(value.toFixed(2))}" data-draft-quantity="${index}" aria-label="Количество: ${escapeHtml(item.name)}"><span>${quantityUnit}</span></label>${portionNote}</div><button type="button" class="meal-draft-remove" data-remove-draft="${index}" aria-label="Убрать ${escapeHtml(item.name)}">×</button></div>`;
+      const nutrition = scaleNutritionByGrams(item, grams);
+      return `<div class="meal-draft-row" data-draft-row="${index}"><div class="meal-draft-info"><strong>${escapeHtml(item.name)}</strong><small>${fmt(nutrition.kcal)} ккал · Б ${nutrition.p.toFixed(1)} · Ж ${nutrition.f.toFixed(1)} · У ${nutrition.c.toFixed(1)}</small></div><div class="meal-draft-quantity">${mealOptions}${portionControls}<label class="meal-draft-grams"><input type="number" min="0.1" max="30000" step="${mode === 'portions' ? '0.1' : '1'}" value="${replaceEntry && !value ? '' : Number(value.toFixed(2))}" data-draft-quantity="${index}" aria-label="Количество: ${escapeHtml(item.name)}"><span>${quantityUnit}</span></label>${portionNote}</div><button type="button" class="meal-draft-remove" data-remove-draft="${index}" aria-label="Убрать ${escapeHtml(item.name)}">×</button></div>`;
     }).join('');
     return `<div class="meal-draft-block"><div class="meal-draft-heading"><strong>${replaceEntry ? 'Новое блюдо' : 'Добавлено'}</strong><span>${draftItems.length} поз.</span></div><div class="meal-draft-list">${rows}</div></div>`;
   };

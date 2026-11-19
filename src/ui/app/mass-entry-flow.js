@@ -36,6 +36,7 @@ export function createMassEntryFlow({
   today,
   getSelectedDate,
   setSelectedDate,
+  expandDiaryMeals,
   navigatePage,
   openModal,
   closeModal,
@@ -421,7 +422,7 @@ export function createMassEntryFlow({
     const targetDates = result.dates;
     const latest = [...targetDates].sort().at(-1);
     if (state.source === 'library') {
-      result.created.forEach((entry) => expandedMeals.add(entry.meal));
+      expandDiaryMeals(result.created.map((entry) => entry.meal));
     }
     const message = `Создано записей: ${result.created.length} · дней: ${targetDates.length}${state.collisionMode === 'skip' && result.skippedDates.length ? ` · пропущено: ${result.skippedDates.length}` : ''}`;
     state = null;

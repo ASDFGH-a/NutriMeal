@@ -4,6 +4,7 @@ import { createPlanningServices } from '../src/application/services/planning-ser
 import { createSeedCatalog } from '../src/domain/catalog/catalog-seed.js';
 import { createDefaultPlan } from '../src/domain/planning/plan.defaults.js';
 import { createDefaultProfile } from '../src/domain/profile/profile.defaults.js';
+import { createCoreRepositoriesFromStorage } from './helpers/core-data.js';
 import { ACTIVE_NUTRITION_SET_STORAGE_KEY } from '../src/infrastructure/persistence/repositories/active-nutrition-set.repository.js';
 import { NUTRITION_SETS_STORAGE_KEY } from '../src/infrastructure/persistence/repositories/nutrition-sets.repository.js';
 import { PLAN_PRESETS_STORAGE_KEY } from '../src/infrastructure/persistence/repositories/plan-presets.repository.js';
@@ -26,7 +27,13 @@ function createMemoryStorage() {
 
 test('planning service persists plans and preset mutations through existing repositories', () => {
   const storage = createMemoryStorage();
-  const services = createPlanningServices(storage);
+  const repositories = createCoreRepositoriesFromStorage(storage);
+  const services = createPlanningServices({
+    planRepository: repositories.plan,
+    presetRepository: repositories.planPresets,
+    nutritionSetRepository: repositories.nutritionSets,
+    activeNutritionSetRepository: repositories.activeNutritionSet
+  });
   const plan = { ...createDefaultPlan(), goal: 'Сушка', targetWeight: 60 };
   const savedPlan = services.savePlan({ plan });
   assert.equal(savedPlan.goal, 'Снижение веса');
@@ -68,7 +75,14 @@ test('planning service persists plans and preset mutations through existing repo
 test('planning service persists nutrition-set edits, weekly goals, and active-set fallback', () => {
   const storage = createMemoryStorage();
   const { products } = createSeedCatalog();
-  const services = createPlanningServices(storage, products);
+  const repositories = createCoreRepositoriesFromStorage(storage, products);
+  const services = createPlanningServices({
+    planRepository: repositories.plan,
+    presetRepository: repositories.planPresets,
+    nutritionSetRepository: repositories.nutritionSets,
+    activeNutritionSetRepository: repositories.activeNutritionSet,
+    products
+  });
   const created = services.createNutritionSet({
     sets: [],
     name: 'Рабочий набор',

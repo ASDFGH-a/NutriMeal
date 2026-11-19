@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createDiaryServices } from '../src/application/services/diary-services.js';
 import { DIARY_STORAGE_KEY } from '../src/infrastructure/persistence/repositories/diary.repository.js';
+import { createCoreRepositoriesFromStorage } from './helpers/core-data.js';
 
 function createMemoryStorage() {
   const values = new Map();
@@ -21,7 +22,7 @@ function food(id, name, kcal) {
 
 test('diary service persists add, update, replace, remove, and restore operations', () => {
   const storage = createMemoryStorage();
-  const services = createDiaryServices(storage);
+  const services = createDiaryServices(createCoreRepositoriesFromStorage(storage).diary);
   const entries = services.addEntries({
     entries: [],
     today: '2026-11-18',
@@ -92,7 +93,7 @@ test('diary service persists add, update, replace, remove, and restore operation
 
 test('diary batch add validates all entries before saving', () => {
   const storage = createMemoryStorage();
-  const services = createDiaryServices(storage);
+  const services = createDiaryServices(createCoreRepositoriesFromStorage(storage).diary);
 
   assert.throws(() => services.addEntries({
     entries: [],

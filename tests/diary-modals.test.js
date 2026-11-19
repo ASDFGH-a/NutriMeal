@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { scaleNutritionByGrams } from '../src/domain/diary/diary-calculations.js';
 import '../src/ui/modals/diary-modals.js';
 
 const ui = globalThis.NutriMealUI;
@@ -60,6 +61,7 @@ test('meal add plate renders safe context, portion controls, and library states'
     replaceEntry: false,
     fmt: String,
     nutritionNumber: String,
+    scaleNutritionByGrams,
     escapeHtml
   });
   assert.match(draftMarkup, /&lt;Овсянка&gt;/);

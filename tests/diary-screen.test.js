@@ -24,13 +24,21 @@ function renderDiary(overrides = {}) {
     snackEntries: [],
     entriesByMeal: { Завтрак: [entry], Обед: [] },
     dayEntries: [entry],
-    macrosFor: (entries) => entries.reduce((sum, item) => ({
-      kcal: sum.kcal + Number(item.kcal || 0),
-      p: sum.p + Number(item.p || 0),
-      f: sum.f + Number(item.f || 0),
-      c: sum.c + Number(item.c || 0)
-    }), { kcal: 0, p: 0, f: 0, c: 0 }),
-    diaryMealShare: (meal) => meal === 'Завтрак' ? 0.25 : 0.75,
+    dailyTotals: { kcal: 200, p: 8, f: 5, c: 30 },
+    dailyProgress: { kcal: 10, p: 8, f: 8.33, c: 12 },
+    mealSummaries: {
+      Завтрак: {
+        total: { kcal: 200, p: 8, f: 5, c: 30 },
+        targetKcal: 500,
+        progress: 40
+      },
+      Обед: {
+        total: { kcal: 0, p: 0, f: 0, c: 0 },
+        targetKcal: 1500,
+        progress: 0
+      }
+    },
+    snackKcal: 0,
     plan: { kcal: 2000, p: 100, f: 60, c: 250, targetWeight: 65 },
     profile: { currentWeight: 65.5 },
     expandedMeals: new Set(),

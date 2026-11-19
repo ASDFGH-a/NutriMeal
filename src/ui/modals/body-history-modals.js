@@ -46,8 +46,8 @@
     measurements,
     ratioMarkup
   }) {
-    function inputMarkup(measurement, label, index) {
-      return `<input class="measurement-value-input" id="measure-input-${index}" type="number" min="0" max="300" step="0.1" inputmode="decimal" aria-label="${escapeValue(measurement.name)} — ${escapeValue(label)}" placeholder="—" data-measure-name="${escapeValue(measurement.name)}" value="${values[measurement.name] ?? ''}">`;
+    function inputMarkup(measurement, index) {
+      return `<input class="measurement-value-input" id="measure-input-${index}" type="number" min="0" max="300" step="0.1" inputmode="decimal" aria-label="${escapeValue(measurement.name)}" placeholder="—" data-measure-name="${escapeValue(measurement.name)}" value="${values[measurement.name] ?? ''}">`;
     }
     function groupMarkup(group) {
       const items = measurements.filter((measurement) => measurement.group === group);
@@ -58,10 +58,10 @@
           const left = items.find((measurement) => measurement.name === `${label} — левая ${side}`);
           const right = items.find((measurement) => measurement.name === `${label} — правая ${side}`);
           if (!left || !right) return '';
-          return `<div class="measurement-table-row"><div class="measurement-table-name">${label}</div>${inputMarkup(left, `левая ${side}`, measurements.indexOf(left))}${inputMarkup(right, `правая ${side}`, measurements.indexOf(right))}</div>`;
+          return `<div class="measurement-table-row"><div class="measurement-table-name">${label}</div>${inputMarkup(left, measurements.indexOf(left))}${inputMarkup(right, measurements.indexOf(right))}</div>`;
         }).join('')}</div>`;
       }
-      return `<div class="measurement-table">${items.map((measurement) => `<div class="measurement-table-row"><div class="measurement-table-name">${escapeValue(measurement.name)}</div>${inputMarkup(measurement, measurement.name, measurements.indexOf(measurement))}<span></span></div>`).join('')}</div>`;
+      return `<div class="measurement-table">${items.map((measurement) => `<div class="measurement-table-row"><div class="measurement-table-name">${escapeValue(measurement.name)}</div>${inputMarkup(measurement, measurements.indexOf(measurement))}<span></span></div>`).join('')}</div>`;
     }
     const groups = ['Верхняя часть тела', 'Талия и таз', 'Руки', 'Ноги'];
     return `<div class="measurement-form-wrap"><div class="field measurement-date-field"><label for="measure-date">Дата измерения</label><input id="measure-date" type="date" max="${today}" value="${date}"></div><div class="field measurement-height-field"><label for="measure-height">Рост, см</label><input class="measurement-value-input" id="measure-height" type="number" min="80" max="250" step="0.1" inputmode="decimal" value="${values.height ?? profileHeight}"></div><div class="measurement-unit-note">Все остальные значения в см</div>${groups.map((group) => `<section class="detail-section measurement-section"><div class="detail-section-head"><div class="detail-section-title">${group.toUpperCase()}</div></div>${groupMarkup(group)}</section>`).join('')}</div><section class="detail-section"><div class="detail-section-head"><div class="detail-section-title">Соотношения</div><div class="detail-section-note">Рассчитываются автоматически</div></div><div class="ratio-grid" id="measure-ratios">${ratioMarkup}</div></section><div class="field-help" style="margin-top:12px">Показываются только показатели, для которых заполнены необходимые замеры. Проценты описывают пропорции и динамику, а не являются диагнозом.</div>`;

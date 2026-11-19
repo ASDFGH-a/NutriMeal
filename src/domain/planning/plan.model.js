@@ -13,6 +13,17 @@ export function defaultGoalAdjustment(goal) {
   return label === 'Снижение веса' ? -400 : label === 'Набор веса' ? 300 : 0;
 }
 
+export function normalizeEnergyAdjustment(goal, adjustment) {
+  const label = normalizeGoalLabel(goal);
+  const value = Number.isFinite(Number(adjustment))
+    ? Number(adjustment)
+    : defaultGoalAdjustment(label);
+  if (label === 'Поддержание веса') return 0;
+  return label === 'Снижение веса'
+    ? -Math.abs(value || 400)
+    : Math.abs(value || 300);
+}
+
 function isRecord(value) {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }

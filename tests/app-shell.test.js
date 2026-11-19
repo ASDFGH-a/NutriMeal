@@ -9,6 +9,10 @@ test('app shell keeps navigation and topbar structure', () => {
   assert.match(html, /id="nav"/);
   assert.match(html, /class="nav-btn active"[^>]*data-page="diary"/);
   assert.match(html, /data-page="profile"/);
+  assert.match(html, /aria-label="Дневник"/);
+  assert.match(html, /class="nav-label-short">День<\/span>/);
+  assert.equal((html.match(/<svg /g) || []).length, 6);
+  assert.match(html, /id="quick-add" aria-label="Быстрая запись"/);
   assert.match(html, /id="page-title">Дневник/);
   assert.match(html, /id="quick-add"/);
 });
